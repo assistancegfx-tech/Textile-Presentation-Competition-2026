@@ -67,9 +67,9 @@ export async function processAndCompressImage(file: File): Promise<{
     reader.onload = (readerEvent) => {
       const img = new Image();
       img.onload = () => {
-        // Canvas compression
-        const MAX_WIDTH = 800;
-        const MAX_HEIGHT = 800;
+        // Canvas compression for fast network & Google Drive upload
+        const MAX_WIDTH = 480;
+        const MAX_HEIGHT = 480;
         let width = img.width;
         let height = img.height;
 
@@ -97,8 +97,8 @@ export async function processAndCompressImage(file: File): Promise<{
 
         ctx.drawImage(img, 0, 0, width, height);
 
-        // Compress to high-quality JPEG (0.82)
-        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.82);
+        // Compress to efficient JPEG (0.75) for fast upload under Vercel execution limits
+        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.75);
 
         // Estimate size
         const head = 'data:image/jpeg;base64,';

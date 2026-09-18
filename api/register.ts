@@ -118,7 +118,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             'Accept': 'application/json'
           },
           body: JSON.stringify(data),
-          redirect: 'follow'
+          redirect: 'follow',
+          signal: AbortSignal.timeout(8000)
         });
 
         const rawText = await scriptResponse.text();

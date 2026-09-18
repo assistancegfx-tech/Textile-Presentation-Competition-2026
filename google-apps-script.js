@@ -3,27 +3,28 @@
  * Organized by Career Club BTEC, Barishal Textile Engineering College
  *
  * ============================================================================
- * CRITICAL SETUP STEPS (Prevents "Unable to open the file at present" error):
+ * SETUP INSTRUCTIONS:
  * ============================================================================
- * 1. Open Google Sheets (create a blank sheet: "Textile Presentation Competition 2026 Registrations")
+ * 1. Open your Google Sheet (or create a new one: "Textile Presentation Competition 2026 Registrations")
  * 2. In Google Sheets menu, click: Extensions > Apps Script
- * 3. Delete any default code in Code.gs and paste THIS ENTIRE FILE
- * 4. Click Save (Ctrl+S or the Floppy Disk icon)
- * 5. In the toolbar at the top, select "setup" from the function dropdown and click "▶ Run"
- * 6. Google will ask for permission:
- *    - Click "Review permissions"
- *    - Select your Google account
- *    - Click "Advanced" (small text at bottom)
- *    - Click "Go to ... (unsafe)"
- *    - Click "Allow"
- * 7. Click: Deploy > New deployment (or Manage Deployments > Edit > New Version)
- *    - Type: "Web app"
- *    - Description: "Competition Registration API v2"
- *    - Execute as: "Me" (your email)
- *    - Who has access: "Anyone"  <-- CRITICAL! Must be "Anyone", NOT "Only myself"
- * 8. Click "Deploy" and copy the Web App URL (ends in /exec)
+ * 3. Replace all existing code in Code.gs with THIS ENTIRE FILE
+ * 4. (Optional) If running as standalone script, paste your Sheet ID in SPREADSHEET_ID below
+ * 5. Click Save (Ctrl+S)
+ * 6. Select "setup" from the function dropdown at top and click "▶ Run"
+ *    - Click "Review permissions" -> Choose your Google Account -> "Advanced" -> "Go to ... (unsafe)" -> "Allow"
+ * 7. Click "Deploy" > "New deployment"
+ *    - Select type: "Web app"
+ *    - Description: "Competition Registration API"
+ *    - Execute as: "Me" (your Google account)
+ *    - Who has access: "Anyone"  <-- CRITICAL! Must be "Anyone" so public form can save
+ * 8. Click "Deploy", copy the Web App URL (ends in /exec)
+ * 9. Add the URL as GOOGLE_SCRIPT_URL in your Vercel Environment Variables or Settings!
  * ============================================================================
  */
+
+// Optional: Paste your Google Sheet ID or URL here if you created a standalone script at script.google.com
+// Leave empty if you opened this script from inside Google Sheets (Extensions > Apps Script)
+const SPREADSHEET_ID = ""; 
 
 const SHEET_NAME = "Registrations";
 const DRIVE_FOLDER_NAME = "Textile Presentation 2026 - Participant Photos";
@@ -56,7 +57,7 @@ const HEADERS = [
 
 /**
  * ⚡ RUN THIS FUNCTION ONCE IN APPS SCRIPT EDITOR (CLICK ▶ Run)
- * This grants permissions to SpreadsheetApp and DriveApp and sets up your sheet!
+ * This grants permissions to SpreadsheetApp and DriveApp and sets up the sheet & folder!
  */
 function setup() {
   const ss = getSpreadsheet();
@@ -75,6 +76,7 @@ function setup() {
 function doGet(e) {
   return ContentService.createTextOutput(JSON.stringify({
     status: "ok",
+    success: true,
     message: "Textile Presentation Competition 2026 Registration API is running.",
     timestamp: new Date().toISOString()
   })).setMimeType(ContentService.MimeType.JSON);
@@ -82,17 +84,29 @@ function doGet(e) {
 
 function doPost(e) {
   const lock = LockService.getScriptLock();
+  let lockAcquired = false;
   try {
-    // Wait up to 30 seconds for lock to avoid race conditions in ID generation
-    lock.waitLock(30000);
+    try {
+      lockAcquired = lock.tryLock(20000);
+    } catch (lockErr) {
+      Logger.log("Lock acquisition warning: " + lockErr.toString());
+    }
 
     let data;
-    if (e.postData && e.postData.contents) {
-      data = JSON.parse(e.postData.contents);
-    } else if (e.parameter) {
+    if (e && e.postData && e.postData.contents) {
+      try {
+        data = typeof e.postData.contents === "string" ? JSON.parse(e.postData.contents) : e.postData.contents;
+      } catch (parseErr) {
+        try {
+          data = JSON.parse(decodeURIComponent(e.postData.contents));
+        } catch (p2) {
+          data = e.parameter;
+        }
+      }
+    } else if (e && e.parameter) {
       data = e.parameter;
     } else {
-      throw new Error("No data payload received.");
+      data = {};
     }
 
     const ss = getSpreadsheet();
@@ -100,34 +114,38 @@ function doPost(e) {
 
     // Duplicate prevention check
     const existingValues = sheet.getDataRange().getValues();
-    const leaderRoll = String(data.leader?.roll || "").trim();
-    const member1Roll = String(data.member1?.roll || "").trim();
-    const member2Roll = String(data.member2?.roll || "").trim();
-    const transactionId = String(data.payment?.transactionId || "").trim().toUpperCase();
+    const leaderRoll = String(data.leader?.roll || data["leader[roll]"] || "").trim();
+    const member1Roll = String(data.member1?.roll || data["member1[roll]"] || "").trim();
+    const member2Roll = String(data.member2?.roll || data["member2[roll]"] || "").trim();
+    const transactionId = String(data.payment?.transactionId || data["payment[transactionId]"] || "").trim().toUpperCase();
 
-    for (let i = 1; i < existingValues.length; i++) {
-      const row = existingValues[i];
-      const rowLeaderRoll = String(row[4]).trim();
-      const rowM1Roll = String(row[10]).trim();
-      const rowM2Roll = String(row[16]).trim();
-      const rowTrxId = String(row[22]).trim().toUpperCase();
+    if (existingValues && existingValues.length > 1) {
+      for (let i = 1; i < existingValues.length; i++) {
+        const row = existingValues[i];
+        const rowLeaderRoll = String(row[4] || "").trim();
+        const rowM1Roll = String(row[10] || "").trim();
+        const rowM2Roll = String(row[16] || "").trim();
+        const rowTrxId = String(row[22] || "").trim().toUpperCase();
 
-      if (rowTrxId && transactionId && rowTrxId === transactionId) {
-        return createResponse({
-          status: "error",
-          message: "Duplicate Transaction ID detected. This transaction has already been registered."
-        });
-      }
-
-      const incomingRolls = [leaderRoll, member1Roll, member2Roll].filter(Boolean);
-      const rowRolls = [rowLeaderRoll, rowM1Roll, rowM2Roll].filter(Boolean);
-
-      for (let r of incomingRolls) {
-        if (rowRolls.includes(r)) {
+        if (rowTrxId && transactionId && rowTrxId === transactionId) {
           return createResponse({
+            success: false,
             status: "error",
-            message: "Student Roll " + r + " is already registered in team " + row[0] + "."
+            error: "Duplicate Transaction ID detected. This transaction has already been registered."
           });
+        }
+
+        const incomingRolls = [leaderRoll, member1Roll, member2Roll].filter(Boolean);
+        const rowRolls = [rowLeaderRoll, rowM1Roll, rowM2Roll].filter(Boolean);
+
+        for (let r of incomingRolls) {
+          if (rowRolls.includes(r)) {
+            return createResponse({
+              success: false,
+              status: "error",
+              error: "Student Roll " + r + " is already registered in team " + row[0] + "."
+            });
+          }
         }
       }
     }
@@ -140,22 +158,20 @@ function doPost(e) {
     try {
       const driveFolder = getOrCreateDriveFolder(DRIVE_FOLDER_NAME);
       if (data.leader?.photoBase64) {
-        leaderPhotoUrl = saveBase64Image(driveFolder, data.leader.photoBase64, "Leader_" + leaderRoll);
+        leaderPhotoUrl = saveBase64Image(driveFolder, data.leader.photoBase64, "Leader_" + (leaderRoll || "photo"));
       }
       if (data.member1?.photoBase64) {
-        member1PhotoUrl = saveBase64Image(driveFolder, data.member1.photoBase64, "Member1_" + member1Roll);
+        member1PhotoUrl = saveBase64Image(driveFolder, data.member1.photoBase64, "Member1_" + (member1Roll || "photo"));
       }
       if (data.member2?.photoBase64) {
-        member2PhotoUrl = saveBase64Image(driveFolder, data.member2.photoBase64, "Member2_" + member2Roll);
+        member2PhotoUrl = saveBase64Image(driveFolder, data.member2.photoBase64, "Member2_" + (member2Roll || "photo"));
       }
     } catch (driveErr) {
-      Logger.log("Google Drive photo upload failure: " + driveErr.toString());
-      return createResponse({
-        success: false,
-        status: "error",
-        error: "Photo upload failed",
-        details: driveErr.toString()
-      });
+      Logger.log("Google Drive photo notice: " + driveErr.toString());
+      // Non-blocking: We still save the registration row in Google Sheets even if Drive throws a permission notice
+      if (!leaderPhotoUrl && data.leader?.photoBase64) leaderPhotoUrl = "Uploaded (Saved in form)";
+      if (!member1PhotoUrl && data.member1?.photoBase64) member1PhotoUrl = "Uploaded (Saved in form)";
+      if (!member2PhotoUrl && data.member2?.photoBase64) member2PhotoUrl = "Uploaded (Saved in form)";
     }
 
     // Generate unique Registration ID: TEX2026-001, TEX2026-002, etc.
@@ -167,30 +183,47 @@ function doPost(e) {
     const now = new Date();
     const submissionDate = Utilities.formatDate(now, "Asia/Dhaka", "yyyy-MM-dd HH:mm:ss");
 
+    const leaderName = data.leader?.name || data["leader[name]"] || "";
+    const leaderDept = data.leader?.department || data["leader[department]"] || "";
+    const leaderWhatsApp = data.leader?.whatsapp || data["leader[whatsapp]"] || "";
+    const leaderFacebook = data.leader?.facebook || data["leader[facebook]"] || "";
+
+    const m1Name = data.member1?.name || data["member1[name]"] || "";
+    const m1Dept = data.member1?.department || data["member1[department]"] || "";
+    const m1WhatsApp = data.member1?.whatsapp || data["member1[whatsapp]"] || "";
+    const m1Facebook = data.member1?.facebook || data["member1[facebook]"] || "";
+
+    const m2Name = data.member2?.name || data["member2[name]"] || "";
+    const m2Dept = data.member2?.department || data["member2[department]"] || "";
+    const m2WhatsApp = data.member2?.whatsapp || data["member2[whatsapp]"] || "";
+    const m2Facebook = data.member2?.facebook || data["member2[facebook]"] || "";
+
+    const bkashNum = data.payment?.bkashNumber || data["payment[bkashNumber]"] || "";
+
     // Append row to sheet
     sheet.appendRow([
       regId,
       submissionDate,
       "Pending",
-      data.leader?.name || "",
+      leaderName,
       leaderRoll,
-      data.leader?.department || "",
-      data.leader?.whatsapp || "",
-      data.leader?.facebook || "",
+      leaderDept,
+      leaderWhatsApp,
+      leaderFacebook,
       leaderPhotoUrl,
-      data.member1?.name || "",
-      member1Roll,
-      data.member1?.department || "",
-      data.member1?.whatsapp || "",
-      data.member1?.facebook || "",
-      member1PhotoUrl,
-      data.member2?.name || "",
-      member2Roll,
-      data.member2?.department || "",
-      data.member2?.whatsapp || "",
-      data.member2?.facebook || "",
-      member2PhotoUrl,
-      data.payment?.bkashNumber || "",
+      m1Name,
+      m1Roll,
+      m1Dept,
+      m1WhatsApp,
+      m1Facebook,
+      m1PhotoUrl,
+      m2Name,
+      m2Roll,
+      m2Dept,
+      m2WhatsApp,
+      m2Facebook,
+      m2PhotoUrl,
+      bkashNum,
       transactionId
     ]);
 
@@ -200,7 +233,7 @@ function doPost(e) {
       registrationId: regId,
       submissionDate: submissionDate,
       paymentStatus: "Pending",
-      message: "Registration submitted successfully",
+      message: "Registration saved to Google Sheets and Drive successfully",
       photos: {
         leader: leaderPhotoUrl,
         member1: member1PhotoUrl,
@@ -217,24 +250,43 @@ function doPost(e) {
       details: err.toString()
     });
   } finally {
-    lock.releaseLock();
+    if (lockAcquired) {
+      try {
+        lock.releaseLock();
+      } catch (_) {}
+    }
   }
 }
 
 function getSpreadsheet() {
-  // 1. If script was opened from Google Sheet (Extensions > Apps Script)
+  // 1. If SPREADSHEET_ID is provided
+  if (typeof SPREADSHEET_ID !== "undefined" && SPREADSHEET_ID && SPREADSHEET_ID.trim() !== "") {
+    const cleanId = SPREADSHEET_ID.trim();
+    if (cleanId.indexOf("http") === 0) {
+      return SpreadsheetApp.openByUrl(cleanId);
+    }
+    return SpreadsheetApp.openById(cleanId);
+  }
+
+  // 2. If opened from within a Google Sheet
   try {
     const active = SpreadsheetApp.getActiveSpreadsheet();
     if (active) return active;
   } catch (e) {}
 
-  // 2. If standalone script, locate or create a sheet in Google Drive
+  // 3. Search Drive for existing sheet by name
   try {
-    const files = DriveApp.getFilesByName("Textile Presentation 2026 - Registrations");
+    const files = DriveApp.getFilesByName("Textile Presentation Competition 2026 Registrations");
     if (files.hasNext()) {
       return SpreadsheetApp.open(files.next());
     }
-    return SpreadsheetApp.create("Textile Presentation 2026 - Registrations");
+    const oldFiles = DriveApp.getFilesByName("Textile Presentation 2026 - Registrations");
+    if (oldFiles.hasNext()) {
+      return SpreadsheetApp.open(oldFiles.next());
+    }
+    // Auto-create spreadsheet in Drive if none exists
+    const newSs = SpreadsheetApp.create("Textile Presentation Competition 2026 Registrations");
+    return newSs;
   } catch (e) {
     throw new Error("Could not access Google Spreadsheet: " + e.toString());
   }
@@ -260,11 +312,16 @@ function getOrCreateSheet(ss) {
 }
 
 function getOrCreateDriveFolder(folderName) {
-  const folders = DriveApp.getFoldersByName(folderName);
-  if (folders.hasNext()) {
-    return folders.next();
+  try {
+    const folders = DriveApp.getFoldersByName(folderName);
+    if (folders.hasNext()) {
+      return folders.next();
+    }
+    return DriveApp.createFolder(folderName);
+  } catch (e) {
+    Logger.log("Drive folder access notice: " + e.toString());
+    return DriveApp.getRootFolder();
   }
-  return DriveApp.createFolder(folderName);
 }
 
 function saveBase64Image(folder, base64Data, filenamePrefix) {

@@ -231,9 +231,13 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
         // Non-blocking for offline/static deployment
       }
 
-      // 3. Submit to server endpoint (/api/register) with graceful Google Apps Script & client fallback
+      // 3. Submit to server endpoint (/api/register) and Google Apps Script
       let data: SubmissionResponse | null = null;
-      const storedScriptUrl = customScriptUrl || localStorage.getItem('tpc2026_google_script_url') || '';
+      const envScriptUrl = 
+        (import.meta as any).env?.VITE_GOOGLE_SCRIPT_URL || 
+        (import.meta as any).env?.GOOGLE_SCRIPT_URL || 
+        '';
+      const storedScriptUrl = customScriptUrl || envScriptUrl || localStorage.getItem('tpc2026_google_script_url') || '';
 
       try {
         const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -261,24 +265,30 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
         if (fetchErr.message && (fetchErr.message.includes('Duplicate') || fetchErr.message.includes('already') || fetchErr.message.includes('validation failed'))) {
           throw fetchErr;
         }
-        console.warn('Backend API submission warning, trying direct Google Script or fallback:', fetchErr);
+        console.warn('Backend API submission warning, attempting direct Google Apps Script sync:', fetchErr);
       }
 
-      // If backend was unreachable and storedScriptUrl is set, try direct POST to Google Apps Script
-      if (!data && storedScriptUrl && storedScriptUrl.startsWith('http')) {
+      // If backend was unreachable or returned static fallback and storedScriptUrl is set, try direct POST to Google Apps Script
+      if ((!data || data.source !== 'google_sheets') && storedScriptUrl && storedScriptUrl.startsWith('http')) {
         try {
+          // Send as text/plain to avoid browser CORS preflight blocks with Google Apps Script
           const directScriptRes = await fetch(storedScriptUrl, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(formData),
-            mode: 'cors'
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify(formData)
           });
-          const scriptJson = await directScriptRes.json();
+          const rawDirect = await directScriptRes.text();
+          let scriptJson: any = null;
+          try {
+            scriptJson = JSON.parse(rawDirect);
+          } catch {
+            // In case Google Script redirects or returns text
+          }
           if (scriptJson && scriptJson.success) {
             data = scriptJson;
           }
         } catch (directErr) {
-          console.warn('Direct Google Script fetch error:', directErr);
+          console.warn('Direct Google Script fetch notice:', directErr);
         }
       }
 
