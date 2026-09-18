@@ -10,6 +10,9 @@ interface StoredRegistration {
   m1Roll: string;
   m2Roll: string;
   transactionId: string;
+  editCount: number;
+  maxEdits: number;
+  lastEditedAt?: string;
   payload: any;
 }
 
@@ -114,24 +117,37 @@ async function startServer() {
 
   // Main Registration Endpoint
   app.post('/api/register', async (req: Request, res: Response) => {
+    res.setHeader('Content-Type', 'application/json');
     try {
       const data = req.body;
       const customScriptUrl = req.headers['x-google-script-url'] as string | undefined;
       const targetScriptUrl = customScriptUrl || process.env.GOOGLE_SCRIPT_URL;
 
-      // Basic backend sanity validation
       const leader = data?.leader;
       const member1 = data?.member1;
       const member2 = data?.member2;
       const payment = data?.payment;
 
+      // 1. Log: Request received
+      console.log('[REGISTRATION] Request received:', {
+        leaderName: leader?.name || 'Unknown',
+        leaderRoll: leader?.roll || 'Unknown',
+        teamSize: 3,
+        hasPhotos: Boolean(leader?.photoBase64 && member1?.photoBase64 && member2?.photoBase64),
+        transactionId: payment?.transactionId ? `${payment.transactionId.substring(0, 4)}***` : 'None',
+        timestamp: new Date().toISOString()
+      });
+
+      // 2. Validation
       if (!leader?.name || !leader?.roll || !leader?.whatsapp ||
           !member1?.name || !member1?.roll || !member1?.whatsapp ||
           !member2?.name || !member2?.roll || !member2?.whatsapp ||
           !payment?.transactionId || !payment?.bkashNumber) {
+        console.warn('[REGISTRATION] Validation result: FAILED (Missing required participant or payment fields)');
         return res.status(400).json({
           success: false,
-          error: 'Missing required registration or payment fields.'
+          error: 'Unable to submit registration',
+          details: 'Missing required participant or payment fields.'
         });
       }
 
@@ -143,23 +159,29 @@ async function startServer() {
       // Duplicate check against internal registry
       for (const reg of registrationsStore) {
         if (reg.transactionId === transactionId) {
+          console.warn(`[REGISTRATION] Validation result: FAILED (Duplicate transaction ID "${transactionId}")`);
           return res.status(409).json({
             success: false,
-            error: `Duplicate Transaction ID "${transactionId}". This payment was already used for team ${reg.registrationId}.`
+            error: `Duplicate Transaction ID "${transactionId}". This payment was already used for team ${reg.registrationId}.`,
+            details: 'Duplicate transaction ID detected.'
           });
         }
         if ([leaderRoll, m1Roll, m2Roll].some(r => [reg.leaderRoll, reg.m1Roll, reg.m2Roll].includes(r))) {
+          console.warn('[REGISTRATION] Validation result: FAILED (Duplicate student roll)');
           return res.status(409).json({
             success: false,
-            error: 'One or more student roll numbers are already registered with another team.'
+            error: 'One or more student roll numbers are already registered with another team.',
+            details: 'Duplicate roll number detected.'
           });
         }
       }
 
+      console.log(`[REGISTRATION] Validation result: PASSED (Leader: ${leaderRoll}, Member 1: ${m1Roll}, Member 2: ${m2Roll}, Trx: ${transactionId})`);
+
       // If Google Apps Script Web App URL is configured, forward to Google Sheets & Drive
       if (targetScriptUrl && targetScriptUrl.startsWith('http')) {
         try {
-          // Google Apps Script redirect handling: fetch follows redirect automatically
+          console.log('[REGISTRATION] Connecting to Google Apps Script for Google Sheets & Drive...');
           const scriptResponse = await fetch(targetScriptUrl, {
             method: 'POST',
             headers: {
@@ -175,28 +197,43 @@ async function startServer() {
           try {
             scriptData = JSON.parse(rawText);
           } catch (e) {
-            console.error('Non-JSON response from Google Apps Script:', rawText.slice(0, 300));
-            if (rawText.includes('unable to open the file') || rawText.includes('Page not found') || scriptResponse.status === 404) {
-              return res.status(502).json({
-                success: false,
-                error: 'Google Apps Script needs authorization ("Unable to open the file at present"). Please open the Apps Script editor, select "setup" from the function dropdown at top, click "▶ Run", and approve permissions. Then redeploy as a New version.'
-              });
-            }
+            console.error('[REGISTRATION] Google Sheets connection result: FAILED (Non-JSON from Apps Script):', rawText.slice(0, 250));
             return res.status(502).json({
               success: false,
-              error: 'Google Apps Script Web App returned an invalid response. Please ensure your script is deployed as "Execute as: Me" and "Who has access: Anyone".'
+              error: 'Google Apps Script Web App returned an invalid response',
+              details: 'Google Apps Script returned HTML or plain text instead of JSON.'
             });
           }
 
-          if (scriptData.status === 'error') {
+          if (scriptData.status === 'error' || scriptData.success === false) {
+            console.warn('[REGISTRATION] Google Sheets connection result: ERROR from script:', scriptData.message || scriptData.error);
+            if (
+              scriptData.error === 'Photo upload failed' ||
+              (scriptData.message && scriptData.message.toLowerCase().includes('photo'))
+            ) {
+              console.error('[REGISTRATION] Google Drive upload result: FAILED');
+              return res.status(400).json({
+                success: false,
+                error: 'Photo upload failed',
+                details: scriptData.details || scriptData.message || 'Google Drive photo upload failed.'
+              });
+            }
+
             return res.status(400).json({
               success: false,
-              error: scriptData.message || 'Error occurred while saving to Google Sheets.'
+              error: scriptData.error || scriptData.message || 'Unable to submit registration',
+              details: scriptData.details || scriptData.message
             });
           }
 
           const regId = scriptData.registrationId || `TEX2026-${String(idSequence++).padStart(3, '0')}`;
           const nowStr = scriptData.submissionDate || new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' });
+
+          console.log(`[REGISTRATION] Google Sheets connection result: SUCCESS`);
+          const photosOk = Boolean(scriptData.photos?.leader || scriptData.photos?.member1 || scriptData.photos?.member2);
+          console.log(`[REGISTRATION] Google Drive upload result: ${photosOk ? 'SUCCESS (Drive files created)' : 'COMPLETED'}`);
+          console.log(`[REGISTRATION] Registration ID: ${regId}`);
+          console.log(`[REGISTRATION] Final response status: 200 OK`);
 
           registrationsStore.push({
             registrationId: regId,
@@ -206,32 +243,42 @@ async function startServer() {
             m1Roll,
             m2Roll,
             transactionId,
+            editCount: 0,
+            maxEdits: 3,
             payload: data
           });
 
-          return res.json({
+          return res.status(200).json({
             success: true,
             registrationId: regId,
             submissionDate: nowStr,
             paymentStatus: 'Pending',
-            message: 'Registration submitted successfully. Your registration is pending verification.',
+            editCount: 0,
+            maxEdits: 3,
+            remainingEdits: 3,
+            message: 'Registration submitted successfully',
             source: 'google_sheets',
             photos: scriptData.photos
           });
         } catch (fetchErr: any) {
-          console.error('Failed to communicate with Google Apps Script:', fetchErr);
+          console.error('[REGISTRATION] Google Sheets connection result: NETWORK ERROR:', fetchErr.message);
           return res.status(503).json({
             success: false,
-            error: `Failed to connect to Google Sheets backend: ${fetchErr.message || 'Network error'}. Please check your connection and retry.`
+            error: 'Unable to connect to Google Sheets backend',
+            details: fetchErr.message || 'Network error communicating with Google Apps Script'
           });
         }
       }
 
       // Fallback mode (when script URL is not yet connected by organizer)
-      // Generates unique Registration ID, records data securely, informs the user
       const regId = `TEX2026-${String(idSequence++).padStart(3, '0')}`;
       const now = new Date();
-      const submissionDate = now.toISOString().replace('T', ' ').substring(0, 19);
+      const submissionDate = now.toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' });
+
+      console.log('[REGISTRATION] Google Sheets connection result: Fallback mode (stored in server memory registry)');
+      console.log('[REGISTRATION] Google Drive upload result: Processed photos in registration payload');
+      console.log(`[REGISTRATION] Registration ID: ${regId}`);
+      console.log(`[REGISTRATION] Final response status: 200 OK`);
 
       registrationsStore.push({
         registrationId: regId,
@@ -241,24 +288,214 @@ async function startServer() {
         m1Roll,
         m2Roll,
         transactionId,
+        editCount: 0,
+        maxEdits: 3,
         payload: data
       });
 
-      return res.json({
+      return res.status(200).json({
         success: true,
         registrationId: regId,
         submissionDate,
         paymentStatus: 'Pending',
-        message: 'Registration submitted successfully. Your registration is pending verification.',
+        editCount: 0,
+        maxEdits: 3,
+        remainingEdits: 3,
+        message: 'Registration submitted successfully',
         source: 'local_fallback',
         warning: 'Google Apps Script URL is not configured yet. Record stored in application registry.'
       });
 
     } catch (err: any) {
-      console.error('Server registration error:', err);
+      console.error('[REGISTRATION] Final response status: 500 ERROR:', err);
       return res.status(500).json({
         success: false,
-        error: err?.message || 'An unexpected internal error occurred during registration.'
+        error: 'Unable to submit registration',
+        details: err?.message || 'An unexpected internal error occurred during registration.'
+      });
+    }
+  });
+
+  // GET Registration by Registration No
+  app.get('/api/registration/:regId', (req: Request, res: Response) => {
+    const requestedId = String(req.params.regId || '').trim().toUpperCase();
+    if (!requestedId) {
+      return res.status(400).json({ success: false, error: 'Please provide a valid Registration Number.' });
+    }
+
+    const reg = registrationsStore.find(r => r.registrationId.trim().toUpperCase() === requestedId);
+    if (!reg) {
+      return res.status(404).json({
+        success: false,
+        error: `No registration record found for "${requestedId}". Please check the registration number and retry.`
+      });
+    }
+
+    const editCount = reg.editCount ?? 0;
+    const maxEdits = reg.maxEdits ?? 3;
+    const remainingEdits = Math.max(0, maxEdits - editCount);
+
+    return res.json({
+      success: true,
+      registration: {
+        registrationId: reg.registrationId,
+        submissionDate: reg.submissionDate,
+        paymentStatus: reg.paymentStatus,
+        editCount,
+        maxEdits,
+        remainingEdits,
+        canEdit: remainingEdits > 0,
+        lastEditedAt: reg.lastEditedAt,
+        formData: reg.payload
+      }
+    });
+  });
+
+  // Client sync endpoint (restores local registration into memory cache if server restarted)
+  app.post('/api/registration/sync', (req: Request, res: Response) => {
+    const { registration } = req.body;
+    if (!registration || !registration.registrationId) {
+      return res.status(400).json({ success: false, error: 'Invalid registration payload.' });
+    }
+
+    const regId = String(registration.registrationId).trim().toUpperCase();
+    const existingIndex = registrationsStore.findIndex(r => r.registrationId.trim().toUpperCase() === regId);
+
+    const storedItem: StoredRegistration = {
+      registrationId: registration.registrationId,
+      submissionDate: registration.submissionDate || new Date().toISOString(),
+      paymentStatus: registration.paymentStatus || 'Pending',
+      leaderRoll: String(registration.formData?.leader?.roll || '').trim(),
+      m1Roll: String(registration.formData?.member1?.roll || '').trim(),
+      m2Roll: String(registration.formData?.member2?.roll || '').trim(),
+      transactionId: String(registration.formData?.payment?.transactionId || '').trim().toUpperCase(),
+      editCount: typeof registration.editCount === 'number' ? registration.editCount : 0,
+      maxEdits: 3,
+      lastEditedAt: registration.lastEditedAt,
+      payload: registration.formData
+    };
+
+    if (existingIndex >= 0) {
+      // Don't overwrite if existing has higher editCount
+      if (registrationsStore[existingIndex].editCount <= storedItem.editCount) {
+        registrationsStore[existingIndex] = storedItem;
+      }
+    } else {
+      registrationsStore.push(storedItem);
+    }
+
+    return res.json({ success: true });
+  });
+
+  // PUT / Edit Registration by Registration No (Max 3 edits allowed)
+  app.put('/api/registration/:regId', async (req: Request, res: Response) => {
+    try {
+      const requestedId = String(req.params.regId || '').trim().toUpperCase();
+      const updatedData = req.body?.formData;
+
+      if (!requestedId || !updatedData) {
+        return res.status(400).json({ success: false, error: 'Invalid update payload or missing registration number.' });
+      }
+
+      let reg = registrationsStore.find(r => r.registrationId.trim().toUpperCase() === requestedId);
+
+      // If not found in server memory (e.g. server restarted), check if client passed backup
+      if (!reg && req.body?.backupRegistration) {
+        const backup = req.body.backupRegistration;
+        reg = {
+          registrationId: backup.registrationId || requestedId,
+          submissionDate: backup.submissionDate || new Date().toISOString(),
+          paymentStatus: backup.paymentStatus || 'Pending',
+          leaderRoll: String(backup.formData?.leader?.roll || '').trim(),
+          m1Roll: String(backup.formData?.member1?.roll || '').trim(),
+          m2Roll: String(backup.formData?.member2?.roll || '').trim(),
+          transactionId: String(backup.formData?.payment?.transactionId || '').trim().toUpperCase(),
+          editCount: typeof backup.editCount === 'number' ? backup.editCount : 0,
+          maxEdits: 3,
+          lastEditedAt: backup.lastEditedAt,
+          payload: backup.formData || updatedData
+        };
+        registrationsStore.push(reg);
+      }
+
+      if (!reg) {
+        return res.status(404).json({
+          success: false,
+          error: `Registration "${requestedId}" not found. Unable to apply edit.`
+        });
+      }
+
+      const currentEdits = reg.editCount ?? 0;
+      if (currentEdits >= 3) {
+        return res.status(403).json({
+          success: false,
+          error: `Maximum edit limit reached (3 of 3 edits used). Changes are locked for registration ${requestedId}. Please contact Career Club BTEC organizers if critical correction is needed.`
+        });
+      }
+
+      // Check required fields
+      const leader = updatedData.leader;
+      const member1 = updatedData.member1;
+      const member2 = updatedData.member2;
+      if (!leader?.name || !leader?.roll || !leader?.whatsapp ||
+          !member1?.name || !member1?.roll || !member1?.whatsapp ||
+          !member2?.name || !member2?.roll || !member2?.whatsapp) {
+        return res.status(400).json({ success: false, error: 'Please provide all required participant fields.' });
+      }
+
+      const newLeaderRoll = String(leader.roll).trim();
+      const newM1Roll = String(member1.roll).trim();
+      const newM2Roll = String(member2.roll).trim();
+
+      // Ensure new rolls do not clash with OTHER registrations
+      for (const other of registrationsStore) {
+        if (other.registrationId.trim().toUpperCase() === requestedId) continue;
+        if ([newLeaderRoll, newM1Roll, newM2Roll].some(r => [other.leaderRoll, other.m1Roll, other.m2Roll].includes(r))) {
+          return res.status(409).json({
+            success: false,
+            error: 'One or more of the updated student roll numbers are already registered with another team.'
+          });
+        }
+      }
+
+      // Apply updates and increment editCount
+      reg.payload = {
+        ...reg.payload,
+        ...updatedData,
+        // Preserve payment if not explicitly altered
+        payment: {
+          ...reg.payload.payment,
+          ...(updatedData.payment || {})
+        }
+      };
+      reg.leaderRoll = newLeaderRoll;
+      reg.m1Roll = newM1Roll;
+      reg.m2Roll = newM2Roll;
+      reg.editCount = currentEdits + 1;
+      reg.lastEditedAt = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' });
+
+      const remaining = Math.max(0, 3 - reg.editCount);
+
+      return res.json({
+        success: true,
+        message: `Registration updated successfully. You have ${remaining} of 3 edits remaining.`,
+        registration: {
+          registrationId: reg.registrationId,
+          submissionDate: reg.submissionDate,
+          paymentStatus: reg.paymentStatus,
+          editCount: reg.editCount,
+          maxEdits: 3,
+          remainingEdits: remaining,
+          canEdit: remaining > 0,
+          lastEditedAt: reg.lastEditedAt,
+          formData: reg.payload
+        }
+      });
+    } catch (e: any) {
+      console.error('Failed to update registration:', e);
+      return res.status(500).json({
+        success: false,
+        error: e.message || 'An unexpected error occurred while saving edits.'
       });
     }
   });

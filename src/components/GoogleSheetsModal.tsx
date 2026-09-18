@@ -250,7 +250,18 @@ function getOrCreateDriveFolder(name) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ scriptUrl: url })
       });
-      const data = await res.json();
+      const rawText = await res.text();
+      let data: any = {};
+      try {
+        data = JSON.parse(rawText);
+      } catch {
+        console.error('Non-JSON response from test-google-script:', rawText);
+        setTestResult({
+          success: false,
+          message: `Server returned non-JSON response (${res.status}). Check script deployment.`
+        });
+        return;
+      }
 
       if (data.success) {
         setTestResult({

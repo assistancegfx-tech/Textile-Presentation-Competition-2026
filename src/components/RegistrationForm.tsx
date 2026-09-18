@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Users, CreditCard, CheckCircle2, ChevronRight, ChevronLeft, AlertCircle, ShieldAlert, Sparkles, Wand2, RotateCcw, FastForward, FileSpreadsheet, ExternalLink } from 'lucide-react';
+import { User, Users, CreditCard, CheckCircle2, ChevronRight, ChevronLeft, AlertCircle, ShieldAlert, Sparkles, Wand2, RotateCcw, FastForward, FileSpreadsheet, ExternalLink, Search } from 'lucide-react';
 import { RegistrationFormData, SubmissionResponse, Participant } from '../types';
 import { ParticipantStepForm } from './ParticipantStepForm';
 import { PaymentStepForm } from './PaymentStepForm';
@@ -34,9 +34,17 @@ const initialFormData = (): RegistrationFormData => ({
 
 interface RegistrationFormProps {
   customScriptUrl?: string;
+  onOpenViewEditModal?: (regId?: string) => void;
+  onOpenGmailModal?: (prefill?: any) => void;
+  onRegistrationSuccess?: (result: SubmissionResponse, formData: RegistrationFormData) => void;
 }
 
-export const RegistrationForm: React.FC<RegistrationFormProps> = ({ customScriptUrl }) => {
+export const RegistrationForm: React.FC<RegistrationFormProps> = ({
+  customScriptUrl,
+  onOpenViewEditModal,
+  onOpenGmailModal,
+  onRegistrationSuccess
+}) => {
   const [currentStep, setCurrentStep] = useState<number>(0);
   const [formData, setFormData] = useState<RegistrationFormData>(initialFormData());
   const [stepErrors, setStepErrors] = useState<Record<string, string>>({});
@@ -220,12 +228,19 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ customScript
         })
       });
 
-      if (!dupCheckRes.ok) {
-        const dupData = await dupCheckRes.json();
-        throw new Error(dupData.message || 'Duplicate registration detected.');
+      const dupRawText = await dupCheckRes.text();
+      let dupData: any = {};
+      try {
+        dupData = JSON.parse(dupRawText);
+      } catch {
+        console.error('Non-JSON response from duplicate validation:', dupRawText);
       }
 
-      // 2. Submit to server endpoint
+      if (!dupCheckRes.ok || dupData?.duplicate) {
+        throw new Error(dupData?.message || 'Duplicate registration detected.');
+      }
+
+      // 2. Submit to server endpoint (/api/register)
       const headers: Record<string, string> = {
         'Content-Type': 'application/json'
       };
@@ -239,10 +254,24 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ customScript
         body: JSON.stringify(formData)
       });
 
-      const data: SubmissionResponse = await res.json();
+      const rawText = await res.text();
+      let data: SubmissionResponse;
+
+      try {
+        data = JSON.parse(rawText);
+      } catch {
+        console.error('Non-JSON API response from /api/register:', rawText);
+        let snippet = rawText.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+        if (snippet.length > 150) snippet = snippet.slice(0, 150) + '...';
+        throw new Error(
+          `Server returned a non-JSON response (${res.status}): ${snippet || 'Unable to parse server output.'}`
+        );
+      }
 
       if (!res.ok || !data.success) {
-        throw new Error(data.error || data.message || 'Registration failed. Please try again.');
+        throw new Error(
+          data?.error || (data as any)?.message || 'Registration submission failed.'
+        );
       }
 
       // Sync directly with connected Google Sheet upon submission if already authenticated
@@ -298,10 +327,49 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ customScript
         console.warn('Direct Google Sheet append warning:', sheetErr);
       }
 
-      // Success!
+      // Cache registration locally for view, search, and edit
+      const regId = data.registrationId || `TEX2026-${Date.now().toString().slice(-4)}`;
+      const subDate = data.submissionDate || new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' });
+
+      try {
+        const record = {
+          registrationId: regId,
+          submissionDate: subDate,
+          paymentStatus: data.paymentStatus || 'Pending',
+          editCount: data.editCount ?? 0,
+          maxEdits: 3,
+          remainingEdits: 3,
+          canEdit: true,
+          formData
+        };
+        const existingStr = localStorage.getItem('tpc2026_saved_registrations');
+        const list = existingStr ? JSON.parse(existingStr) : [];
+        const idx = list.findIndex((r: any) => r.registrationId?.toUpperCase() === regId.toUpperCase());
+        if (idx >= 0) {
+          list[idx] = { ...list[idx], ...record };
+        } else {
+          list.unshift(record);
+        }
+        localStorage.setItem('tpc2026_saved_registrations', JSON.stringify(list));
+        localStorage.setItem('tpc2026_last_reg_id', regId);
+        localStorage.setItem('tpc2026_latest_submission', JSON.stringify({ result: data, formData }));
+      } catch (cacheErr) {
+        console.warn('Could not cache registration locally:', cacheErr);
+      }
+
+      // Success! Set result state
       setSubmissionResult(data);
-      // Clear sensitive form payment data in background
-      // while preserving view for review/receipt
+
+      // Redirect to /registration-success as required
+      try {
+        window.history.pushState({ regId }, '', '/registration-success');
+        window.location.hash = '#/registration-success';
+      } catch (_) {}
+
+      if (onRegistrationSuccess) {
+        onRegistrationSuccess(data, formData);
+      }
+
     } catch (err: any) {
       console.error('Submission error:', err);
       setSubmitError(err.message || 'An error occurred during submission. Please retry.');
@@ -322,7 +390,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ customScript
     <div id="registration" className="py-10 md:py-16 relative overflow-hidden animate-in fade-in duration-200">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Heading */}
-        <div className="text-center max-w-xl mx-auto mb-8 space-y-2">
+        <div className="text-center max-w-xl mx-auto mb-8 space-y-2.5">
           <span className="text-xs font-extrabold uppercase tracking-wider text-[#16A34A] bg-[#22C55E]/10 px-3 py-1 rounded-full">
             Official Team Portal
           </span>
@@ -332,6 +400,18 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ customScript
           <p className="text-slate-600 text-xs sm:text-sm">
             Complete your 3-member team profile (Leader + 2 Members) and submit the 300 BDT registration fee.
           </p>
+
+          {/* Quick link to View/Edit Registration */}
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={() => onOpenViewEditModal?.()}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold text-slate-800 bg-white border border-slate-300 hover:border-[#16A34A] hover:text-[#16A34A] shadow-2xs transition active:scale-98 group"
+            >
+              <Search className="w-3.5 h-3.5 text-[#16A34A] group-hover:scale-110 transition" />
+              <span>Already registered? View or Edit your team (up to 3 edits)</span>
+            </button>
+          </div>
         </div>
 
         {/* If successfully submitted, display Success View */}
@@ -339,7 +419,8 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ customScript
           <SuccessView
             result={submissionResult}
             formData={formData}
-            onRegisterAnother={handleRegisterAnother}
+            onClose={handleRegisterAnother}
+            onOpenGmailModal={onOpenGmailModal}
           />
         ) : (
           /* Multi-step Registration Card */

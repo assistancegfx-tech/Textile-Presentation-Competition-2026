@@ -1,21 +1,26 @@
 import React, { useEffect, useState } from 'react';
-import { CheckCircle2, Copy, Check, Printer, Download, PlusCircle, Calendar, MapPin, Building2, ShieldAlert, Award, QrCode, FileSpreadsheet, ExternalLink, Loader2, AlertCircle } from 'lucide-react';
+import { CheckCircle2, Copy, Check, Download, Calendar, MapPin, Building2, ShieldAlert, Award, QrCode, FileSpreadsheet, ExternalLink, Loader2, AlertCircle, X, Mail } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { SubmissionResponse, RegistrationFormData } from '../types';
 import { BtecLogo, CareerClubLogo } from './Logos';
 import { getAccessToken, googleSignIn } from '../services/googleAuth';
 import { findOrCreateSpreadsheet, appendRegistrationToSheet } from '../services/sheetsService';
+import { generateRegistrationPdf } from '../utils/pdfGenerator';
 
 interface SuccessViewProps {
   result: SubmissionResponse;
   formData: RegistrationFormData;
-  onRegisterAnother: () => void;
+  onClose: () => void;
+  onRegisterAnother?: () => void;
+  onOpenGmailModal?: (prefill?: any) => void;
 }
 
 export const SuccessView: React.FC<SuccessViewProps> = ({
   result,
   formData,
-  onRegisterAnother
+  onClose,
+  onRegisterAnother,
+  onOpenGmailModal
 }) => {
   const [copied, setCopied] = useState(false);
   const regId = result.registrationId || 'TEX2026-001';
@@ -25,6 +30,34 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
   const [sheetUrl, setSheetUrl] = useState<string | null>(initialSheetUrl);
   const [isSaving, setIsSaving] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+
+  // Save to local registry so participant can search and edit it up to 3 times
+  useEffect(() => {
+    try {
+      const existingStr = localStorage.getItem('tpc2026_saved_registrations');
+      const list = existingStr ? JSON.parse(existingStr) : [];
+      const record = {
+        registrationId: regId,
+        submissionDate: result.submissionDate || new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' }),
+        paymentStatus: result.paymentStatus || 'Pending',
+        editCount: result.editCount ?? 0,
+        maxEdits: 3,
+        remainingEdits: 3,
+        canEdit: true,
+        formData
+      };
+      const idx = list.findIndex((r: any) => r.registrationId?.toUpperCase() === regId.toUpperCase());
+      if (idx >= 0) {
+        list[idx] = { ...list[idx], ...record };
+      } else {
+        list.unshift(record);
+      }
+      localStorage.setItem('tpc2026_saved_registrations', JSON.stringify(list));
+      localStorage.setItem('tpc2026_last_reg_id', regId);
+    } catch (e) {
+      console.warn('Could not cache registration locally:', e);
+    }
+  }, [regId, result, formData]);
 
   const handleManualSaveToSheet = async () => {
     setIsSaving(true);
@@ -103,71 +136,14 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
-
-  const handleDownloadDetails = () => {
-    const textContent = `=====================================================
-TEXTILE PRESENTATION COMPETITION 2026
-OFFICIAL REGISTRATION VOUCHER
-Organized by: Career Club BTEC
-Barishal Textile Engineering College
-=====================================================
-
-REGISTRATION ID: ${regId}
-STATUS: Payment Verification Pending
-SUBMISSION DATE: ${result.submissionDate || new Date().toLocaleString()}
-
-EVENT DETAILS:
-- Event: Textile Presentation Competition 2026
-- Date: 4 October 2026 (Sunday • 9:00 AM BST)
-- Venue: Barishal Textile Engineering College Auditorium
-- Organizer: Career Club BTEC
-
-TEAM PARTICIPANTS:
-1. GROUP LEADER:
-   - Name: ${formData.leader.name}
-   - Roll: ${formData.leader.roll}
-   - Department: ${formData.leader.department}
-   - WhatsApp: ${formData.leader.whatsapp}
-   - Facebook: ${formData.leader.facebook}
-
-2. MEMBER 1:
-   - Name: ${formData.member1.name}
-   - Roll: ${formData.member1.roll}
-   - Department: ${formData.member1.department}
-   - WhatsApp: ${formData.member1.whatsapp}
-   - Facebook: ${formData.member1.facebook}
-
-3. MEMBER 2:
-   - Name: ${formData.member2.name}
-   - Roll: ${formData.member2.roll}
-   - Department: ${formData.member2.department}
-   - WhatsApp: ${formData.member2.whatsapp}
-   - Facebook: ${formData.member2.facebook}
-
-PAYMENT DETAILS:
-- Sender bKash Number: ${formData.payment.bkashNumber}
-- Transaction ID (TrxID): ${formData.payment.transactionId}
-- Verification: Pending verification by Career Club BTEC finance team
-
-NOTE:
-Please preserve this document or registration ID for entrance
-verification at the auditorium on 4 October 2026.
-=====================================================
-© 2026 Career Club BTEC. All Rights Reserved.
-`;
-
-    const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Registration_${regId}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+  const handleDownloadPdf = () => {
+    generateRegistrationPdf({
+      registrationId: regId,
+      submissionDate: result.submissionDate || new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' }),
+      paymentStatus: result.paymentStatus || 'Pending Verification',
+      editCount: result.editCount ?? 0,
+      formData
+    });
   };
 
   return (
@@ -395,14 +371,14 @@ verification at the auditorium on 4 October 2026.
         </div>
       </div>
 
-      {/* Action Buttons: Print, Download, View in Sheet, Register Another */}
-      <div className="flex flex-col sm:flex-row flex-wrap items-center justify-center gap-3 print:hidden">
+      {/* Action Buttons: View in Sheet (if enabled), Download Registration Info PDF, and Close */}
+      <div className="flex flex-col sm:flex-row flex-wrap items-center justify-center gap-3.5 print:hidden">
         {sheetUrl && (
           <a
             href={sheetUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl text-sm font-bold text-white bg-[#0F9D58] hover:bg-[#0B8043] shadow-md transition"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl text-sm font-bold text-white bg-[#0F9D58] hover:bg-[#0B8043] shadow-md transition"
           >
             <FileSpreadsheet className="w-4 h-4" />
             <span>View in Google Sheet</span>
@@ -412,29 +388,35 @@ verification at the auditorium on 4 October 2026.
 
         <button
           type="button"
-          onClick={handlePrint}
-          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl text-sm font-bold text-slate-800 bg-white hover:bg-slate-50 border border-slate-300 shadow-xs transition"
+          onClick={handleDownloadPdf}
+          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl text-sm font-extrabold text-white bg-[#16A34A] hover:bg-[#15803D] active:scale-98 shadow-md shadow-[#16A34A]/20 transition"
         >
-          <Printer className="w-4 h-4 text-[#16A34A]" />
-          <span>Print Registration</span>
+          <Download className="w-4 h-4" />
+          <span>Download Registration Info PDF</span>
         </button>
+
+        {onOpenGmailModal && (
+          <button
+            type="button"
+            onClick={() => onOpenGmailModal({
+              registrationId: regId,
+              submissionDate: result.submissionDate || new Date().toLocaleDateString(),
+              formData
+            })}
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl text-sm font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 shadow-xs active:scale-98 transition"
+          >
+            <Mail className="w-4 h-4 text-rose-600" />
+            <span>Email Voucher via Gmail</span>
+          </button>
+        )}
 
         <button
           type="button"
-          onClick={handleDownloadDetails}
-          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl text-sm font-bold text-slate-800 bg-white hover:bg-slate-50 border border-slate-300 shadow-xs transition"
+          onClick={onClose}
+          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl text-sm font-bold text-slate-700 bg-white hover:bg-slate-100 border border-slate-300 shadow-xs active:scale-98 transition"
         >
-          <Download className="w-4 h-4 text-[#16A34A]" />
-          <span>Download Registration Details</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={onRegisterAnother}
-          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl text-sm font-extrabold text-white bg-[#0A192F] hover:bg-[#122846] transition shadow-md"
-        >
-          <PlusCircle className="w-4 h-4 text-[#22C55E]" />
-          <span>Register Another Team</span>
+          <X className="w-4 h-4" />
+          <span>Close</span>
         </button>
       </div>
     </div>

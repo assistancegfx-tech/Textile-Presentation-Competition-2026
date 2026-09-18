@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, X, ArrowRight, Database, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Menu, X, ArrowRight, Database, CheckCircle2, AlertCircle, Search, Mail } from 'lucide-react';
 import { BrandHeaderCombo } from './Logos';
 import { PageId } from '../types';
 
@@ -8,13 +8,17 @@ interface NavbarProps {
   onNavigate: (page: PageId) => void;
   onOpenGoogleSheetsModal: () => void;
   isSheetsConfigured: boolean;
+  onOpenViewEditModal?: (regId?: string) => void;
+  onOpenGmailModal?: (prefill?: any) => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   currentPage,
   onNavigate,
   onOpenGoogleSheetsModal,
-  isSheetsConfigured
+  isSheetsConfigured,
+  onOpenViewEditModal,
+  onOpenGmailModal
 }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -79,7 +83,29 @@ export const Navbar: React.FC<NavbarProps> = ({
           </nav>
 
           {/* Action CTAs */}
-          <div className="hidden lg:flex items-center gap-3">
+          <div className="hidden lg:flex items-center gap-2">
+            {/* Find / Edit Registration CTA */}
+            <button
+              type="button"
+              onClick={() => onOpenViewEditModal?.()}
+              title="Find and Edit registration details (up to 3 times)"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold rounded-xl border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 hover:text-[#0A192F] transition shadow-2xs"
+            >
+              <Search className="w-3.5 h-3.5 text-[#16A34A]" />
+              <span>Find / Edit</span>
+            </button>
+
+            {/* Gmail Communications Hub */}
+            <button
+              type="button"
+              onClick={() => onOpenGmailModal?.()}
+              title="Gmail Communications Hub: Send vouchers & competition updates"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold rounded-xl border border-rose-200 text-slate-700 bg-white hover:bg-rose-50/50 hover:text-rose-600 transition shadow-2xs"
+            >
+              <Mail className="w-3.5 h-3.5 text-rose-500" />
+              <span>Gmail Hub</span>
+            </button>
+
             {/* Google Sheets Status Pill / Setup */}
             <button
               type="button"
@@ -160,6 +186,30 @@ export const Navbar: React.FC<NavbarProps> = ({
           </nav>
 
           <div className="pt-2 border-t border-slate-100 flex flex-col gap-2.5">
+            <button
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                onOpenViewEditModal?.();
+              }}
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-3 text-xs font-bold rounded-xl border border-slate-300 bg-white text-slate-800 shadow-2xs"
+            >
+              <Search className="w-4 h-4 text-[#16A34A]" />
+              <span>Find & Edit Registration (Up to 3 Edits)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                onOpenGmailModal?.();
+              }}
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-3 text-xs font-bold rounded-xl border border-rose-200 bg-rose-50/50 text-rose-800 shadow-2xs"
+            >
+              <Mail className="w-4 h-4 text-rose-500" />
+              <span>Gmail Communications Hub</span>
+            </button>
+
             <button
               type="button"
               onClick={() => {

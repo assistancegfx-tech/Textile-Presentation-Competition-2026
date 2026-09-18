@@ -4,6 +4,7 @@ export interface Participant {
   department: string;
   whatsapp: string;
   facebook: string;
+  email?: string;
   photoBase64?: string;
   photoPreview?: string;
   photoName?: string;
@@ -27,6 +28,9 @@ export interface SubmissionResponse {
   registrationId?: string;
   submissionDate?: string;
   paymentStatus?: 'Pending' | 'Verified' | 'Rejected';
+  editCount?: number;
+  maxEdits?: number;
+  remainingEdits?: number;
   message: string;
   error?: string;
   source?: 'google_sheets' | 'local_fallback';
@@ -35,6 +39,18 @@ export interface SubmissionResponse {
     member1?: string;
     member2?: string;
   };
+}
+
+export interface RegisteredTeamRecord {
+  registrationId: string;
+  submissionDate: string;
+  paymentStatus: 'Pending' | 'Verified' | 'Rejected';
+  editCount: number;
+  maxEdits: number;
+  remainingEdits: number;
+  canEdit: boolean;
+  lastEditedAt?: string;
+  formData: RegistrationFormData;
 }
 
 export interface ExistingRegistrationRecord {
@@ -72,4 +88,4 @@ export interface ExistingRegistrationRecord {
   };
 }
 
-export type PageId = 'home' | 'event' | 'registration' | 'guidelines' | 'contact';
+export type PageId = 'home' | 'event' | 'registration' | 'guidelines' | 'contact' | 'registration-success';

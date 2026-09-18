@@ -149,7 +149,13 @@ function doPost(e) {
         member2PhotoUrl = saveBase64Image(driveFolder, data.member2.photoBase64, "Member2_" + member2Roll);
       }
     } catch (driveErr) {
-      Logger.log("Warning: Drive photo upload issue: " + driveErr.toString());
+      Logger.log("Google Drive photo upload failure: " + driveErr.toString());
+      return createResponse({
+        success: false,
+        status: "error",
+        error: "Photo upload failed",
+        details: driveErr.toString()
+      });
     }
 
     // Generate unique Registration ID: TEX2026-001, TEX2026-002, etc.
@@ -189,11 +195,12 @@ function doPost(e) {
     ]);
 
     return createResponse({
+      success: true,
       status: "success",
       registrationId: regId,
       submissionDate: submissionDate,
       paymentStatus: "Pending",
-      message: "Registration successfully recorded in Google Sheets.",
+      message: "Registration submitted successfully",
       photos: {
         leader: leaderPhotoUrl,
         member1: member1PhotoUrl,
@@ -204,8 +211,10 @@ function doPost(e) {
   } catch (err) {
     Logger.log("Error in doPost: " + err.toString());
     return createResponse({
+      success: false,
       status: "error",
-      message: err.toString()
+      error: "Unable to submit registration",
+      details: err.toString()
     });
   } finally {
     lock.releaseLock();
@@ -259,25 +268,22 @@ function getOrCreateDriveFolder(folderName) {
 }
 
 function saveBase64Image(folder, base64Data, filenamePrefix) {
-  try {
-    let contentType = "image/jpeg";
-    let data = base64Data;
-    if (base64Data.indexOf("data:") === 0) {
-      const parts = base64Data.split(",");
-      const match = parts[0].match(/:(.*?);/);
-      if (match) {
-        contentType = match[1];
-      }
-      data = parts[1];
+  if (!base64Data) return "";
+  let contentType = "image/jpeg";
+  let data = base64Data;
+  if (base64Data.indexOf("data:") === 0) {
+    const parts = base64Data.split(",");
+    const match = parts[0].match(/:(.*?);/);
+    if (match) {
+      contentType = match[1];
     }
-    const decoded = Utilities.base64Decode(data);
-    const blob = Utilities.newBlob(decoded, contentType, filenamePrefix + "_" + Date.now() + ".jpg");
-    const file = folder.createFile(blob);
-    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-    return file.getUrl();
-  } catch (e) {
-    return "";
+    data = parts[1];
   }
+  const decoded = Utilities.base64Decode(data);
+  const blob = Utilities.newBlob(decoded, contentType, filenamePrefix + "_" + Date.now() + ".jpg");
+  const file = folder.createFile(blob);
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  return file.getUrl();
 }
 
 function createResponse(obj) {
