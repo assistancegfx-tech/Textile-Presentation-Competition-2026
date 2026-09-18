@@ -1,10 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import { CheckCircle2, Copy, Check, Download, Calendar, MapPin, Building2, ShieldAlert, Award, QrCode, FileSpreadsheet, ExternalLink, Loader2, AlertCircle, X, Mail } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { CheckCircle2, Copy, Check, Download, Calendar, MapPin, Building2, ShieldAlert, Award, QrCode, X } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { SubmissionResponse, RegistrationFormData } from '../types';
 import { BtecLogo, CareerClubLogo } from './Logos';
-import { getAccessToken, googleSignIn } from '../services/googleAuth';
-import { findOrCreateSpreadsheet, appendRegistrationToSheet } from '../services/sheetsService';
 import { generateRegistrationPdf } from '../utils/pdfGenerator';
 
 interface SuccessViewProps {
@@ -12,24 +10,16 @@ interface SuccessViewProps {
   formData: RegistrationFormData;
   onClose: () => void;
   onRegisterAnother?: () => void;
-  onOpenGmailModal?: (prefill?: any) => void;
 }
 
 export const SuccessView: React.FC<SuccessViewProps> = ({
   result,
   formData,
   onClose,
-  onRegisterAnother,
-  onOpenGmailModal
+  onRegisterAnother
 }) => {
   const [copied, setCopied] = useState(false);
   const regId = result.registrationId || 'TEX2026-001';
-  const initialSheetUrl = localStorage.getItem('tpc2026_active_spreadsheet_url') ||
-    (localStorage.getItem('tpc2026_active_spreadsheet_id') ? `https://docs.google.com/spreadsheets/d/${localStorage.getItem('tpc2026_active_spreadsheet_id')}/edit` : null);
-
-  const [sheetUrl, setSheetUrl] = useState<string | null>(initialSheetUrl);
-  const [isSaving, setIsSaving] = useState(false);
-  const [syncError, setSyncError] = useState<string | null>(null);
 
   // Save to local registry so participant can search and edit it up to 3 times
   useEffect(() => {
@@ -58,63 +48,6 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
       console.warn('Could not cache registration locally:', e);
     }
   }, [regId, result, formData]);
-
-  const handleManualSaveToSheet = async () => {
-    setIsSaving(true);
-    setSyncError(null);
-    try {
-      let token = await getAccessToken();
-      if (!token) {
-        const loginRes = await googleSignIn();
-        token = loginRes?.accessToken || null;
-      }
-      if (!token) throw new Error('Google Sign-In is required to save to Google Sheet.');
-
-      let sheetId = localStorage.getItem('tpc2026_active_spreadsheet_id');
-      let targetUrl = localStorage.getItem('tpc2026_active_spreadsheet_url');
-      if (!sheetId) {
-        const sheetInfo = await findOrCreateSpreadsheet(token);
-        sheetId = sheetInfo.id;
-        targetUrl = sheetInfo.url;
-        localStorage.setItem('tpc2026_active_spreadsheet_id', sheetId);
-        localStorage.setItem('tpc2026_active_spreadsheet_url', targetUrl);
-      }
-
-      const rowValues = [
-        regId,
-        result.submissionDate || new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' }),
-        'Pending',
-        formData.leader.name,
-        formData.leader.roll,
-        formData.leader.department,
-        formData.leader.whatsapp,
-        formData.leader.facebook,
-        formData.leader.photoPreview || '',
-        formData.member1.name,
-        formData.member1.roll,
-        formData.member1.department,
-        formData.member1.whatsapp,
-        formData.member1.facebook,
-        formData.member1.photoPreview || '',
-        formData.member2.name,
-        formData.member2.roll,
-        formData.member2.department,
-        formData.member2.whatsapp,
-        formData.member2.facebook,
-        formData.member2.photoPreview || '',
-        formData.payment.bkashNumber,
-        formData.payment.transactionId
-      ];
-
-      await appendRegistrationToSheet(token, sheetId, rowValues);
-      setSheetUrl(targetUrl || `https://docs.google.com/spreadsheets/d/${sheetId}/edit`);
-    } catch (err: any) {
-      console.warn('Manual save to sheet warning:', err);
-      setSyncError(err.message || 'Failed to save to Google Sheet.');
-    } finally {
-      setIsSaving(false);
-    }
-  };
 
   useEffect(() => {
     // Launch festive confetti celebration
@@ -148,87 +81,6 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 animate-in zoom-in-95 duration-300">
-      {/* Google Sheet Sync Alert Banner */}
-      {sheetUrl ? (
-        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-emerald-950 shadow-xs print:hidden">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#0F9D58] text-white flex items-center justify-center shrink-0 shadow-xs">
-              <FileSpreadsheet className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="font-extrabold text-slate-900 text-sm">
-                Saved & Synced to Google Sheet!
-              </p>
-              <p className="text-slate-600 text-xs">
-                Registration details have been appended to: <strong>Textile Presentation Competition 2026 - Registrations</strong>
-              </p>
-            </div>
-          </div>
-          <a
-            href={sheetUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#0F9D58] hover:bg-[#0B8043] text-white font-bold text-xs transition shadow-xs whitespace-nowrap"
-          >
-            <span>Open Google Sheet</span>
-            <ExternalLink className="w-3.5 h-3.5" />
-          </a>
-        </div>
-      ) : (
-        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-700 shadow-xs print:hidden">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-slate-200 text-slate-700 flex items-center justify-center shrink-0 shadow-xs">
-              <FileSpreadsheet className="w-5 h-5 text-emerald-600" />
-            </div>
-            <div>
-              <p className="font-extrabold text-slate-900 text-sm">
-                Save this Registration to Google Sheets
-              </p>
-              <p className="text-slate-600 text-xs">
-                Record this team's complete registration data directly into your official Google Sheet.
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={handleManualSaveToSheet}
-            disabled={isSaving}
-            className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#0F9D58] hover:bg-[#0B8043] text-white font-bold text-xs transition shadow-xs whitespace-nowrap active:scale-98 disabled:opacity-60"
-          >
-            {isSaving ? (
-              <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                <span>Saving to Sheet…</span>
-              </>
-            ) : (
-              <>
-                <FileSpreadsheet className="w-3.5 h-3.5" />
-                <span>Save to Google Sheet</span>
-              </>
-            )}
-          </button>
-        </div>
-      )}
-
-      {syncError && (
-        <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-300 flex items-start gap-2.5 text-xs text-amber-900 print:hidden">
-          <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <p className="font-semibold">{syncError}</p>
-            <p className="text-[11px] text-amber-700 mt-0.5">
-              Tip: If the popup was blocked by your browser, please allow popups for this site or open the app in a new tab.
-            </p>
-            <button
-              type="button"
-              onClick={() => window.open(window.location.href, '_blank')}
-              className="mt-1.5 inline-flex items-center gap-1 font-bold text-amber-900 hover:underline text-[11px]"
-            >
-              <span>Open in new tab</span>
-              <ExternalLink className="w-3 h-3" />
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Official Voucher Printable Card */}
       <div id="registration-voucher" className="bg-white rounded-3xl border-2 border-[#22C55E]/40 p-6 sm:p-10 shadow-xl relative overflow-hidden print:border-none print:shadow-none print:p-0">
@@ -371,21 +223,8 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
         </div>
       </div>
 
-      {/* Action Buttons: View in Sheet (if enabled), Download Registration Info PDF, and Close */}
+      {/* Action Buttons: Download Registration Info PDF and Close */}
       <div className="flex flex-col sm:flex-row flex-wrap items-center justify-center gap-3.5 print:hidden">
-        {sheetUrl && (
-          <a
-            href={sheetUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl text-sm font-bold text-white bg-[#0F9D58] hover:bg-[#0B8043] shadow-md transition"
-          >
-            <FileSpreadsheet className="w-4 h-4" />
-            <span>View in Google Sheet</span>
-            <ExternalLink className="w-4 h-4" />
-          </a>
-        )}
-
         <button
           type="button"
           onClick={handleDownloadPdf}
@@ -394,21 +233,6 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
           <Download className="w-4 h-4" />
           <span>Download Registration Info PDF</span>
         </button>
-
-        {onOpenGmailModal && (
-          <button
-            type="button"
-            onClick={() => onOpenGmailModal({
-              registrationId: regId,
-              submissionDate: result.submissionDate || new Date().toLocaleDateString(),
-              formData
-            })}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl text-sm font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 shadow-xs active:scale-98 transition"
-          >
-            <Mail className="w-4 h-4 text-rose-600" />
-            <span>Email Voucher via Gmail</span>
-          </button>
-        )}
 
         <button
           type="button"

@@ -1,24 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, X, ArrowRight, Database, CheckCircle2, AlertCircle, Search, Mail } from 'lucide-react';
+import { Menu, X, ArrowRight, Search } from 'lucide-react';
 import { BrandHeaderCombo } from './Logos';
 import { PageId } from '../types';
 
 interface NavbarProps {
   currentPage: PageId;
   onNavigate: (page: PageId) => void;
-  onOpenGoogleSheetsModal: () => void;
-  isSheetsConfigured: boolean;
   onOpenViewEditModal?: (regId?: string) => void;
-  onOpenGmailModal?: (prefill?: any) => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   currentPage,
   onNavigate,
-  onOpenGoogleSheetsModal,
-  isSheetsConfigured,
-  onOpenViewEditModal,
-  onOpenGmailModal
+  onOpenViewEditModal
 }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -95,37 +89,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span>Find / Edit</span>
             </button>
 
-            {/* Gmail Communications Hub */}
-            <button
-              type="button"
-              onClick={() => onOpenGmailModal?.()}
-              title="Gmail Communications Hub: Send vouchers & competition updates"
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold rounded-xl border border-rose-200 text-slate-700 bg-white hover:bg-rose-50/50 hover:text-rose-600 transition shadow-2xs"
-            >
-              <Mail className="w-3.5 h-3.5 text-rose-500" />
-              <span>Gmail Hub</span>
-            </button>
-
-            {/* Google Sheets Status Pill / Setup */}
-            <button
-              type="button"
-              onClick={onOpenGoogleSheetsModal}
-              title="Google Sheets & Google Drive Database Settings"
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full border transition ${
-                isSheetsConfigured
-                  ? 'bg-[#22C55E]/10 border-[#22C55E]/30 text-[#15803D] hover:bg-[#22C55E]/20'
-                  : 'bg-amber-50 border-amber-200 text-amber-800 hover:bg-amber-100'
-              }`}
-            >
-              <Database className="w-3.5 h-3.5 text-[#16A34A]" />
-              <span>{isSheetsConfigured ? 'Sheets Connected' : 'Google Sheets Sync'}</span>
-              {isSheetsConfigured ? (
-                <CheckCircle2 className="w-3.5 h-3.5 text-[#16A34A]" />
-              ) : (
-                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-              )}
-            </button>
-
             {/* Primary CTA button to Registration page */}
             {currentPage !== 'registration' && (
               <button
@@ -196,30 +159,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <Search className="w-4 h-4 text-[#16A34A]" />
               <span>Find & Edit Registration (Up to 3 Edits)</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setMobileMenuOpen(false);
-                onOpenGmailModal?.();
-              }}
-              className="w-full flex items-center justify-center gap-2 py-2.5 px-3 text-xs font-bold rounded-xl border border-rose-200 bg-rose-50/50 text-rose-800 shadow-2xs"
-            >
-              <Mail className="w-4 h-4 text-rose-500" />
-              <span>Gmail Communications Hub</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setMobileMenuOpen(false);
-                onOpenGoogleSheetsModal();
-              }}
-              className="w-full flex items-center justify-center gap-2 py-2.5 px-3 text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50 text-slate-700"
-            >
-              <Database className="w-4 h-4 text-[#16A34A]" />
-              <span>Google Sheets Database Sync</span>
             </button>
           </div>
         </div>

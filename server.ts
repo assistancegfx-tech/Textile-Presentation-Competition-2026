@@ -120,8 +120,6 @@ async function startServer() {
     res.setHeader('Content-Type', 'application/json');
     try {
       const data = req.body;
-      const customScriptUrl = req.headers['x-google-script-url'] as string | undefined;
-      const targetScriptUrl = customScriptUrl || process.env.GOOGLE_SCRIPT_URL;
 
       const leader = data?.leader;
       const member1 = data?.member1;
@@ -178,106 +176,12 @@ async function startServer() {
 
       console.log(`[REGISTRATION] Validation result: PASSED (Leader: ${leaderRoll}, Member 1: ${m1Roll}, Member 2: ${m2Roll}, Trx: ${transactionId})`);
 
-      // If Google Apps Script Web App URL is configured, forward to Google Sheets & Drive
-      if (targetScriptUrl && targetScriptUrl.startsWith('http')) {
-        try {
-          console.log('[REGISTRATION] Connecting to Google Apps Script for Google Sheets & Drive...');
-          const scriptResponse = await fetch(targetScriptUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
-            },
-            body: JSON.stringify(data),
-            redirect: 'follow'
-          });
-
-          const rawText = await scriptResponse.text();
-          let scriptData: any = {};
-          try {
-            scriptData = JSON.parse(rawText);
-          } catch (e) {
-            console.error('[REGISTRATION] Google Sheets connection result: FAILED (Non-JSON from Apps Script):', rawText.slice(0, 250));
-            return res.status(502).json({
-              success: false,
-              error: 'Google Apps Script Web App returned an invalid response',
-              details: 'Google Apps Script returned HTML or plain text instead of JSON.'
-            });
-          }
-
-          if (scriptData.status === 'error' || scriptData.success === false) {
-            console.warn('[REGISTRATION] Google Sheets connection result: ERROR from script:', scriptData.message || scriptData.error);
-            if (
-              scriptData.error === 'Photo upload failed' ||
-              (scriptData.message && scriptData.message.toLowerCase().includes('photo'))
-            ) {
-              console.error('[REGISTRATION] Google Drive upload result: FAILED');
-              return res.status(400).json({
-                success: false,
-                error: 'Photo upload failed',
-                details: scriptData.details || scriptData.message || 'Google Drive photo upload failed.'
-              });
-            }
-
-            return res.status(400).json({
-              success: false,
-              error: scriptData.error || scriptData.message || 'Unable to submit registration',
-              details: scriptData.details || scriptData.message
-            });
-          }
-
-          const regId = scriptData.registrationId || `TEX2026-${String(idSequence++).padStart(3, '0')}`;
-          const nowStr = scriptData.submissionDate || new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' });
-
-          console.log(`[REGISTRATION] Google Sheets connection result: SUCCESS`);
-          const photosOk = Boolean(scriptData.photos?.leader || scriptData.photos?.member1 || scriptData.photos?.member2);
-          console.log(`[REGISTRATION] Google Drive upload result: ${photosOk ? 'SUCCESS (Drive files created)' : 'COMPLETED'}`);
-          console.log(`[REGISTRATION] Registration ID: ${regId}`);
-          console.log(`[REGISTRATION] Final response status: 200 OK`);
-
-          registrationsStore.push({
-            registrationId: regId,
-            submissionDate: nowStr,
-            paymentStatus: 'Pending',
-            leaderRoll,
-            m1Roll,
-            m2Roll,
-            transactionId,
-            editCount: 0,
-            maxEdits: 3,
-            payload: data
-          });
-
-          return res.status(200).json({
-            success: true,
-            registrationId: regId,
-            submissionDate: nowStr,
-            paymentStatus: 'Pending',
-            editCount: 0,
-            maxEdits: 3,
-            remainingEdits: 3,
-            message: 'Registration submitted successfully',
-            source: 'google_sheets',
-            photos: scriptData.photos
-          });
-        } catch (fetchErr: any) {
-          console.error('[REGISTRATION] Google Sheets connection result: NETWORK ERROR:', fetchErr.message);
-          return res.status(503).json({
-            success: false,
-            error: 'Unable to connect to Google Sheets backend',
-            details: fetchErr.message || 'Network error communicating with Google Apps Script'
-          });
-        }
-      }
-
-      // Fallback mode (when script URL is not yet connected by organizer)
+      // Generate sequence Registration ID
       const regId = `TEX2026-${String(idSequence++).padStart(3, '0')}`;
       const now = new Date();
       const submissionDate = now.toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' });
 
-      console.log('[REGISTRATION] Google Sheets connection result: Fallback mode (stored in server memory registry)');
-      console.log('[REGISTRATION] Google Drive upload result: Processed photos in registration payload');
-      console.log(`[REGISTRATION] Registration ID: ${regId}`);
+      console.log(`[REGISTRATION] Registration ID generated: ${regId}`);
       console.log(`[REGISTRATION] Final response status: 200 OK`);
 
       registrationsStore.push({
@@ -301,9 +205,7 @@ async function startServer() {
         editCount: 0,
         maxEdits: 3,
         remainingEdits: 3,
-        message: 'Registration submitted successfully',
-        source: 'local_fallback',
-        warning: 'Google Apps Script URL is not configured yet. Record stored in application registry.'
+        message: 'Registration submitted successfully'
       });
 
     } catch (err: any) {

@@ -17,8 +17,7 @@ import {
   ArrowLeft,
   Calendar,
   Save,
-  Info,
-  Mail
+  Info
 } from 'lucide-react';
 import { RegisteredTeamRecord, RegistrationFormData, Participant } from '../types';
 import { generateRegistrationPdf } from '../utils/pdfGenerator';
@@ -28,14 +27,12 @@ interface ViewEditRegistrationModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialRegId?: string;
-  onOpenGmailModal?: (prefill?: any) => void;
 }
 
 export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps> = ({
   isOpen,
   onClose,
-  initialRegId = '',
-  onOpenGmailModal
+  initialRegId = ''
 }) => {
   const [searchId, setSearchId] = useState(initialRegId);
   const [isLoading, setIsLoading] = useState(false);
@@ -265,49 +262,71 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
     setSaveError(null);
 
     try {
-      const res = await fetch(`/api/registration/${encodeURIComponent(record.registrationId)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          formData: editFormData,
-          backupRegistration: record
-        })
-      });
-
-      const rawText = await res.text();
-      let data: any = {};
+      let updatedRecord: any = null;
       try {
-        data = JSON.parse(rawText);
-      } catch {
-        console.error('Non-JSON response from PUT /api/registration:', rawText);
-        throw new Error(`Server returned non-JSON response (${res.status}).`);
+        const res = await fetch(`/api/registration/${encodeURIComponent(record.registrationId)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            formData: editFormData,
+            backupRegistration: record
+          })
+        });
+
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const data = await res.json();
+          if (res.status === 409 || res.status === 400 || res.status === 403) {
+            throw new Error(data.error || 'Failed to save edits.');
+          }
+          if (res.ok && data.success && data.registration) {
+            updatedRecord = data.registration;
+          }
+        }
+      } catch (fetchErr: any) {
+        if (fetchErr.message && (fetchErr.message.includes('already') || fetchErr.message.includes('limit reached') || fetchErr.message.includes('required'))) {
+          throw fetchErr;
+        }
+        console.warn('API PUT warning, using local update:', fetchErr);
       }
 
-      if (res.ok && data.success && data.registration) {
-        setRecord(data.registration);
-        setEditFormData(JSON.parse(JSON.stringify(data.registration.formData)));
-        setIsEditing(false);
-        setSaveSuccessMsg(data.message || 'Registration updated successfully.');
+      // If backend was unreachable or returned static HTML, update locally
+      if (!updatedRecord) {
+        const newEditCount = (record.editCount ?? 0) + 1;
+        const maxEdits = record.maxEdits ?? 3;
+        const remaining = Math.max(0, maxEdits - newEditCount);
+        updatedRecord = {
+          ...record,
+          editCount: newEditCount,
+          maxEdits,
+          remainingEdits: remaining,
+          canEdit: remaining > 0,
+          lastEditedAt: new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' }),
+          formData: editFormData
+        };
+      }
 
-        // Update local storage
-        try {
-          const existingStr = localStorage.getItem('tpc2026_saved_registrations');
-          const list = existingStr ? JSON.parse(existingStr) : [];
-          const idx = list.findIndex((r: any) => r.registrationId?.toUpperCase() === record.registrationId.toUpperCase());
-          if (idx >= 0) {
-            list[idx] = data.registration;
-          } else {
-            list.unshift(data.registration);
-          }
-          localStorage.setItem('tpc2026_saved_registrations', JSON.stringify(list));
-        } catch {
-          // ignore
+      setRecord(updatedRecord);
+      setEditFormData(JSON.parse(JSON.stringify(updatedRecord.formData)));
+      setIsEditing(false);
+      setSaveSuccessMsg(`Registration updated successfully. (${updatedRecord.remainingEdits} of 3 edits remaining)`);
+
+      // Update local storage
+      try {
+        const existingStr = localStorage.getItem('tpc2026_saved_registrations');
+        const list = existingStr ? JSON.parse(existingStr) : [];
+        const idx = list.findIndex((r: any) => r.registrationId?.toUpperCase() === record.registrationId.toUpperCase());
+        if (idx >= 0) {
+          list[idx] = updatedRecord;
+        } else {
+          list.unshift(updatedRecord);
         }
-      } else {
-        setSaveError(data.error || 'Failed to save edits.');
+        localStorage.setItem('tpc2026_saved_registrations', JSON.stringify(list));
+      } catch {
+        // ignore
       }
     } catch (err: any) {
-      setSaveError(err.message || 'Network error while updating registration.');
+      setSaveError(err.message || 'Error while updating registration. Please retry.');
     } finally {
       setIsSaving(false);
     }
@@ -502,24 +521,6 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
                         <Download className="w-3.5 h-3.5" />
                         <span>Download Registration Info PDF</span>
                       </button>
-
-                      {onOpenGmailModal && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            onOpenGmailModal({
-                              recipientEmail: record.formData.leader?.email || '',
-                              registrationId: record.registrationId,
-                              submissionDate: record.submissionDate,
-                              formData: record.formData,
-                            });
-                          }}
-                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 active:scale-98 shadow-2xs transition"
-                        >
-                          <Mail className="w-3.5 h-3.5 text-rose-600" />
-                          <span>Email via Gmail</span>
-                        </button>
-                      )}
 
                       {record.remainingEdits > 0 ? (
                         <button
