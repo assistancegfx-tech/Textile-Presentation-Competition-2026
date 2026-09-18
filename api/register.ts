@@ -111,6 +111,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (targetScriptUrl && targetScriptUrl.startsWith('http')) {
       try {
         console.log('[REGISTRATION] Forwarding registration and photos to Google Apps Script...');
+        
+        // Timeout বাড়িয়ে ৩০ সেকেন্ড করা হয়েছে যেন ছবি ড্রাইভে সেভ হওয়ার সময় পায়
         const scriptResponse = await fetch(targetScriptUrl, {
           method: 'POST',
           headers: {
@@ -119,7 +121,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           },
           body: JSON.stringify(data),
           redirect: 'follow',
-          signal: AbortSignal.timeout(8000)
+          signal: AbortSignal.timeout(30000)
         });
 
         const rawText = await scriptResponse.text();
@@ -168,15 +170,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
       } catch (fetchErr: any) {
         console.error('[REGISTRATION] Google Apps Script connection error:', fetchErr.message);
-        // Fall back to serverless local registry if network to script fails
+        
+        // সাইলেন্ট ফেইল রোধ করতে সরাসরি ক্লায়েন্টকে এরর জানানো হচ্ছে
+        return res.status(504).json({
+          success: false,
+          error: 'Google Sheets sync timed out or connection failed.',
+          details: fetchErr.message
+        });
       }
     }
 
-    // Generate standard Registration ID (Fallback if script URL not configured)
+    // Fallback: Apps Script URL না থাকলে লোকাল মেমরিতে সেভ
     const regId = getNextRegistrationId();
     const submissionDate = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' });
 
-    // Store registration in server memory
     saveRegistration({
       registrationId: regId,
       submissionDate,
@@ -198,7 +205,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       editCount: 0,
       maxEdits: 3,
       remainingEdits: 3,
-      message: 'Registration submitted successfully',
+      message: 'Registration submitted successfully (local storage)',
       source: 'local'
     });
 
