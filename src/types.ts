@@ -89,3 +89,10 @@ export interface ExistingRegistrationRecord {
 }
 
 export type PageId = 'home' | 'event' | 'registration' | 'guidelines' | 'contact' | 'registration-success';
+
+export type SubmissionProgressStage = 
+  | 'idle'
+  | 'validating'
+  | 'photos'
+  | 'saving_sheets'
+  | 'finalizing';

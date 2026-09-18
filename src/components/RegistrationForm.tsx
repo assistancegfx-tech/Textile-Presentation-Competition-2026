@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User, Users, CreditCard, CheckCircle2, ChevronRight, ChevronLeft, AlertCircle, ShieldAlert, Sparkles, Wand2, RotateCcw, FastForward, Search } from 'lucide-react';
-import { RegistrationFormData, SubmissionResponse, Participant } from '../types';
+import { RegistrationFormData, SubmissionResponse, Participant, SubmissionProgressStage } from '../types';
 import { ParticipantStepForm } from './ParticipantStepForm';
 import { PaymentStepForm } from './PaymentStepForm';
 import { ReviewConfirmStep } from './ReviewConfirmStep';
@@ -45,6 +45,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
   const [formData, setFormData] = useState<RegistrationFormData>(initialFormData());
   const [stepErrors, setStepErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [submitProgressStage, setSubmitProgressStage] = useState<SubmissionProgressStage>('idle');
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submissionResult, setSubmissionResult] = useState<SubmissionResponse | null>(null);
   const [demoToast, setDemoToast] = useState<string | null>(null);
@@ -169,6 +170,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
   // Final confirmation & submit
   const handleFinalSubmit = async () => {
     setIsSubmitting(true);
+    setSubmitProgressStage('validating');
     setSubmitError(null);
 
     try {
@@ -178,6 +180,9 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
         String(formData.member2.roll || '').trim()
       ].filter(Boolean);
       const cleanTrx = String(formData.payment.transactionId || '').trim().toUpperCase();
+
+      // Realistic stage feedback delay for seamless UX
+      await new Promise((r) => setTimeout(r, 450));
 
       // 1. Client-side local check for duplicates first
       try {
@@ -231,7 +236,13 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
         // Non-blocking for offline/static deployment
       }
 
-      // 3. Submit to server endpoint (/api/register) and Google Apps Script
+      // Stage 2: Photos preparation & Google Drive payload optimization
+      setSubmitProgressStage('photos');
+      await new Promise((r) => setTimeout(r, 550));
+
+      // Stage 3: Submit to Google Sheets & Drive backend endpoint
+      setSubmitProgressStage('saving_sheets');
+
       let data: SubmissionResponse | null = null;
       const envScriptUrl = 
         (import.meta as any).env?.VITE_GOOGLE_SCRIPT_URL || 
@@ -310,7 +321,11 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
         };
       }
 
-      // 4. Cache registration locally for view, search, edit & PDF download
+      // Stage 4: Finalizing Voucher & registration ID
+      setSubmitProgressStage('finalizing');
+      await new Promise((r) => setTimeout(r, 400));
+
+      // Cache registration locally for view, search, edit & PDF download
       const regId = data.registrationId || `TEX2026-${Date.now().toString().slice(-4)}`;
       const subDate = data.submissionDate || new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' });
 
@@ -365,6 +380,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
       setSubmitError(err.message || 'An error occurred during submission. Please check the fields and retry.');
     } finally {
       setIsSubmitting(false);
+      setSubmitProgressStage('idle');
     }
   };
 
@@ -617,6 +633,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                   onConfirmSubmit={handleFinalSubmit}
                   isSubmitting={isSubmitting}
                   submitError={submitError}
+                  progressStage={submitProgressStage}
                 />
               )}
             </div>
