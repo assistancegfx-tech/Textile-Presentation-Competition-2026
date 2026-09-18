@@ -1,0 +1,140 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <!-- Top text arc for CAREER CLUB BTEC -->
+    <path id="arc-career-club" d="M 52,250 A 198,198 0 0,1 448,250" fill="none" />
+    <!-- Bottom text arc for COURAGE PROGRESS EXCELLENCY: curves clockwise along the bottom from left to right so text reads upright towards the center -->
+    <path id="arc-motto" d="M 75,390 A 226,226 0 0,1 425,390" fill="none" />
+
+    <!-- Star definition -->
+    <g id="star-outline">
+      <polygon points="0,-12 3.7,-3.7 11.4,-3.7 5.2,1.4 7.4,9.7 0,4.6 -7.4,9.7 -5.2,1.4 -11.4,-3.7 -3.7,-3.7" fill="#184A74" stroke="#FFFFFF" stroke-width="2.4" stroke-linejoin="round" />
+    </g>
+    <g id="star-green">
+      <polygon points="0,-12 3.7,-3.7 11.4,-3.7 5.2,1.4 7.4,9.7 0,4.6 -7.4,9.7 -5.2,1.4 -11.4,-3.7 -3.7,-3.7" fill="#95C222" stroke="#FFFFFF" stroke-width="2.4" stroke-linejoin="round" />
+    </g>
+  </defs>
+
+  <!-- Outer blue background disc -->
+  <circle cx="250" cy="250" r="248" fill="#184A74" />
+
+  <!-- Inner lime green circle -->
+  <circle cx="250" cy="250" r="168" fill="#95C222" />
+
+  <!-- Top Curved Text: CAREER CLUB BTEC (Exact chamfered/techno typography) -->
+  <text fill="#FFFFFF" font-family="'Chakra Petch', 'Orbitron', 'Eurostile', 'Impact', sans-serif" font-size="36" font-weight="800" letter-spacing="4.5">
+    <textPath href="#arc-career-club" startOffset="50%" text-anchor="middle">
+      CAREER CLUB BTEC
+    </textPath>
+  </text>
+
+  <!-- Left Stars (3) -->
+  <g transform="translate(38, 255) rotate(-22) scale(0.95)"><use href="#star-outline" /></g>
+  <g transform="translate(41, 284) rotate(-12) scale(1.08)"><use href="#star-outline" /></g>
+  <g transform="translate(47, 313) rotate(-2) scale(1.24)"><use href="#star-green" /></g>
+
+  <!-- Right Stars (3) -->
+  <g transform="translate(462, 255) rotate(22) scale(0.95)"><use href="#star-outline" /></g>
+  <g transform="translate(459, 284) rotate(12) scale(1.08)"><use href="#star-outline" /></g>
+  <g transform="translate(453, 313) rotate(2) scale(1.24)"><use href="#star-green" /></g>
+
+  <!-- Left Horizontal Divider Stripes -->
+  <g>
+    <!-- Top white bar -->
+    <rect x="22" y="340" width="76" height="5.5" rx="1.5" fill="#FFFFFF" />
+    <!-- 3 lime green stripes -->
+    <rect x="27" y="351" width="80" height="4" rx="1" fill="#95C222" />
+    <rect x="31" y="360" width="81" height="4" rx="1" fill="#95C222" />
+    <rect x="35" y="369" width="82" height="4" rx="1" fill="#95C222" />
+    <!-- Bottom white bar -->
+    <rect x="39" y="379" width="82" height="5.5" rx="1.5" fill="#FFFFFF" />
+  </g>
+
+  <!-- Right Horizontal Divider Stripes -->
+  <g>
+    <!-- Top white bar -->
+    <rect x="402" y="340" width="76" height="5.5" rx="1.5" fill="#FFFFFF" />
+    <!-- 3 lime green stripes -->
+    <rect x="393" y="351" width="80" height="4" rx="1" fill="#95C222" />
+    <rect x="388" y="360" width="81" height="4" rx="1" fill="#95C222" />
+    <rect x="383" y="369" width="82" height="4" rx="1" fill="#95C222" />
+    <!-- Bottom white bar -->
+    <rect x="379" y="379" width="82" height="5.5" rx="1.5" fill="#FFFFFF" />
+  </g>
+
+  <!-- Bottom Curved Text: COURAGE PROGRESS EXCELLENCY (stands upright on path, pointing towards center) -->
+  <text fill="#FFFFFF" font-family="'Impact', 'Arial Black', 'Outfit', sans-serif" font-size="23" font-weight="900" letter-spacing="3">
+    <textPath href="#arc-motto" startOffset="50%" text-anchor="middle">
+      COURAGE  PROGRESS  EXCELLENCY
+    </textPath>
+  </text>
+
+  <!-- ================= Center Artwork on Green Field ================= -->
+  <!-- Top Eye/Lens Shape -->
+  <path
+    d="M 158,145 C 190,88 310,88 342,145 C 310,202 190,202 158,145 Z"
+    fill="#FFFFFF"
+  />
+  <!-- Eye Pupil (lime green circle) -->
+  <circle cx="250" cy="145" r="24" fill="#95C222" />
+
+  <!-- Diagonal V-Perspective Connection Lines from Eye Corners -->
+  <polygon points="158,145 238,252 230,260 148,153" fill="#FFFFFF" />
+  <polygon points="342,145 262,252 270,260 352,153" fill="#FFFFFF" />
+
+  <!-- Center Figure Pillar/Torso -->
+  <path
+    d="M 238,188 L 262,188 L 263,418 L 237,418 Z"
+    fill="#FFFFFF"
+  />
+  <!-- Center Figure Tie (hanging down) -->
+  <path
+    d="M 244,196 L 256,196 L 258,206 L 255,268 L 250,282 L 245,268 L 242,206 Z"
+    fill="#95C222"
+  />
+
+  <!-- Left Figure Torso and Head -->
+  <path
+    d="M 174,214 C 145,214 122,238 122,270 C 122,305 152,370 205,418 L 222,418 C 192,360 178,310 178,270 C 178,255 186,242 195,232 Z"
+    fill="#FFFFFF"
+  />
+  <!-- Left Head (lime green circle cutout in white silhouette) -->
+  <circle cx="174" cy="232" r="22" fill="#95C222" />
+  <!-- Left Necktie -->
+  <path
+    d="M 177,258 L 185,258 L 187,266 L 183,300 L 180,309 L 177,300 L 175,266 Z"
+    fill="#95C222"
+  />
+
+  <!-- Right Figure Torso and Head -->
+  <path
+    d="M 326,214 C 355,214 378,238 378,270 C 378,305 348,370 295,418 L 278,418 C 308,360 322,310 322,270 C 322,255 314,242 305,232 Z"
+    fill="#FFFFFF"
+  />
+  <!-- Right Head (lime green circle cutout in white silhouette) -->
+  <circle cx="326" cy="232" r="22" fill="#95C222" />
+  <!-- Right Necktie -->
+  <path
+    d="M 323,258 L 315,258 L 313,266 L 317,300 L 320,309 L 323,300 L 325,266 Z"
+    fill="#95C222"
+  />
+
+  <!-- Left Curved Wing / Swoosh -->
+  <path
+    d="M 115,225 C 125,265 142,315 158,345 C 142,320 128,280 108,235 C 104,228 108,220 115,225 Z"
+    fill="#FFFFFF"
+  />
+  <path
+    d="M 92,230 C 105,280 135,350 152,370 C 135,340 110,285 88,235 C 85,228 89,222 92,230 Z"
+    fill="#FFFFFF"
+  />
+
+  <!-- Right Curved Wing / Swoosh -->
+  <path
+    d="M 385,225 C 375,265 358,315 342,345 C 358,320 372,280 392,235 C 396,228 392,220 385,225 Z"
+    fill="#FFFFFF"
+  />
+  <path
+    d="M 408,230 C 395,280 365,350 348,370 C 365,340 390,285 412,235 C 415,228 411,222 408,230 Z"
+    fill="#FFFFFF"
+  />
+</svg>
