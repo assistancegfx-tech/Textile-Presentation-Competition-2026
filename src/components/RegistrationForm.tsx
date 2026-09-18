@@ -231,12 +231,19 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
         // Non-blocking for offline/static deployment
       }
 
-      // 3. Submit to server endpoint (/api/register) with graceful client-side fallback
+      // 3. Submit to server endpoint (/api/register) with graceful Google Apps Script & client fallback
       let data: SubmissionResponse | null = null;
+      const storedScriptUrl = customScriptUrl || localStorage.getItem('tpc2026_google_script_url') || '';
+
       try {
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (storedScriptUrl) {
+          headers['x-google-script-url'] = storedScriptUrl;
+        }
+
         const res = await fetch('/api/register', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers,
           body: JSON.stringify(formData)
         });
 
@@ -254,7 +261,25 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
         if (fetchErr.message && (fetchErr.message.includes('Duplicate') || fetchErr.message.includes('already') || fetchErr.message.includes('validation failed'))) {
           throw fetchErr;
         }
-        console.warn('Backend API submission warning, using reliable client registry fallback:', fetchErr);
+        console.warn('Backend API submission warning, trying direct Google Script or fallback:', fetchErr);
+      }
+
+      // If backend was unreachable and storedScriptUrl is set, try direct POST to Google Apps Script
+      if (!data && storedScriptUrl && storedScriptUrl.startsWith('http')) {
+        try {
+          const directScriptRes = await fetch(storedScriptUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData),
+            mode: 'cors'
+          });
+          const scriptJson = await directScriptRes.json();
+          if (scriptJson && scriptJson.success) {
+            data = scriptJson;
+          }
+        } catch (directErr) {
+          console.warn('Direct Google Script fetch error:', directErr);
+        }
       }
 
       // If backend was not reached or returned static HTML, create reliable client response

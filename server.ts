@@ -176,7 +176,77 @@ async function startServer() {
 
       console.log(`[REGISTRATION] Validation result: PASSED (Leader: ${leaderRoll}, Member 1: ${m1Roll}, Member 2: ${m2Roll}, Trx: ${transactionId})`);
 
-      // Generate sequence Registration ID
+      // Check if Google Apps Script Web App URL is configured
+      const customScriptUrl = req.headers['x-google-script-url'] as string | undefined;
+      const targetScriptUrl = customScriptUrl || process.env.GOOGLE_SCRIPT_URL || process.env.VITE_GOOGLE_SCRIPT_URL;
+
+      if (targetScriptUrl && targetScriptUrl.startsWith('http')) {
+        try {
+          console.log('[REGISTRATION] Connecting to Google Apps Script for Google Sheets & Google Drive...');
+          const scriptResponse = await fetch(targetScriptUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify(data),
+            redirect: 'follow'
+          });
+
+          const rawText = await scriptResponse.text();
+          let scriptData: any = {};
+          try {
+            scriptData = JSON.parse(rawText);
+          } catch (e) {
+            console.warn('[REGISTRATION] Google Sheets returned raw response:', rawText.slice(0, 200));
+          }
+
+          if (scriptData.status === 'error' || scriptData.success === false) {
+            console.error('[REGISTRATION] Google Sheets connection error:', scriptData.message || scriptData.error);
+            return res.status(400).json({
+              success: false,
+              error: scriptData.error || scriptData.message || 'Unable to save registration to Google Sheets',
+              details: scriptData.details || scriptData.message
+            });
+          }
+
+          const regId = scriptData.registrationId || `TEX2026-${String(idSequence++).padStart(3, '0')}`;
+          const nowStr = scriptData.submissionDate || new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' });
+
+          console.log(`[REGISTRATION] Google Sheets sync result: SUCCESS, Drive photos uploaded: ${Boolean(scriptData.photos)}`);
+
+          registrationsStore.push({
+            registrationId: regId,
+            submissionDate: nowStr,
+            paymentStatus: 'Pending',
+            leaderRoll,
+            m1Roll,
+            m2Roll,
+            transactionId,
+            editCount: 0,
+            maxEdits: 3,
+            payload: data
+          });
+
+          return res.status(200).json({
+            success: true,
+            registrationId: regId,
+            submissionDate: nowStr,
+            paymentStatus: 'Pending',
+            editCount: 0,
+            maxEdits: 3,
+            remainingEdits: 3,
+            message: 'Registration and photos saved to Google Sheets & Drive successfully',
+            source: 'google_sheets',
+            photos: scriptData.photos
+          });
+        } catch (fetchErr: any) {
+          console.error('[REGISTRATION] Google Apps Script connection network error:', fetchErr.message);
+          // Fall back to server memory registry
+        }
+      }
+
+      // Generate sequence Registration ID (Fallback if script not configured)
       const regId = `TEX2026-${String(idSequence++).padStart(3, '0')}`;
       const now = new Date();
       const submissionDate = now.toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' });
@@ -205,7 +275,8 @@ async function startServer() {
         editCount: 0,
         maxEdits: 3,
         remainingEdits: 3,
-        message: 'Registration submitted successfully'
+        message: 'Registration submitted successfully',
+        source: 'local'
       });
 
     } catch (err: any) {

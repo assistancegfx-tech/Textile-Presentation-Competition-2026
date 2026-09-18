@@ -103,7 +103,75 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // Generate standard Registration ID
+    // Check if Google Apps Script URL is configured via environment variable or request header
+    const customScriptUrl = req.headers['x-google-script-url'] as string | undefined;
+    const targetScriptUrl = customScriptUrl || process.env.GOOGLE_SCRIPT_URL || process.env.VITE_GOOGLE_SCRIPT_URL;
+
+    // If Google Apps Script Web App URL is configured, forward to Google Sheets & Drive
+    if (targetScriptUrl && targetScriptUrl.startsWith('http')) {
+      try {
+        console.log('[REGISTRATION] Forwarding registration and photos to Google Apps Script...');
+        const scriptResponse = await fetch(targetScriptUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify(data),
+          redirect: 'follow'
+        });
+
+        const rawText = await scriptResponse.text();
+        let scriptData: any = {};
+        try {
+          scriptData = JSON.parse(rawText);
+        } catch {
+          console.warn('[REGISTRATION] Google Apps Script returned non-JSON response, text:', rawText.slice(0, 200));
+        }
+
+        if (scriptData.status === 'error' || scriptData.success === false) {
+          return res.status(400).json({
+            success: false,
+            error: scriptData.error || scriptData.message || 'Google Sheets / Drive sync failed',
+            details: scriptData.details || scriptData.message
+          });
+        }
+
+        const scriptRegId = scriptData.registrationId || getNextRegistrationId();
+        const scriptDate = scriptData.submissionDate || new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' });
+
+        saveRegistration({
+          registrationId: scriptRegId,
+          submissionDate: scriptDate,
+          paymentStatus: 'Pending',
+          leaderRoll,
+          m1Roll,
+          m2Roll,
+          transactionId,
+          editCount: 0,
+          maxEdits: 3,
+          payload: data
+        });
+
+        return res.status(200).json({
+          success: true,
+          registrationId: scriptRegId,
+          submissionDate: scriptDate,
+          paymentStatus: 'Pending',
+          editCount: 0,
+          maxEdits: 3,
+          remainingEdits: 3,
+          message: 'Registration saved to Google Sheets and Drive successfully',
+          source: 'google_sheets',
+          photos: scriptData.photos
+        });
+      } catch (fetchErr: any) {
+        console.error('[REGISTRATION] Google Apps Script connection error:', fetchErr.message);
+        // Fall back to serverless local registry if network to script fails
+      }
+    }
+
+    // Generate standard Registration ID (Fallback if script URL not configured)
     const regId = getNextRegistrationId();
     const submissionDate = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' });
 
@@ -129,7 +197,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       editCount: 0,
       maxEdits: 3,
       remainingEdits: 3,
-      message: 'Registration submitted successfully'
+      message: 'Registration submitted successfully',
+      source: 'local'
     });
 
   } catch (err: any) {

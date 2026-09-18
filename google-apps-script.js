@@ -282,7 +282,11 @@ function saveBase64Image(folder, base64Data, filenamePrefix) {
   const decoded = Utilities.base64Decode(data);
   const blob = Utilities.newBlob(decoded, contentType, filenamePrefix + "_" + Date.now() + ".jpg");
   const file = folder.createFile(blob);
-  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  try {
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  } catch (shareErr) {
+    Logger.log("Permission notice: " + shareErr.toString());
+  }
   return file.getUrl();
 }
 
