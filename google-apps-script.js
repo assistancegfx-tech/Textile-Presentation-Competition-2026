@@ -115,8 +115,10 @@ function doPost(e) {
     // Duplicate prevention check
     const existingValues = sheet.getDataRange().getValues();
     const leaderRoll = String(data.leader?.roll || data["leader[roll]"] || "").trim();
-    const member1Roll = String(data.member1?.roll || data["member1[roll]"] || "").trim();
-    const member2Roll = String(data.member2?.roll || data["member2[roll]"] || "").trim();
+    const m1Roll = String(data.member1?.roll || data["member1[roll]"] || "").trim();
+    const m2Roll = String(data.member2?.roll || data["member2[roll]"] || "").trim();
+    const member1Roll = m1Roll;
+    const member2Roll = m2Roll;
     const transactionId = String(data.payment?.transactionId || data["payment[transactionId]"] || "").trim().toUpperCase();
 
     if (existingValues && existingValues.length > 1) {
@@ -135,7 +137,7 @@ function doPost(e) {
           });
         }
 
-        const incomingRolls = [leaderRoll, member1Roll, member2Roll].filter(Boolean);
+        const incomingRolls = [leaderRoll, m1Roll, m2Roll].filter(Boolean);
         const rowRolls = [rowLeaderRoll, rowM1Roll, rowM2Roll].filter(Boolean);
 
         for (let r of incomingRolls) {
@@ -152,8 +154,10 @@ function doPost(e) {
 
     // Prepare Google Drive folder for participant photos
     let leaderPhotoUrl = data.leader?.photoUrl || "";
-    let member1PhotoUrl = data.member1?.photoUrl || "";
-    let member2PhotoUrl = data.member2?.photoUrl || "";
+    let m1PhotoUrl = data.member1?.photoUrl || "";
+    let m2PhotoUrl = data.member2?.photoUrl || "";
+    let member1PhotoUrl = m1PhotoUrl;
+    let member2PhotoUrl = m2PhotoUrl;
 
     try {
       const driveFolder = getOrCreateDriveFolder(DRIVE_FOLDER_NAME);
@@ -161,17 +165,25 @@ function doPost(e) {
         leaderPhotoUrl = saveBase64Image(driveFolder, data.leader.photoBase64, "Leader_" + (leaderRoll || "photo"));
       }
       if (data.member1?.photoBase64) {
-        member1PhotoUrl = saveBase64Image(driveFolder, data.member1.photoBase64, "Member1_" + (member1Roll || "photo"));
+        m1PhotoUrl = saveBase64Image(driveFolder, data.member1.photoBase64, "Member1_" + (m1Roll || "photo"));
+        member1PhotoUrl = m1PhotoUrl;
       }
       if (data.member2?.photoBase64) {
-        member2PhotoUrl = saveBase64Image(driveFolder, data.member2.photoBase64, "Member2_" + (member2Roll || "photo"));
+        m2PhotoUrl = saveBase64Image(driveFolder, data.member2.photoBase64, "Member2_" + (m2Roll || "photo"));
+        member2PhotoUrl = m2PhotoUrl;
       }
     } catch (driveErr) {
       Logger.log("Google Drive photo notice: " + driveErr.toString());
       // Non-blocking: We still save the registration row in Google Sheets even if Drive throws a permission notice
       if (!leaderPhotoUrl && data.leader?.photoBase64) leaderPhotoUrl = "Uploaded (Saved in form)";
-      if (!member1PhotoUrl && data.member1?.photoBase64) member1PhotoUrl = "Uploaded (Saved in form)";
-      if (!member2PhotoUrl && data.member2?.photoBase64) member2PhotoUrl = "Uploaded (Saved in form)";
+      if (!m1PhotoUrl && data.member1?.photoBase64) {
+        m1PhotoUrl = "Uploaded (Saved in form)";
+        member1PhotoUrl = m1PhotoUrl;
+      }
+      if (!m2PhotoUrl && data.member2?.photoBase64) {
+        m2PhotoUrl = "Uploaded (Saved in form)";
+        member2PhotoUrl = m2PhotoUrl;
+      }
     }
 
     // Generate unique Registration ID: TEX2026-001, TEX2026-002, etc.
@@ -262,13 +274,17 @@ function getSpreadsheet() {
   // 1. If SPREADSHEET_ID is provided
   if (typeof SPREADSHEET_ID !== "undefined" && SPREADSHEET_ID && SPREADSHEET_ID.trim() !== "") {
     const cleanId = SPREADSHEET_ID.trim();
-    if (cleanId.indexOf("http") === 0) {
-      return SpreadsheetApp.openByUrl(cleanId);
+    try {
+      if (cleanId.indexOf("http") === 0) {
+        return SpreadsheetApp.openByUrl(cleanId);
+      }
+      return SpreadsheetApp.openById(cleanId);
+    } catch (openErr) {
+      Logger.log("Failed to open spreadsheet by ID/URL: " + openErr.toString());
     }
-    return SpreadsheetApp.openById(cleanId);
   }
 
-  // 2. If opened from within a Google Sheet
+  // 2. If opened from within a Google Sheet (Container-bound script)
   try {
     const active = SpreadsheetApp.getActiveSpreadsheet();
     if (active) return active;
@@ -284,11 +300,16 @@ function getSpreadsheet() {
     if (oldFiles.hasNext()) {
       return SpreadsheetApp.open(oldFiles.next());
     }
-    // Auto-create spreadsheet in Drive if none exists
+  } catch (driveSearchErr) {
+    Logger.log("Drive search error: " + driveSearchErr.toString());
+  }
+
+  // 4. Auto-create spreadsheet in Drive if none exists
+  try {
     const newSs = SpreadsheetApp.create("Textile Presentation Competition 2026 Registrations");
     return newSs;
-  } catch (e) {
-    throw new Error("Could not access Google Spreadsheet: " + e.toString());
+  } catch (createErr) {
+    throw new Error("Could not access or create Google Spreadsheet. Please run 'setup' in Apps Script to authorize permissions: " + createErr.toString());
   }
 }
 

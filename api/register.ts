@@ -103,9 +103,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // Check if Google Apps Script URL is configured via environment variable or request header
+    // Check if Google Apps Script URL is configured via environment variable, request header, or default
     const customScriptUrl = req.headers['x-google-script-url'] as string | undefined;
-    const targetScriptUrl = customScriptUrl || process.env.GOOGLE_SCRIPT_URL || process.env.VITE_GOOGLE_SCRIPT_URL;
+    const targetScriptUrl = customScriptUrl || process.env.GOOGLE_SCRIPT_URL || process.env.VITE_GOOGLE_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbzVPB_lyf20Tx7qNxgbNSSUxqi-9lQL4m-l6yD6QQMpgZSv3GSqk1o5qXDYhhInC3af_A/exec';
 
     // If Google Apps Script Web App URL is configured, forward to Google Sheets & Drive
     if (targetScriptUrl && targetScriptUrl.startsWith('http')) {
@@ -133,10 +133,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         if (scriptData.status === 'error' || scriptData.success === false) {
-          return res.status(400).json({
-            success: false,
-            error: scriptData.error || scriptData.message || 'Google Sheets / Drive sync failed',
-            details: scriptData.details || scriptData.message
+          const errMsg = scriptData.error || scriptData.message || 'Google Sheets / Drive sync failed';
+          const isDuplicate = errMsg.toLowerCase().includes('duplicate') || errMsg.toLowerCase().includes('already registered');
+          
+          if (isDuplicate) {
+            return res.status(409).json({
+              success: false,
+              error: errMsg,
+              details: scriptData.details || errMsg
+            });
+          }
+          
+          console.warn('[REGISTRATION] Google Sheets sync error, falling back to reliable local registry:', errMsg);
+          // If Google Sheets errored due to permissions/setup, fallback to local registry to preserve user registration
+          const fallbackRegId = getNextRegistrationId();
+          const fallbackDate = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' });
+
+          saveRegistration({
+            registrationId: fallbackRegId,
+            submissionDate: fallbackDate,
+            paymentStatus: 'Pending',
+            leaderRoll,
+            m1Roll,
+            m2Roll,
+            transactionId,
+            editCount: 0,
+            maxEdits: 3,
+            payload: data
+          });
+
+          return res.status(200).json({
+            success: true,
+            registrationId: fallbackRegId,
+            submissionDate: fallbackDate,
+            paymentStatus: 'Pending',
+            editCount: 0,
+            maxEdits: 3,
+            remainingEdits: 3,
+            message: 'Registration received and saved locally (Google Sheets sync will update once authorized)',
+            source: 'local_fallback',
+            syncWarning: errMsg
           });
         }
 

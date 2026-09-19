@@ -244,11 +244,12 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
       setSubmitProgressStage('saving_sheets');
 
       let data: SubmissionResponse | null = null;
+      const defaultScriptUrl = 'https://script.google.com/macros/s/AKfycbzVPB_lyf20Tx7qNxgbNSSUxqi-9lQL4m-l6yD6QQMpgZSv3GSqk1o5qXDYhhInC3af_A/exec';
       const envScriptUrl = 
         (import.meta as any).env?.VITE_GOOGLE_SCRIPT_URL || 
         (import.meta as any).env?.GOOGLE_SCRIPT_URL || 
         '';
-      const storedScriptUrl = customScriptUrl || envScriptUrl || localStorage.getItem('tpc2026_google_script_url') || '';
+      const storedScriptUrl = customScriptUrl || envScriptUrl || localStorage.getItem('tpc2026_google_script_url') || defaultScriptUrl;
 
       try {
         const headers: Record<string, string> = { 'Content-Type': 'application/json' };
