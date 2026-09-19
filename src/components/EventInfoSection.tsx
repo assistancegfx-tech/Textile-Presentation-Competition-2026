@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'motion/react';
 import { Calendar, MapPin, Building2, Presentation, Users, ArrowRight, Award, CheckCircle2 } from 'lucide-react';
 import { PageId } from '../types';
 
@@ -52,7 +53,12 @@ export const EventInfoSection: React.FC<EventInfoSectionProps> = ({ onNavigate }
   ];
 
   return (
-    <div className="py-12 md:py-16 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10 animate-in fade-in duration-200">
+    <motion.div
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+      className="py-12 md:py-16 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10"
+    >
       {/* Page Header */}
       <div className="text-center max-w-2xl mx-auto space-y-2">
         <span className="text-xs font-extrabold uppercase tracking-wider text-[#16A34A] bg-[#22C55E]/10 px-3 py-1 rounded-full">
@@ -71,9 +77,13 @@ export const EventInfoSection: React.FC<EventInfoSectionProps> = ({ onNavigate }
         {cards.map((item, idx) => {
           const Icon = item.icon;
           return (
-            <div
+            <motion.div
               key={idx}
-              className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs hover:border-[#16A34A]/50 transition"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, delay: 0.1 + idx * 0.08 }}
+              whileHover={{ y: -3, transition: { duration: 0.2 } }}
+              className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs hover:border-[#16A34A]/50 transition cursor-default"
             >
               <div className={`w-10 h-10 rounded-xl ${item.iconBg} ${item.iconColor} flex items-center justify-center mb-3.5`}>
                 <Icon className="w-5 h-5" />
@@ -87,7 +97,7 @@ export const EventInfoSection: React.FC<EventInfoSectionProps> = ({ onNavigate }
               <p className="text-xs text-slate-500 font-medium">
                 {item.subtext}
               </p>
-            </div>
+            </motion.div>
           );
         })}
       </div>
@@ -95,7 +105,12 @@ export const EventInfoSection: React.FC<EventInfoSectionProps> = ({ onNavigate }
       {/* Two Column Section: Team Structure + Topics */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Team Model Card */}
-        <div className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-2xs space-y-4">
+        <motion.div
+          initial={{ opacity: 0, x: -15 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.4, delay: 0.3 }}
+          className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-2xs space-y-4"
+        >
           <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
             <div className="w-10 h-10 rounded-xl bg-[#22C55E]/15 text-[#16A34A] flex items-center justify-center">
               <Users className="w-5 h-5" />
@@ -124,10 +139,15 @@ export const EventInfoSection: React.FC<EventInfoSectionProps> = ({ onNavigate }
               <span>Each student can only register in one team.</span>
             </li>
           </ul>
-        </div>
+        </motion.div>
 
         {/* Suggested Presentation Themes */}
-        <div className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-2xs space-y-4">
+        <motion.div
+          initial={{ opacity: 0, x: 15 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.4, delay: 0.3 }}
+          className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-2xs space-y-4"
+        >
           <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
             <div className="w-10 h-10 rounded-xl bg-[#0A192F]/10 text-[#0A192F] flex items-center justify-center">
               <Award className="w-5 h-5" />
@@ -146,12 +166,17 @@ export const EventInfoSection: React.FC<EventInfoSectionProps> = ({ onNavigate }
               </div>
             ))}
           </div>
-        </div>
+        </motion.div>
       </div>
 
       {/* Action CTA Banner */}
       {onNavigate && (
-        <div className="bg-[#FAFBF9] rounded-2xl border border-slate-200/90 p-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left shadow-2xs">
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.4 }}
+          className="bg-[#FAFBF9] rounded-2xl border border-slate-200/90 p-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left shadow-2xs"
+        >
           <div>
             <h4 className="text-base font-extrabold text-[#0A192F]">Ready to participate?</h4>
             <p className="text-xs text-slate-500">
@@ -159,15 +184,18 @@ export const EventInfoSection: React.FC<EventInfoSectionProps> = ({ onNavigate }
             </p>
           </div>
 
-          <button
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
             onClick={() => onNavigate('registration')}
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-extrabold text-white bg-[#0A192F] hover:bg-[#122846] transition shadow-xs whitespace-nowrap"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-extrabold text-white bg-[#0A192F] hover:bg-[#122846] transition shadow-xs whitespace-nowrap cursor-pointer"
           >
             <span>Go to Registration Form</span>
             <ArrowRight className="w-4 h-4 text-[#22C55E]" />
-          </button>
-        </div>
+          </motion.button>
+        </motion.div>
       )}
-    </div>
+    </motion.div>
   );
 };
+
