@@ -25,7 +25,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
-  // GET: Fetch registration
+  // GET: Fetch registration with verification
   if (req.method === 'GET') {
     const reg = getRegistrationById(cleanId);
     if (!reg) {
@@ -33,6 +33,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         success: false,
         error: `No registration record found for "${cleanId}". Please check the registration number and retry.`
       });
+    }
+
+    const leaderRollParam = req.query?.leaderRoll || req.headers['x-leader-roll'];
+    const leaderMobileParam = req.query?.leaderMobile || req.headers['x-leader-mobile'];
+    
+    const reqRoll = String(Array.isArray(leaderRollParam) ? leaderRollParam[0] : (leaderRollParam || '')).trim();
+    const reqMobile = String(Array.isArray(leaderMobileParam) ? leaderMobileParam[0] : (leaderMobileParam || '')).trim().replace(/[\s\-()]/g, '');
+
+    if (reqRoll) {
+      const storedRoll = String(reg.leaderRoll || reg.payload?.leader?.roll || '').trim();
+      if (storedRoll && storedRoll.toLowerCase() !== reqRoll.toLowerCase()) {
+        return res.status(401).json({
+          success: false,
+          error: 'Security verification failed: Leader Roll number does not match this registration.'
+        });
+      }
+    }
+
+    if (reqMobile) {
+      const storedMobile = String(reg.payload?.leader?.whatsapp || '').trim().replace(/[\s\-()]/g, '');
+      const cleanStored = storedMobile.startsWith('+88') ? storedMobile.slice(3) : storedMobile.startsWith('88') ? storedMobile.slice(2) : storedMobile;
+      const cleanReq = reqMobile.startsWith('+88') ? reqMobile.slice(3) : reqMobile.startsWith('88') ? reqMobile.slice(2) : reqMobile;
+      if (cleanStored && cleanStored !== cleanReq) {
+        return res.status(401).json({
+          success: false,
+          error: 'Security verification failed: Leader Mobile number does not match this registration.'
+        });
+      }
     }
 
     const editCount = reg.editCount ?? 0;

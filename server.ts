@@ -311,6 +311,31 @@ async function startServer() {
       });
     }
 
+    const reqRoll = String(req.query?.leaderRoll || req.headers['x-leader-roll'] || '').trim();
+    const reqMobile = String(req.query?.leaderMobile || req.headers['x-leader-mobile'] || '').trim().replace(/[\s\-()]/g, '');
+
+    if (reqRoll) {
+      const storedRoll = String(reg.leaderRoll || reg.payload?.leader?.roll || '').trim();
+      if (storedRoll && storedRoll.toLowerCase() !== reqRoll.toLowerCase()) {
+        return res.status(401).json({
+          success: false,
+          error: 'Security verification failed: Leader Roll number does not match this registration.'
+        });
+      }
+    }
+
+    if (reqMobile) {
+      const storedMobile = String(reg.payload?.leader?.whatsapp || '').trim().replace(/[\s\-()]/g, '');
+      const cleanStored = storedMobile.startsWith('+88') ? storedMobile.slice(3) : storedMobile.startsWith('88') ? storedMobile.slice(2) : storedMobile;
+      const cleanReq = reqMobile.startsWith('+88') ? reqMobile.slice(3) : reqMobile.startsWith('88') ? reqMobile.slice(2) : reqMobile;
+      if (cleanStored && cleanStored !== cleanReq) {
+        return res.status(401).json({
+          success: false,
+          error: 'Security verification failed: Leader Mobile number does not match this registration.'
+        });
+      }
+    }
+
     const editCount = reg.editCount ?? 0;
     const maxEdits = reg.maxEdits ?? 3;
     const remainingEdits = Math.max(0, maxEdits - editCount);

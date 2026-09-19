@@ -17,11 +17,14 @@ import {
   ArrowLeft,
   Calendar,
   Save,
-  Info
+  Info,
+  KeyRound,
+  Phone,
+  Hash
 } from 'lucide-react';
 import { RegisteredTeamRecord, RegistrationFormData, Participant } from '../types';
 import { generateRegistrationPdf } from '../utils/pdfGenerator';
-import { validateBangladeshPhone } from '../utils/formUtils';
+import { DEPARTMENTS, validateBangladeshPhone } from '../utils/formUtils';
 
 interface ViewEditRegistrationModalProps {
   isOpen: boolean;
@@ -35,6 +38,8 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
   initialRegId = ''
 }) => {
   const [searchId, setSearchId] = useState(initialRegId);
+  const [searchRoll, setSearchRoll] = useState('');
+  const [searchMobile, setSearchMobile] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [record, setRecord] = useState<RegisteredTeamRecord | null>(null);
@@ -47,7 +52,7 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
 
   // Recent local registrations
-  const [recentRegistrations, setRecentRegistrations] = useState<{ registrationId: string; leaderName: string }[]>([]);
+  const [recentRegistrations, setRecentRegistrations] = useState<{ registrationId: string; leaderName: string; leaderRoll: string; leaderMobile: string }[]>([]);
 
   useEffect(() => {
     try {
@@ -58,7 +63,9 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
           setRecentRegistrations(
             parsed.slice(0, 4).map((item: any) => ({
               registrationId: item.registrationId,
-              leaderName: item.formData?.leader?.name || 'Team'
+              leaderName: item.formData?.leader?.name || 'Team',
+              leaderRoll: item.formData?.leader?.roll || '',
+              leaderMobile: item.formData?.leader?.whatsapp || ''
             }))
           );
         }
@@ -71,16 +78,33 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
   useEffect(() => {
     if (initialRegId) {
       setSearchId(initialRegId);
-      handleSearch(initialRegId);
     }
   }, [initialRegId, isOpen]);
 
   if (!isOpen) return null;
 
-  const handleSearch = async (idToSearch?: string) => {
-    const targetId = (idToSearch || searchId).trim().toUpperCase();
+  const normalizePhoneForCheck = (phone: string) => {
+    const cleaned = (phone || '').trim().replace(/[\s\-()]/g, '');
+    if (cleaned.startsWith('+88')) return cleaned.slice(3);
+    if (cleaned.startsWith('88')) return cleaned.slice(2);
+    return cleaned;
+  };
+
+  const handleSearch = async (overrideId?: string, overrideRoll?: string, overrideMobile?: string) => {
+    const targetId = (overrideId || searchId).trim().toUpperCase();
+    const targetRoll = (overrideRoll !== undefined ? overrideRoll : searchRoll).trim();
+    const targetMobile = (overrideMobile !== undefined ? overrideMobile : searchMobile).trim();
+
     if (!targetId) {
-      setSearchError('Please enter a Registration Number.');
+      setSearchError('Please enter your Registration Number.');
+      return;
+    }
+    if (!targetRoll) {
+      setSearchError('Please enter the Team Leader Roll Number for security verification.');
+      return;
+    }
+    if (!targetMobile) {
+      setSearchError('Please enter the Team Leader Mobile / WhatsApp Number for security verification.');
       return;
     }
 
@@ -90,7 +114,11 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
     setIsEditing(false);
 
     try {
-      const res = await fetch(`/api/registration/${encodeURIComponent(targetId)}`);
+      const queryParams = new URLSearchParams({
+        leaderRoll: targetRoll,
+        leaderMobile: targetMobile
+      });
+      const res = await fetch(`/api/registration/${encodeURIComponent(targetId)}?${queryParams.toString()}`);
       const rawText = await res.text();
       let data: any = {};
       try {
@@ -99,9 +127,10 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
         console.error('Non-JSON response from /api/registration:', rawText);
       }
 
+      let candidateRecord: RegisteredTeamRecord | null = null;
+
       if (res.ok && data.success && data.registration) {
-        setRecord(data.registration);
-        setEditFormData(JSON.parse(JSON.stringify(data.registration.formData)));
+        candidateRecord = data.registration;
       } else {
         // Check if cached in localStorage
         const localSaved = localStorage.getItem('tpc2026_saved_registrations');
@@ -109,7 +138,8 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
           const list = JSON.parse(localSaved);
           const found = list.find((item: any) => item.registrationId?.toUpperCase() === targetId);
           if (found) {
-            // Restore to server
+            candidateRecord = found;
+            // Restore to server in background
             try {
               await fetch('/api/registration/sync', {
                 method: 'POST',
@@ -119,14 +149,31 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
             } catch {
               // Ignore
             }
-            setRecord(found);
-            setEditFormData(JSON.parse(JSON.stringify(found.formData)));
-            return;
           }
         }
-        setSearchError(data.error || `No registration found for "${targetId}".`);
-        setRecord(null);
       }
+
+      if (!candidateRecord) {
+        setSearchError(data.error || `No registration found for Registration Number "${targetId}".`);
+        setRecord(null);
+        return;
+      }
+
+      // Verify Leader Roll and Leader Mobile match the record
+      const recordLeaderRoll = (candidateRecord.formData?.leader?.roll || (candidateRecord as any).leaderRoll || '').trim();
+      const recordLeaderMobile = (candidateRecord.formData?.leader?.whatsapp || (candidateRecord as any).leaderWhatsApp || '').trim();
+
+      const rollMatches = recordLeaderRoll.toLowerCase() === targetRoll.toLowerCase();
+      const mobileMatches = normalizePhoneForCheck(recordLeaderMobile) === normalizePhoneForCheck(targetMobile);
+
+      if (!rollMatches || !mobileMatches) {
+        setSearchError('Verification failed: The Leader Roll Number or Leader Mobile Number does not match this Registration record.');
+        setRecord(null);
+        return;
+      }
+
+      setRecord(candidateRecord);
+      setEditFormData(JSON.parse(JSON.stringify(candidateRecord.formData)));
     } catch (err: any) {
       // Check local storage backup
       const localSaved = localStorage.getItem('tpc2026_saved_registrations');
@@ -134,9 +181,19 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
         const list = JSON.parse(localSaved);
         const found = list.find((item: any) => item.registrationId?.toUpperCase() === targetId);
         if (found) {
-          setRecord(found);
-          setEditFormData(JSON.parse(JSON.stringify(found.formData)));
-          return;
+          const recordLeaderRoll = (found.formData?.leader?.roll || (found as any).leaderRoll || '').trim();
+          const recordLeaderMobile = (found.formData?.leader?.whatsapp || (found as any).leaderWhatsApp || '').trim();
+
+          if (recordLeaderRoll.toLowerCase() === targetRoll.toLowerCase() &&
+              normalizePhoneForCheck(recordLeaderMobile) === normalizePhoneForCheck(targetMobile)) {
+            setRecord(found);
+            setEditFormData(JSON.parse(JSON.stringify(found.formData)));
+            return;
+          } else {
+            setSearchError('Verification failed: The Leader Roll Number or Leader Mobile Number does not match this Registration record.');
+            setRecord(null);
+            return;
+          }
         }
       }
       setSearchError(err.message || 'Failed to connect to registration server.');
@@ -362,39 +419,96 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
 
         {/* Modal Body */}
         <div className="p-5 sm:p-7 max-h-[82vh] overflow-y-auto">
-          {/* Search Bar */}
-          <div className="mb-6 p-4 rounded-2xl bg-slate-50 border border-slate-200/80">
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-              Registration Number
-            </label>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <div className="relative flex-1">
-                <input
-                  type="text"
-                  value={searchId}
-                  onChange={(e) => setSearchId(e.target.value.toUpperCase())}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                  placeholder="e.g. TEX2026-001"
-                  className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-300 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#22C55E]/30 focus:border-[#16A34A] tracking-wider uppercase placeholder:normal-case placeholder:font-normal"
-                />
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
+          {/* Security Search Box */}
+          <div className="mb-6 p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200/90 space-y-3.5">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200/70">
+              <div className="flex items-center gap-2">
+                <KeyRound className="w-4 h-4 text-[#16A34A]" />
+                <span className="text-xs font-black text-[#0A192F] uppercase tracking-wider">
+                  Security Verification Required
+                </span>
               </div>
+              <span className="text-[11px] text-slate-500 font-medium hidden sm:inline">
+                Registration No + Leader Roll & Mobile
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* Registration Number */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                  <Hash className="w-3 h-3 text-[#16A34A]" />
+                  <span>Registration ID *</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={searchId}
+                    onChange={(e) => setSearchId(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                    placeholder="e.g. TEX2026-001"
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs font-extrabold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-[#22C55E]/30 focus:border-[#16A34A] tracking-wider uppercase placeholder:normal-case placeholder:font-normal"
+                  />
+                </div>
+              </div>
+
+              {/* Leader Roll */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                  <User className="w-3 h-3 text-[#16A34A]" />
+                  <span>Leader Roll No *</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={searchRoll}
+                    onChange={(e) => setSearchRoll(e.target.value.trim())}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                    placeholder="e.g. 20220145"
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-[#22C55E]/30 focus:border-[#16A34A] placeholder:font-normal"
+                  />
+                </div>
+              </div>
+
+              {/* Leader Mobile */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                  <Phone className="w-3 h-3 text-[#16A34A]" />
+                  <span>Leader Mobile No *</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="tel"
+                    value={searchMobile}
+                    onChange={(e) => setSearchMobile(e.target.value.trim())}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                    placeholder="e.g. 01712345678"
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-[#22C55E]/30 focus:border-[#16A34A] placeholder:font-normal"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-1 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <p className="text-[11px] text-slate-500 text-center sm:text-left">
+                Both Leader Roll & Mobile are verified against your record for authorized access.
+              </p>
 
               <button
                 type="button"
                 onClick={() => handleSearch()}
                 disabled={isLoading}
-                className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-[#0A192F] hover:bg-[#122846] active:scale-98 transition disabled:opacity-60 shadow-xs"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-[#0A192F] hover:bg-[#122846] active:scale-98 transition disabled:opacity-60 shadow-xs whitespace-nowrap"
               >
                 {isLoading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin text-[#22C55E]" />
-                    <span>Searching...</span>
+                    <span>Verifying...</span>
                   </>
                 ) : (
                   <>
                     <Search className="w-4 h-4 text-[#22C55E]" />
-                    <span>Find Registration</span>
+                    <span>Verify & Find Record</span>
                   </>
                 )}
               </button>
@@ -410,7 +524,9 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
                     type="button"
                     onClick={() => {
                       setSearchId(item.registrationId);
-                      handleSearch(item.registrationId);
+                      setSearchRoll(item.leaderRoll);
+                      setSearchMobile(item.leaderMobile);
+                      handleSearch(item.registrationId, item.leaderRoll, item.leaderMobile);
                     }}
                     className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-slate-300 text-slate-700 font-bold hover:border-[#16A34A] hover:text-[#16A34A] transition"
                   >
@@ -752,12 +868,18 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
                               <label className="block text-[11px] font-bold text-slate-700 mb-1">
                                 Department *
                               </label>
-                              <input
-                                type="text"
+                              <select
                                 value={p.department}
                                 onChange={(e) => handleParticipantChange(role, 'department', e.target.value)}
-                                className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#22C55E]/30"
-                              />
+                                className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-[#22C55E]/30 cursor-pointer"
+                              >
+                                <option value="" disabled>Select Department</option>
+                                {DEPARTMENTS.map((dept) => (
+                                  <option key={dept} value={dept}>
+                                    {dept}
+                                  </option>
+                                ))}
+                              </select>
                             </div>
 
                             <div>

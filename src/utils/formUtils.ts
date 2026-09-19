@@ -2,9 +2,7 @@ export const DEPARTMENTS = [
   'Yarn Engineering',
   'Fabric Engineering',
   'Wet Process Engineering',
-  'Apparel Engineering',
-  'Industrial & Production Engineering (IPE)',
-  'Textile Engineering (General)'
+  'Apparel Engineering'
 ] as const;
 
 /**

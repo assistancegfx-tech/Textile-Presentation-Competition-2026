@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { User, Users, CreditCard, CheckCircle2, ChevronRight, ChevronLeft, AlertCircle, ShieldAlert, Sparkles, Wand2, RotateCcw, FastForward, Search } from 'lucide-react';
+import { User, Users, CreditCard, CheckCircle2, ChevronRight, ChevronLeft, AlertCircle, ShieldAlert, RotateCcw, Search } from 'lucide-react';
 import { RegistrationFormData, SubmissionResponse, Participant, SubmissionProgressStage } from '../types';
 import { ParticipantStepForm } from './ParticipantStepForm';
 import { PaymentStepForm } from './PaymentStepForm';
 import { ReviewConfirmStep } from './ReviewConfirmStep';
 import { SuccessView } from './SuccessView';
 import { validateBangladeshPhone, validateTransactionId } from '../utils/formUtils';
-import { getDemoFormData } from '../utils/demoData';
 
 const initialParticipant = (): Participant => ({
   name: '',
@@ -48,7 +47,6 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
   const [submitProgressStage, setSubmitProgressStage] = useState<SubmissionProgressStage>('idle');
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submissionResult, setSubmissionResult] = useState<SubmissionResponse | null>(null);
-  const [demoToast, setDemoToast] = useState<string | null>(null);
 
   const isFormPartiallyFilled = Boolean(
     formData.leader.name ||
@@ -57,31 +55,11 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
     formData.payment.transactionId
   );
 
-  const handleDemoFillup = () => {
-    const demo = getDemoFormData();
-    setFormData(demo);
-    setStepErrors({});
-    setSubmitError(null);
-    setDemoToast('Demo data loaded! 3 team members, student photos, and bKash transaction populated.');
-    setTimeout(() => {
-      setDemoToast(null);
-    }, 4500);
-  };
-
   const handleClearForm = () => {
     setFormData(initialFormData());
     setStepErrors({});
     setSubmitError(null);
-    setDemoToast(null);
     setCurrentStep(0);
-  };
-
-  const handleJumpToReview = () => {
-    if (!formData.leader.name || !formData.payment.transactionId) {
-      handleDemoFillup();
-    }
-    setStepErrors({});
-    setCurrentStep(4);
   };
 
   const steps = [
@@ -431,76 +409,16 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
         ) : (
           /* Multi-step Registration Card */
           <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xl p-5 sm:p-8 md:p-10 relative">
-            {/* Demo Fill-up Action Bar */}
-            <div className="mb-6 p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-emerald-500/5 to-transparent border border-amber-300/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
-                  <Sparkles className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-[#0A192F]">Demo Fill-up</span>
-                    <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md bg-amber-200/80 text-amber-900">
-                      Testing Option
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-slate-600 mt-0.5">
-                    Pre-fill all 3 team members, student portraits, and bKash transaction with sample data.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            {isFormPartiallyFilled && (
+              <div className="flex justify-end mb-4">
                 <button
                   type="button"
-                  onClick={handleDemoFillup}
-                  className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 active:scale-98 transition shadow-xs"
-                  title="Auto-fill form with realistic demo team"
+                  onClick={handleClearForm}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-500 hover:text-red-600 hover:bg-red-50 border border-slate-200 transition"
                 >
-                  <Wand2 className="w-3.5 h-3.5" />
-                  <span>{isFormPartiallyFilled ? 'Re-generate Demo Data' : 'Fill Demo Data'}</span>
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Reset Form</span>
                 </button>
-
-                {isFormPartiallyFilled && currentStep !== 4 && (
-                  <button
-                    type="button"
-                    onClick={handleJumpToReview}
-                    className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-[#0A192F] bg-emerald-100 hover:bg-emerald-200 active:scale-98 transition border border-emerald-300"
-                    title="Jump directly to Review & Submit step"
-                  >
-                    <FastForward className="w-3.5 h-3.5 text-[#15803D]" />
-                    <span>Review & Submit</span>
-                  </button>
-                )}
-
-                {isFormPartiallyFilled && (
-                  <button
-                    type="button"
-                    onClick={handleClearForm}
-                    className="p-2 rounded-xl text-xs text-slate-500 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 transition"
-                    title="Clear form"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {demoToast && (
-              <div className="mb-6 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-[#15803D] text-xs font-semibold flex flex-wrap items-center justify-between gap-2 animate-in fade-in">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 shrink-0 text-[#15803D]" />
-                  <span>{demoToast}</span>
-                </div>
-                <div>
-                  <button
-                    type="button"
-                    onClick={() => setDemoToast(null)}
-                    className="text-slate-400 hover:text-slate-600 text-xs px-1"
-                  >
-                    ✕
-                  </button>
-                </div>
               </div>
             )}
 
