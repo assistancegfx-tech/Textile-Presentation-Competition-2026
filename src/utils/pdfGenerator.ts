@@ -92,13 +92,24 @@ export function generateRegistrationPdf(data: RegistrationPdfData) {
   doc.text('STATUS', pageWidth - margin - 6, y + 7, { align: 'right' });
 
   // Status Badge
-  doc.setFillColor(254, 243, 199); // Amber 100
-  doc.setDrawColor(245, 158, 11); // Amber 500
-  doc.roundedRect(pageWidth - margin - 52, y + 10, 46, 8, 1.5, 1.5, 'FD');
-  doc.setTextColor(180, 83, 9); // Amber 700
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'bold');
-  doc.text(data.paymentStatus || 'Pending Verification', pageWidth - margin - 29, y + 15.5, { align: 'center' });
+  const isPaidStatus = /^(paid|verified|approved|received|completed|success)/i.test((data.paymentStatus || '').trim());
+  if (isPaidStatus) {
+    doc.setFillColor(220, 252, 231); // Emerald 100
+    doc.setDrawColor(34, 197, 94); // Emerald 500
+    doc.roundedRect(pageWidth - margin - 52, y + 10, 46, 8, 1.5, 1.5, 'FD');
+    doc.setTextColor(21, 128, 61); // Emerald 700
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    doc.text('PAID / VERIFIED', pageWidth - margin - 29, y + 15.5, { align: 'center' });
+  } else {
+    doc.setFillColor(254, 243, 199); // Amber 100
+    doc.setDrawColor(245, 158, 11); // Amber 500
+    doc.roundedRect(pageWidth - margin - 52, y + 10, 46, 8, 1.5, 1.5, 'FD');
+    doc.setTextColor(180, 83, 9); // Amber 700
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    doc.text(data.paymentStatus || 'Pending Verification', pageWidth - margin - 29, y + 15.5, { align: 'center' });
+  }
 
   // Edit count indicator if present
   if (data.editCount !== undefined) {

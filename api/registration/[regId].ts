@@ -25,9 +25,83 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
-  // GET: Fetch registration with verification
+  // GET: Fetch registration with verification & live Google Sheets sync
   if (req.method === 'GET') {
-    const reg = getRegistrationById(cleanId);
+    let reg = getRegistrationById(cleanId);
+
+    // Live Google Sheets synchronization
+    const customScriptUrl = (req.headers['x-google-script-url'] || (req as any).headers?.['x-google-script-url']) as string | undefined;
+    const targetScriptUrl = customScriptUrl || (req.query?.scriptUrl as string) || process.env.GOOGLE_SCRIPT_URL || process.env.VITE_GOOGLE_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbzVPB_lyf20Tx7qNxgbNSSUxqi-9lQL4m-l6yD6QQMpgZSv3GSqk1o5qXDYhhInC3af_A/exec';
+
+    if (targetScriptUrl && targetScriptUrl.startsWith('http')) {
+      try {
+        const queryUrl = `${targetScriptUrl}${targetScriptUrl.includes('?') ? '&' : '?'}action=get&regId=${encodeURIComponent(cleanId)}`;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
+        
+        const gRes = await fetch(queryUrl, { signal: controller.signal, redirect: 'follow' });
+        clearTimeout(timeoutId);
+        
+        if (gRes.ok) {
+          const gData: any = await gRes.json();
+          if (gData && (gData.success || gData.found) && gData.registrationId) {
+            const liveStatus = gData.paymentStatus || 'Pending';
+            
+            if (reg) {
+              reg.paymentStatus = liveStatus;
+              if (gData.leaderRoll) reg.leaderRoll = gData.leaderRoll;
+              if (gData.transactionId) reg.transactionId = gData.transactionId;
+            } else {
+              reg = {
+                registrationId: gData.registrationId || cleanId,
+                submissionDate: gData.submissionDate || new Date().toISOString(),
+                paymentStatus: liveStatus,
+                leaderRoll: String(gData.leaderRoll || '').trim(),
+                m1Roll: String(gData.member1Roll || '').trim(),
+                m2Roll: String(gData.member2Roll || '').trim(),
+                transactionId: String(gData.transactionId || '').trim().toUpperCase(),
+                editCount: 0,
+                maxEdits: 3,
+                payload: {
+                  leader: {
+                    name: gData.leaderName || '',
+                    roll: gData.leaderRoll || '',
+                    department: gData.leaderDepartment || 'Textile Engineering',
+                    whatsapp: gData.leaderWhatsApp || '',
+                    facebook: gData.leaderFacebook || '',
+                    photoUrl: gData.leaderPhotoUrl || ''
+                  },
+                  member1: {
+                    name: gData.member1Name || '',
+                    roll: gData.member1Roll || '',
+                    department: gData.member1Department || 'Textile Engineering',
+                    whatsapp: gData.member1WhatsApp || '',
+                    facebook: gData.member1Facebook || '',
+                    photoUrl: gData.member1PhotoUrl || ''
+                  },
+                  member2: {
+                    name: gData.member2Name || '',
+                    roll: gData.member2Roll || '',
+                    department: gData.member2Department || 'Textile Engineering',
+                    whatsapp: gData.member2WhatsApp || '',
+                    facebook: gData.member2Facebook || '',
+                    photoUrl: gData.member2PhotoUrl || ''
+                  },
+                  payment: {
+                    bkashNumber: gData.bkashNumber || '',
+                    transactionId: gData.transactionId || ''
+                  }
+                }
+              };
+              registrationsStore.push(reg);
+            }
+          }
+        }
+      } catch (gErr: any) {
+        console.warn('[REGISTRATION] Google Sheets live check notice:', gErr.message);
+      }
+    }
+
     if (!reg) {
       return res.status(404).json({
         success: false,

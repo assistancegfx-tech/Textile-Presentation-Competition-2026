@@ -296,14 +296,90 @@ async function startServer() {
     }
   });
 
-  // GET Registration by Registration No
-  app.get('/api/registration/:regId', (req: Request, res: Response) => {
+  // GET Registration by Registration No (with live Google Sheets status synchronization)
+  app.get('/api/registration/:regId', async (req: Request, res: Response) => {
     const requestedId = String(req.params.regId || '').trim().toUpperCase();
     if (!requestedId) {
       return res.status(400).json({ success: false, error: 'Please provide a valid Registration Number.' });
     }
 
-    const reg = registrationsStore.find(r => r.registrationId.trim().toUpperCase() === requestedId);
+    let reg = registrationsStore.find(r => r.registrationId.trim().toUpperCase() === requestedId);
+
+    // If Google Apps Script is configured, fetch live status from Google Sheets
+    const customScriptUrl = req.headers['x-google-script-url'] as string | undefined;
+    const targetScriptUrl = customScriptUrl || req.query.scriptUrl as string || process.env.GOOGLE_SCRIPT_URL || process.env.VITE_GOOGLE_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbzVPB_lyf20Tx7qNxgbNSSUxqi-9lQL4m-l6yD6QQMpgZSv3GSqk1o5qXDYhhInC3af_A/exec';
+
+    if (targetScriptUrl && targetScriptUrl.startsWith('http')) {
+      try {
+        const queryUrl = `${targetScriptUrl}${targetScriptUrl.includes('?') ? '&' : '?'}action=get&regId=${encodeURIComponent(requestedId)}`;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
+        
+        const gRes = await fetch(queryUrl, { signal: controller.signal, redirect: 'follow' });
+        clearTimeout(timeoutId);
+        
+        if (gRes.ok) {
+          const gData: any = await gRes.json();
+          if (gData && (gData.success || gData.found) && gData.registrationId) {
+            const liveStatus = gData.paymentStatus || 'Pending';
+            
+            if (reg) {
+              // Update payment status from Google Sheets
+              reg.paymentStatus = liveStatus;
+              if (gData.leaderRoll) reg.leaderRoll = gData.leaderRoll;
+              if (gData.transactionId) reg.transactionId = gData.transactionId;
+            } else {
+              // Reconstruct registration from Google Sheets if server memory was cleared
+              reg = {
+                registrationId: gData.registrationId || requestedId,
+                submissionDate: gData.submissionDate || new Date().toISOString(),
+                paymentStatus: liveStatus,
+                leaderRoll: String(gData.leaderRoll || '').trim(),
+                m1Roll: String(gData.member1Roll || '').trim(),
+                m2Roll: String(gData.member2Roll || '').trim(),
+                transactionId: String(gData.transactionId || '').trim().toUpperCase(),
+                editCount: 0,
+                maxEdits: 3,
+                payload: {
+                  leader: {
+                    name: gData.leaderName || '',
+                    roll: gData.leaderRoll || '',
+                    department: gData.leaderDepartment || 'Textile Engineering',
+                    whatsapp: gData.leaderWhatsApp || '',
+                    facebook: gData.leaderFacebook || '',
+                    photoUrl: gData.leaderPhotoUrl || ''
+                  },
+                  member1: {
+                    name: gData.member1Name || '',
+                    roll: gData.member1Roll || '',
+                    department: gData.member1Department || 'Textile Engineering',
+                    whatsapp: gData.member1WhatsApp || '',
+                    facebook: gData.member1Facebook || '',
+                    photoUrl: gData.member1PhotoUrl || ''
+                  },
+                  member2: {
+                    name: gData.member2Name || '',
+                    roll: gData.member2Roll || '',
+                    department: gData.member2Department || 'Textile Engineering',
+                    whatsapp: gData.member2WhatsApp || '',
+                    facebook: gData.member2Facebook || '',
+                    photoUrl: gData.member2PhotoUrl || ''
+                  },
+                  payment: {
+                    bkashNumber: gData.bkashNumber || '',
+                    transactionId: gData.transactionId || ''
+                  }
+                }
+              };
+              registrationsStore.push(reg);
+            }
+          }
+        }
+      } catch (gErr: any) {
+        console.warn('[REGISTRATION] Google Sheets live status check notice:', gErr.message);
+      }
+    }
+
     if (!reg) {
       return res.status(404).json({
         success: false,
@@ -353,6 +429,54 @@ async function startServer() {
         lastEditedAt: reg.lastEditedAt,
         formData: reg.payload
       }
+    });
+  });
+
+  // Update Payment Status endpoint (Admin/Sync endpoint)
+  app.post('/api/registration/update-status', async (req: Request, res: Response) => {
+    const { registrationId, paymentStatus, status } = req.body;
+    const cleanId = String(registrationId || '').trim().toUpperCase();
+    const newStatus = String(paymentStatus || status || 'Paid').trim();
+
+    if (!cleanId) {
+      return res.status(400).json({ success: false, error: 'Registration ID is required.' });
+    }
+
+    const reg = registrationsStore.find(r => r.registrationId.trim().toUpperCase() === cleanId);
+    if (reg) {
+      reg.paymentStatus = newStatus as any;
+    }
+
+    // Also forward update to Google Apps Script if configured
+    const targetScriptUrl = process.env.GOOGLE_SCRIPT_URL || process.env.VITE_GOOGLE_SCRIPT_URL;
+    let sheetUpdated = false;
+    if (targetScriptUrl && targetScriptUrl.startsWith('http')) {
+      try {
+        const scriptRes = await fetch(targetScriptUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'updateStatus',
+            registrationId: cleanId,
+            paymentStatus: newStatus
+          }),
+          redirect: 'follow'
+        });
+        const scriptJson: any = await scriptRes.json();
+        if (scriptJson && scriptJson.success) {
+          sheetUpdated = true;
+        }
+      } catch (sheetErr: any) {
+        console.warn('[REGISTRATION] Google Sheets status sync error:', sheetErr.message);
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: `Payment status updated to "${newStatus}" for ${cleanId}.`,
+      registrationId: cleanId,
+      paymentStatus: newStatus,
+      sheetUpdated
     });
   });
 

@@ -20,7 +20,8 @@ import {
   Info,
   KeyRound,
   Phone,
-  Hash
+  Hash,
+  RotateCcw
 } from 'lucide-react';
 import { RegisteredTeamRecord, RegistrationFormData, Participant } from '../types';
 import { generateRegistrationPdf } from '../utils/pdfGenerator';
@@ -91,20 +92,17 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
   };
 
   const handleSearch = async (overrideId?: string, overrideRoll?: string, overrideMobile?: string) => {
-    const targetId = (overrideId || searchId).trim().toUpperCase();
+    const rawTargetId = (overrideId || searchId).trim();
+    let targetId = rawTargetId.toUpperCase();
+    if (targetId && !targetId.startsWith('TEX') && /^\d+$/.test(targetId) && targetId.length <= 4) {
+      targetId = `TEX2026-${targetId.padStart(3, '0')}`;
+    }
+
     const targetRoll = (overrideRoll !== undefined ? overrideRoll : searchRoll).trim();
     const targetMobile = (overrideMobile !== undefined ? overrideMobile : searchMobile).trim();
 
-    if (!targetId) {
-      setSearchError('Please enter your Registration Number.');
-      return;
-    }
-    if (!targetRoll) {
-      setSearchError('Please enter the Team Leader Roll Number for security verification.');
-      return;
-    }
-    if (!targetMobile) {
-      setSearchError('Please enter the Team Leader Mobile / WhatsApp Number for security verification.');
+    if (!targetId && !targetRoll) {
+      setSearchError('Please enter your Registration Number (e.g. TEX2026-001) or Team Leader Roll.');
       return;
     }
 
@@ -113,89 +111,161 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
     setSaveSuccessMsg(null);
     setIsEditing(false);
 
+    const scriptUrl = localStorage.getItem('tpc2026_google_script_url') || 'https://script.google.com/macros/s/AKfycbzVPB_lyf20Tx7qNxgbNSSUxqi-9lQL4m-l6yD6QQMpgZSv3GSqk1o5qXDYhhInC3af_A/exec';
+
     try {
-      const queryParams = new URLSearchParams({
-        leaderRoll: targetRoll,
-        leaderMobile: targetMobile
-      });
-      const res = await fetch(`/api/registration/${encodeURIComponent(targetId)}?${queryParams.toString()}`);
-      const rawText = await res.text();
-      let data: any = {};
-      try {
-        data = JSON.parse(rawText);
-      } catch {
-        console.error('Non-JSON response from /api/registration:', rawText);
-      }
+      const queryParams = new URLSearchParams();
+      if (targetRoll) queryParams.set('leaderRoll', targetRoll);
+      if (targetMobile) queryParams.set('leaderMobile', targetMobile);
+      if (scriptUrl) queryParams.set('scriptUrl', scriptUrl);
 
       let candidateRecord: RegisteredTeamRecord | null = null;
 
-      if (res.ok && data.success && data.registration) {
-        candidateRecord = data.registration;
-      } else {
-        // Check if cached in localStorage
+      // 1. Query Backend API
+      try {
+        const res = await fetch(`/api/registration/${encodeURIComponent(targetId || targetRoll)}?${queryParams.toString()}`, {
+          headers: {
+            'x-google-script-url': scriptUrl
+          }
+        });
+        const rawText = await res.text();
+        let data: any = {};
+        try {
+          data = JSON.parse(rawText);
+        } catch {
+          // non-json
+        }
+
+        if (res.ok && data.success && data.registration) {
+          candidateRecord = data.registration;
+        }
+      } catch (backendErr) {
+        console.warn('Backend API lookup notice, trying direct Google Sheets fallback:', backendErr);
+      }
+
+      // 2. Direct Google Apps Script Client-Side Fallback if backend didn't return record
+      if (!candidateRecord && scriptUrl) {
+        try {
+          const directUrl = `${scriptUrl}${scriptUrl.includes('?') ? '&' : '?'}action=get&regId=${encodeURIComponent(targetId || targetRoll)}`;
+          const gRes = await fetch(directUrl, { redirect: 'follow' });
+          if (gRes.ok) {
+            const gData = await gRes.json();
+            if (gData && (gData.success || gData.found) && gData.registrationId) {
+              candidateRecord = {
+                registrationId: gData.registrationId,
+                submissionDate: gData.submissionDate || new Date().toISOString(),
+                paymentStatus: gData.paymentStatus || 'Pending',
+                editCount: 0,
+                maxEdits: 3,
+                remainingEdits: 3,
+                canEdit: true,
+                formData: {
+                  leader: {
+                    name: gData.leaderName || '',
+                    roll: gData.leaderRoll || '',
+                    department: gData.leaderDepartment || 'Textile Engineering',
+                    whatsapp: gData.leaderWhatsApp || '',
+                    facebook: gData.leaderFacebook || '',
+                    photoPreview: gData.leaderPhotoUrl || undefined
+                  },
+                  member1: {
+                    name: gData.member1Name || '',
+                    roll: gData.member1Roll || '',
+                    department: gData.member1Department || 'Textile Engineering',
+                    whatsapp: gData.member1WhatsApp || '',
+                    facebook: gData.member1Facebook || '',
+                    photoPreview: gData.member1PhotoUrl || undefined
+                  },
+                  member2: {
+                    name: gData.member2Name || '',
+                    roll: gData.member2Roll || '',
+                    department: gData.member2Department || 'Textile Engineering',
+                    whatsapp: gData.member2WhatsApp || '',
+                    facebook: gData.member2Facebook || '',
+                    photoPreview: gData.member2PhotoUrl || undefined
+                  },
+                  payment: {
+                    bkashNumber: gData.bkashNumber || '',
+                    transactionId: gData.transactionId || ''
+                  }
+                }
+              };
+            }
+          }
+        } catch (scriptFetchErr) {
+          console.warn('Direct Google Apps Script fetch notice:', scriptFetchErr);
+        }
+      }
+
+      // 3. Check LocalStorage fallback
+      if (!candidateRecord) {
         const localSaved = localStorage.getItem('tpc2026_saved_registrations');
         if (localSaved) {
           const list = JSON.parse(localSaved);
-          const found = list.find((item: any) => item.registrationId?.toUpperCase() === targetId);
-          if (found) {
-            candidateRecord = found;
-            // Restore to server in background
-            try {
-              await fetch('/api/registration/sync', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ registration: found })
-              });
-            } catch {
-              // Ignore
+          if (Array.isArray(list)) {
+            const found = list.find((item: any) => 
+              item.registrationId?.toUpperCase() === targetId ||
+              item.formData?.leader?.roll?.trim() === targetRoll ||
+              item.formData?.payment?.transactionId?.toUpperCase() === targetId
+            );
+            if (found) {
+              candidateRecord = found;
             }
           }
         }
       }
 
       if (!candidateRecord) {
-        setSearchError(data.error || `No registration found for Registration Number "${targetId}".`);
+        setSearchError(`No registration found for "${targetId || targetRoll}". Please verify the Registration ID or Roll number.`);
         setRecord(null);
         return;
       }
 
-      // Verify Leader Roll and Leader Mobile match the record
+      // If Leader Roll and Mobile are specified in form, verify them flexibly
       const recordLeaderRoll = (candidateRecord.formData?.leader?.roll || (candidateRecord as any).leaderRoll || '').trim();
       const recordLeaderMobile = (candidateRecord.formData?.leader?.whatsapp || (candidateRecord as any).leaderWhatsApp || '').trim();
 
-      const rollMatches = recordLeaderRoll.toLowerCase() === targetRoll.toLowerCase();
-      const mobileMatches = normalizePhoneForCheck(recordLeaderMobile) === normalizePhoneForCheck(targetMobile);
-
-      if (!rollMatches || !mobileMatches) {
-        setSearchError('Verification failed: The Leader Roll Number or Leader Mobile Number does not match this Registration record.');
-        setRecord(null);
-        return;
+      if (targetRoll && recordLeaderRoll) {
+        const rollMatches = recordLeaderRoll.toLowerCase() === targetRoll.toLowerCase() ||
+          (candidateRecord.formData?.member1?.roll || '').toLowerCase() === targetRoll.toLowerCase() ||
+          (candidateRecord.formData?.member2?.roll || '').toLowerCase() === targetRoll.toLowerCase();
+        
+        if (!rollMatches) {
+          setSearchError('Verification notice: The Roll Number entered does not match this team record.');
+          setRecord(null);
+          return;
+        }
       }
+
+      if (targetMobile && recordLeaderMobile) {
+        const mobileMatches = normalizePhoneForCheck(recordLeaderMobile) === normalizePhoneForCheck(targetMobile) ||
+          normalizePhoneForCheck(candidateRecord.formData?.member1?.whatsapp || '') === normalizePhoneForCheck(targetMobile) ||
+          normalizePhoneForCheck(candidateRecord.formData?.member2?.whatsapp || '') === normalizePhoneForCheck(targetMobile);
+
+        if (!mobileMatches) {
+          setSearchError('Verification notice: The Mobile Number entered does not match this team record.');
+          setRecord(null);
+          return;
+        }
+      }
+
+      // Update local cache with live synced status
+      try {
+        const localSaved = localStorage.getItem('tpc2026_saved_registrations');
+        let list: RegisteredTeamRecord[] = localSaved ? JSON.parse(localSaved) : [];
+        if (!Array.isArray(list)) list = [];
+        const existingIdx = list.findIndex(r => r.registrationId === candidateRecord!.registrationId);
+        if (existingIdx >= 0) {
+          list[existingIdx] = candidateRecord;
+        } else {
+          list.push(candidateRecord);
+        }
+        localStorage.setItem('tpc2026_saved_registrations', JSON.stringify(list));
+      } catch {}
 
       setRecord(candidateRecord);
       setEditFormData(JSON.parse(JSON.stringify(candidateRecord.formData)));
     } catch (err: any) {
-      // Check local storage backup
-      const localSaved = localStorage.getItem('tpc2026_saved_registrations');
-      if (localSaved) {
-        const list = JSON.parse(localSaved);
-        const found = list.find((item: any) => item.registrationId?.toUpperCase() === targetId);
-        if (found) {
-          const recordLeaderRoll = (found.formData?.leader?.roll || (found as any).leaderRoll || '').trim();
-          const recordLeaderMobile = (found.formData?.leader?.whatsapp || (found as any).leaderWhatsApp || '').trim();
-
-          if (recordLeaderRoll.toLowerCase() === targetRoll.toLowerCase() &&
-              normalizePhoneForCheck(recordLeaderMobile) === normalizePhoneForCheck(targetMobile)) {
-            setRecord(found);
-            setEditFormData(JSON.parse(JSON.stringify(found.formData)));
-            return;
-          } else {
-            setSearchError('Verification failed: The Leader Roll Number or Leader Mobile Number does not match this Registration record.');
-            setRecord(null);
-            return;
-          }
-        }
-      }
       setSearchError(err.message || 'Failed to connect to registration server.');
       setRecord(null);
     } finally {
@@ -575,9 +645,34 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
                     <span className="text-base font-black text-[#0A192F] tracking-wide">
                       {record.registrationId}
                     </span>
-                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300">
-                      {record.paymentStatus || 'Pending Verification'}
-                    </span>
+                    {(() => {
+                      const statusStr = (record.paymentStatus || 'Pending').trim();
+                      const isPaid = /^(paid|verified|approved|received|completed|success)/i.test(statusStr);
+                      const isRejected = /^(rejected|declined|failed|invalid)/i.test(statusStr);
+
+                      if (isPaid) {
+                        return (
+                          <span className="px-3 py-1 rounded-full text-[11px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-2xs flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-[#16A34A]" />
+                            <span>Payment Verified (Paid)</span>
+                          </span>
+                        );
+                      }
+                      if (isRejected) {
+                        return (
+                          <span className="px-3 py-1 rounded-full text-[11px] font-black bg-rose-100 text-rose-800 border border-rose-300 shadow-2xs flex items-center gap-1">
+                            <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
+                            <span>Payment Rejected</span>
+                          </span>
+                        );
+                      }
+                      return (
+                        <span className="px-3 py-1 rounded-full text-[11px] font-black bg-amber-100 text-amber-800 border border-amber-300 shadow-2xs flex items-center gap-1">
+                          <Clock className="w-3.5 h-3.5 text-amber-600" />
+                          <span>{record.paymentStatus || 'Pending Verification'}</span>
+                        </span>
+                      );
+                    })()}
                   </div>
                   <p className="text-xs text-slate-500 mt-1 flex items-center gap-2">
                     <Clock className="w-3.5 h-3.5" />
@@ -628,7 +723,18 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
                       Registered Team Information
                     </h3>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleSearch(record.registrationId, record.formData?.leader?.roll, record.formData?.leader?.whatsapp)}
+                        disabled={isLoading}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-extrabold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 active:scale-98 shadow-2xs transition"
+                        title="Check Google Sheets for updated payment status"
+                      >
+                        <RotateCcw className={`w-3.5 h-3.5 text-[#16A34A] ${isLoading ? 'animate-spin' : ''}`} />
+                        <span>Refresh Live Status</span>
+                      </button>
+
                       <button
                         type="button"
                         onClick={handleDownloadPdf}
@@ -780,22 +886,56 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
                   </div>
 
                   {/* Payment Verification Info */}
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-                    <div>
-                      <span className="text-slate-500 font-medium">Payment Verification:</span>
-                      <div className="flex flex-wrap items-center gap-3 mt-1 font-bold text-slate-800">
-                        <span>bKash: {record.formData.payment.bkashNumber || '—'}</span>
-                        <span>•</span>
-                        <span>TrxID: {record.formData.payment.transactionId || '—'}</span>
-                        <span>•</span>
-                        <span className="text-[#16A34A]">300 BDT Paid</span>
-                      </div>
-                    </div>
+                  {(() => {
+                    const statusStr = (record.paymentStatus || 'Pending').trim();
+                    const isPaid = /^(paid|verified|approved|received|completed|success)/i.test(statusStr);
+                    const isRejected = /^(rejected|declined|failed|invalid)/i.test(statusStr);
 
-                    <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 w-fit">
-                      Verification in Progress
-                    </span>
-                  </div>
+                    return (
+                      <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs ${
+                        isPaid
+                          ? 'bg-emerald-50/80 border-emerald-200'
+                          : isRejected
+                          ? 'bg-rose-50 border-rose-200'
+                          : 'bg-slate-50 border-slate-200'
+                      }`}>
+                        <div>
+                          <span className={isPaid ? 'text-emerald-800 font-bold' : isRejected ? 'text-rose-800 font-bold' : 'text-slate-500 font-medium'}>
+                            {isPaid ? '✓ Payment Status: Verified' : 'Payment Verification:'}
+                          </span>
+                          <div className="flex flex-wrap items-center gap-3 mt-1 font-bold text-slate-800">
+                            <span>bKash: {record.formData.payment.bkashNumber || '—'}</span>
+                            <span>•</span>
+                            <span>TrxID: {record.formData.payment.transactionId || '—'}</span>
+                            <span>•</span>
+                            <span className="text-[#16A34A]">300 BDT Paid</span>
+                          </div>
+                          {isPaid && (
+                            <p className="text-[11px] text-emerald-700 font-semibold mt-1">
+                              ✓ Your payment has been confirmed by the Career Club BTEC organizing committee.
+                            </p>
+                          )}
+                        </div>
+
+                        {isPaid ? (
+                          <span className="px-3 py-1 rounded-full text-[11px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 w-fit flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-[#16A34A]" />
+                            <span>Paid & Verified</span>
+                          </span>
+                        ) : isRejected ? (
+                          <span className="px-3 py-1 rounded-full text-[11px] font-black bg-rose-100 text-rose-800 border border-rose-300 w-fit flex items-center gap-1">
+                            <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
+                            <span>Payment Rejected</span>
+                          </span>
+                        ) : (
+                          <span className="px-3 py-1 rounded-full text-[11px] font-black bg-amber-100 text-amber-800 border border-amber-300 w-fit flex items-center gap-1">
+                            <Clock className="w-3.5 h-3.5 text-amber-600" />
+                            <span>Verification in Progress</span>
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
 

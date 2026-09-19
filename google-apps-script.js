@@ -74,12 +74,105 @@ function setup() {
 }
 
 function doGet(e) {
-  return ContentService.createTextOutput(JSON.stringify({
-    status: "ok",
-    success: true,
-    message: "Textile Presentation Competition 2026 Registration API is running.",
-    timestamp: new Date().toISOString()
-  })).setMimeType(ContentService.MimeType.JSON);
+  try {
+    const params = e && e.parameter ? e.parameter : {};
+    const action = params.action || (params.regId ? "get" : "health");
+    const regId = String(params.regId || params.registrationId || "").trim().toUpperCase();
+
+    if (action === "get" || action === "status") {
+      if (!regId) {
+        return createResponse({
+          success: false,
+          error: "Missing registration ID (regId parameter required)"
+        });
+      }
+
+      const ss = getSpreadsheet();
+      const sheet = getOrCreateSheet(ss);
+      const data = sheet.getDataRange().getValues();
+
+      if (data && data.length > 1) {
+        for (let i = 1; i < data.length; i++) {
+          const row = data[i];
+          const rowId = String(row[0] || "").trim().toUpperCase();
+          if (rowId === regId) {
+            return createResponse({
+              success: true,
+              found: true,
+              registrationId: row[0],
+              submissionDate: row[1],
+              paymentStatus: row[2] || "Pending",
+              leaderName: row[3],
+              leaderRoll: row[4],
+              leaderDepartment: row[5],
+              leaderWhatsApp: row[6],
+              leaderFacebook: row[7],
+              leaderPhotoUrl: row[8],
+              member1Name: row[9],
+              member1Roll: row[10],
+              member1Department: row[11],
+              member1WhatsApp: row[12],
+              member1Facebook: row[13],
+              member1PhotoUrl: row[14],
+              member2Name: row[15],
+              member2Roll: row[16],
+              member2Department: row[17],
+              member2WhatsApp: row[18],
+              member2Facebook: row[19],
+              member2PhotoUrl: row[20],
+              bkashNumber: row[21],
+              transactionId: row[22]
+            });
+          }
+        }
+      }
+
+      return createResponse({
+        success: false,
+        found: false,
+        error: "No registration found in Google Sheet for " + regId
+      });
+    }
+
+    // List all registrations (lightweight summary)
+    if (action === "list") {
+      const ss = getSpreadsheet();
+      const sheet = getOrCreateSheet(ss);
+      const data = sheet.getDataRange().getValues();
+      const list = [];
+      if (data && data.length > 1) {
+        for (let i = 1; i < data.length; i++) {
+          const row = data[i];
+          list.push({
+            registrationId: row[0],
+            submissionDate: row[1],
+            paymentStatus: row[2] || "Pending",
+            leaderName: row[3],
+            leaderRoll: row[4],
+            transactionId: row[22]
+          });
+        }
+      }
+      return createResponse({
+        success: true,
+        total: list.length,
+        registrations: list
+      });
+    }
+
+    // Default health response
+    return createResponse({
+      status: "ok",
+      success: true,
+      message: "Textile Presentation Competition 2026 Registration API is running.",
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    return createResponse({
+      success: false,
+      error: "doGet error: " + err.toString()
+    });
+  }
 }
 
 function doPost(e) {
@@ -111,6 +204,43 @@ function doPost(e) {
 
     const ss = getSpreadsheet();
     const sheet = getOrCreateSheet(ss);
+
+    // Handle updateStatus action
+    if (data.action === "updateStatus" || data.action === "update_status") {
+      const targetId = String(data.registrationId || data.regId || "").trim().toUpperCase();
+      const newStatus = String(data.paymentStatus || data.status || "Paid").trim();
+
+      if (!targetId) {
+        return createResponse({
+          success: false,
+          error: "Missing registration ID for status update."
+        });
+      }
+
+      const rows = sheet.getDataRange().getValues();
+      let foundIndex = -1;
+      for (let i = 1; i < rows.length; i++) {
+        if (String(rows[i][0] || "").trim().toUpperCase() === targetId) {
+          foundIndex = i + 1; // 1-indexed for getRange
+          break;
+        }
+      }
+
+      if (foundIndex > 0) {
+        sheet.getRange(foundIndex, 3).setValue(newStatus); // Column 3: Payment Status
+        return createResponse({
+          success: true,
+          message: "Payment status updated to " + newStatus + " for " + targetId,
+          registrationId: targetId,
+          paymentStatus: newStatus
+        });
+      } else {
+        return createResponse({
+          success: false,
+          error: "Registration ID " + targetId + " not found in sheet."
+        });
+      }
+    }
 
     // Duplicate prevention check
     const existingValues = sheet.getDataRange().getValues();

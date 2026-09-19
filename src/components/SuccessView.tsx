@@ -174,19 +174,43 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
           </div>
         </div>
 
-        {/* Payment Verification Status Warning Banner */}
-        <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-3 text-xs text-amber-900 mb-6">
-          <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-          <div className="space-y-0.5">
-            <p className="font-bold">
-              Status: Payment Verification Pending
-            </p>
-            <p className="text-amber-800 leading-relaxed">
-              bKash Transaction ID <strong>{formData.payment.transactionId}</strong> has been logged.
-              Career Club BTEC organizers will review the ledger and confirm your slot via WhatsApp / SMS.
-            </p>
-          </div>
-        </div>
+        {/* Payment Verification Status Banner */}
+        {(() => {
+          const statusStr = (result.paymentStatus || 'Pending').trim();
+          const isPaid = /^(paid|verified|approved|received|completed|success)/i.test(statusStr);
+
+          if (isPaid) {
+            return (
+              <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex items-start gap-3 text-xs text-emerald-900 mb-6">
+                <CheckCircle2 className="w-4 h-4 text-[#16A34A] shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <p className="font-bold text-emerald-950">
+                    Status: Payment Verified (Paid)
+                  </p>
+                  <p className="text-emerald-800 leading-relaxed">
+                    bKash Transaction ID <strong>{formData.payment.transactionId}</strong> has been verified and approved.
+                    Your slot for Textile Presentation Competition 2026 is confirmed!
+                  </p>
+                </div>
+              </div>
+            );
+          }
+
+          return (
+            <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-3 text-xs text-amber-900 mb-6">
+              <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <div className="space-y-0.5">
+                <p className="font-bold">
+                  Status: Payment Verification Pending
+                </p>
+                <p className="text-amber-800 leading-relaxed">
+                  bKash Transaction ID <strong>{formData.payment.transactionId}</strong> has been logged.
+                  Career Club BTEC organizers will review the ledger and confirm your slot via WhatsApp / SMS.
+                </p>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Team Members Summary */}
         <div className="border-t border-slate-200 pt-5">
