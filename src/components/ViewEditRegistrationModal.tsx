@@ -921,6 +921,39 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
                     </div>
                   </div>
 
+                  {/* Event Admission Status & Mandatory Policy Notice */}
+                  {/^(paid|verified|approved|received|completed|success)/i.test((record.paymentStatus || '').trim()) ? (
+                    <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs flex items-center justify-between gap-3 shadow-2xs">
+                      <div className="flex items-center gap-2.5">
+                        <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                        <div>
+                          <p className="font-extrabold text-emerald-950">Payment Approved & Validated</p>
+                          <p className="text-emerald-700 font-medium">This PDF is your official event voucher. Carry this voucher to the BTEC Auditorium on 04 October 2026.</p>
+                        </div>
+                      </div>
+                      <span className="shrink-0 px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-emerald-200 text-emerald-900">
+                        Entry Pass Valid
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="p-3.5 rounded-2xl bg-amber-50/90 border border-amber-300 text-amber-950 text-xs flex items-start sm:items-center justify-between gap-3 shadow-2xs">
+                      <div className="flex items-start sm:items-center gap-2.5">
+                        <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5 sm:mt-0" />
+                        <div>
+                          <p className="font-extrabold text-amber-950">
+                            Mandatory Entry Rule: Payment Approved PDF Required
+                          </p>
+                          <p className="text-amber-800 font-medium">
+                            A <strong className="font-extrabold text-amber-950">Payment Approved PDF is mandatory in the event</strong>. <strong className="font-bold text-red-700">No pending PDF will be accepted</strong> at the BTEC Auditorium entrance. Once verified by organizers, click "Refresh Live Status" to download your approved entry pass.
+                          </p>
+                        </div>
+                      </div>
+                      <span className="shrink-0 px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-red-100 text-red-800 border border-red-200">
+                        Pending Approval
+                      </span>
+                    </div>
+                  )}
+
                   {/* Team Name Banner */}
                   <div className="p-4 rounded-2xl bg-gradient-to-r from-[#0A192F] via-[#102A43] to-[#0A192F] text-white flex items-center justify-between shadow-xs">
                     <div className="flex items-center gap-3">

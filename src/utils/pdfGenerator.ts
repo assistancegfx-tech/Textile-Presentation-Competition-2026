@@ -95,28 +95,46 @@ export function buildRegistrationPdfDoc(data: RegistrationPdfData): jsPDF {
 
   // Right column in box: Verification Status
   doc.setTextColor(100, 116, 139);
-  doc.setFontSize(8);
+  doc.setFontSize(7.5);
   doc.setFont('helvetica', 'bold');
-  doc.text('STATUS', pageWidth - margin - 6, y + 7, { align: 'right' });
+  doc.text('PAYMENT STATUS', pageWidth - margin - 6, y + 6, { align: 'right' });
 
   // Status Badge
   const isPaidStatus = /^(paid|verified|approved|received|completed|success)/i.test((data.paymentStatus || '').trim());
   if (isPaidStatus) {
     doc.setFillColor(220, 252, 231); // Emerald 100
     doc.setDrawColor(34, 197, 94); // Emerald 500
-    doc.roundedRect(pageWidth - margin - 52, y + 10, 46, 8, 1.5, 1.5, 'FD');
+    doc.roundedRect(pageWidth - margin - 56, y + 8, 50, 10, 1.5, 1.5, 'FD');
     doc.setTextColor(21, 128, 61); // Emerald 700
     doc.setFontSize(8);
     doc.setFont('helvetica', 'bold');
-    doc.text('PAID / VERIFIED', pageWidth - margin - 29, y + 15.5, { align: 'center' });
+    doc.text('PAYMENT APPROVED', pageWidth - margin - 31, y + 13, { align: 'center' });
+    doc.setFontSize(6);
+    doc.setTextColor(22, 101, 52);
+    doc.setFont('helvetica', 'bold');
+    doc.text('VALID FOR EVENT ENTRY', pageWidth - margin - 31, y + 16.5, { align: 'center' });
+
+    doc.setFontSize(6);
+    doc.setTextColor(22, 163, 74);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Official Event Entry Voucher', pageWidth - margin - 31, y + 21.5, { align: 'center' });
   } else {
-    doc.setFillColor(254, 243, 199); // Amber 100
-    doc.setDrawColor(245, 158, 11); // Amber 500
-    doc.roundedRect(pageWidth - margin - 52, y + 10, 46, 8, 1.5, 1.5, 'FD');
-    doc.setTextColor(180, 83, 9); // Amber 700
+    doc.setFillColor(254, 242, 242); // Red 50
+    doc.setDrawColor(239, 68, 68); // Red 500
+    doc.roundedRect(pageWidth - margin - 56, y + 8, 50, 10, 1.5, 1.5, 'FD');
+    doc.setTextColor(185, 28, 28); // Red 700
     doc.setFontSize(8);
     doc.setFont('helvetica', 'bold');
-    doc.text(data.paymentStatus || 'Pending Verification', pageWidth - margin - 29, y + 15.5, { align: 'center' });
+    doc.text('PENDING APPROVAL', pageWidth - margin - 31, y + 13, { align: 'center' });
+    doc.setFontSize(6);
+    doc.setTextColor(220, 38, 38);
+    doc.setFont('helvetica', 'bold');
+    doc.text('NOT VALID FOR ENTRY', pageWidth - margin - 31, y + 16.5, { align: 'center' });
+
+    doc.setFontSize(5.8);
+    doc.setTextColor(185, 28, 28);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Approved PDF Mandatory in Event', pageWidth - margin - 31, y + 21.5, { align: 'center' });
   }
 
   // Edit count indicator if present
@@ -252,60 +270,100 @@ export function buildRegistrationPdfDoc(data: RegistrationPdfData): jsPDF {
 
   // Section Header: Payment Verification Info
   doc.setTextColor(10, 25, 47);
-  doc.setFontSize(10.5);
+  doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
   doc.text('PAYMENT VERIFICATION DETAILS', margin, y - 2);
 
   // Payment Box
   doc.setFillColor(248, 250, 252);
   doc.setDrawColor(226, 232, 240);
-  doc.roundedRect(margin, y, contentWidth, 22, 2, 2, 'FD');
+  doc.roundedRect(margin, y, contentWidth, 18, 2, 2, 'FD');
 
   doc.setTextColor(100, 116, 139);
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
-  doc.text('bKash Sender Number:', margin + 6, y + 8);
-  doc.setTextColor(15, 23, 42);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.text(data.formData.payment.bkashNumber || '—', margin + 6, y + 16);
-
-  doc.setTextColor(100, 116, 139);
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
-  doc.text('Transaction ID (TrxID):', margin + 65, y + 8);
-  doc.setTextColor(15, 23, 42);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.text(data.formData.payment.transactionId || '—', margin + 65, y + 16);
-
-  doc.setTextColor(100, 116, 139);
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
-  doc.text('Amount Paid:', margin + 130, y + 8);
-  doc.setTextColor(226, 19, 110); // bKash Pink
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.text('149 BDT', margin + 130, y + 16);
-
-  y += 28;
-
-  // Important Guidelines Note Box
-  doc.setFillColor(240, 253, 244); // Green 50
-  doc.setDrawColor(187, 247, 208); // Green 200
-  doc.roundedRect(margin, y, contentWidth, 24, 2, 2, 'FD');
-
-  doc.setTextColor(22, 101, 52); // Green 800
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'bold');
-  doc.text('IMPORTANT GUIDELINES FOR EVENT DAY:', margin + 4, y + 6);
-
   doc.setFontSize(7.5);
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(21, 128, 61);
-  doc.text('• Please carry this printed voucher or digital copy to the BTEC Auditorium entrance on 04 October 2026.', margin + 4, y + 11);
-  doc.text('• All team members must report by 8:30 AM BST. The event commences promptly at 9:00 AM BST.', margin + 4, y + 16);
-  doc.text('• Registered teams can view and edit their registration info up to 3 times on the portal using this Registration No.', margin + 4, y + 21);
+  doc.text('bKash Sender Number:', margin + 6, y + 6.5);
+  doc.setTextColor(15, 23, 42);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9.5);
+  doc.text(data.formData.payment.bkashNumber || '—', margin + 6, y + 13.5);
+
+  doc.setTextColor(100, 116, 139);
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Transaction ID (TrxID):', margin + 65, y + 6.5);
+  doc.setTextColor(15, 23, 42);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9.5);
+  doc.text(data.formData.payment.transactionId || '—', margin + 65, y + 13.5);
+
+  doc.setTextColor(100, 116, 139);
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Amount Paid:', margin + 130, y + 6.5);
+  doc.setTextColor(226, 19, 110); // bKash Pink
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10.5);
+  doc.text('149 BDT', margin + 130, y + 13.5);
+
+  y += 22;
+
+  // Event Entry Requirement Highlight Box
+  if (isPaidStatus) {
+    doc.setFillColor(240, 253, 244); // Emerald 50
+    doc.setDrawColor(34, 197, 94); // Emerald 500
+    doc.setLineWidth(0.4);
+    doc.roundedRect(margin, y, contentWidth, 12, 1.5, 1.5, 'FD');
+
+    doc.setTextColor(21, 128, 61); // Emerald 700
+    doc.setFontSize(8.5);
+    doc.setFont('helvetica', 'bold');
+    doc.text('✓ ENTRY PASS VALIDATED: PAYMENT APPROVED', margin + 4, y + 5);
+
+    doc.setFontSize(7.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(22, 101, 52);
+    doc.text('Payment is verified. Present this Payment Approved PDF at the BTEC Auditorium gate on event day (04 Oct 2026).', margin + 4, y + 9.5);
+  } else {
+    doc.setFillColor(254, 242, 242); // Red 50
+    doc.setDrawColor(239, 68, 68); // Red 500
+    doc.setLineWidth(0.5);
+    doc.roundedRect(margin, y, contentWidth, 13, 1.5, 1.5, 'FD');
+
+    doc.setTextColor(185, 28, 28); // Red 700
+    doc.setFontSize(8.5);
+    doc.setFont('helvetica', 'bold');
+    doc.text('⚠️ MANDATORY RULE: PAYMENT APPROVED PDF REQUIRED FOR EVENT ENTRY', margin + 4, y + 5);
+
+    doc.setFontSize(7.5);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(220, 38, 38);
+    doc.text('A Payment Approved PDF is MANDATORY in the event. NO PENDING PDF WILL BE ACCEPTED at the venue.', margin + 4, y + 10);
+  }
+
+  y += isPaidStatus ? 16 : 17;
+
+  // Important Guidelines Note Box
+  doc.setFillColor(248, 250, 252); // Slate 50
+  doc.setDrawColor(203, 213, 225); // Slate 300
+  doc.setLineWidth(0.3);
+  doc.roundedRect(margin, y, contentWidth, 27, 2, 2, 'FD');
+
+  doc.setTextColor(10, 25, 47);
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.text('EVENT DAY INSTRUCTIONS & ENTRY REQUIREMENTS:', margin + 4, y + 5.5);
+
+  doc.setFontSize(7.2);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(185, 28, 28); // Red for mandatory rule
+  doc.text('1. MANDATORY ENTRY: Payment approved PDF is mandatory in event. No pending PDF will be accepted.', margin + 4, y + 10.5);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(51, 65, 85);
+  doc.text('2. IF PENDING: Verify your payment on the portal before 04 Oct 2026 and download the approved voucher once verified.', margin + 4, y + 15);
+  doc.text('3. REPORTING TIME: All team members must report to BTEC Auditorium by 8:30 AM BST. Event starts at 9:00 AM BST.', margin + 4, y + 19.5);
+  doc.text('4. EDITS: Registration information can be updated up to 3 times on the official portal using this Registration No.', margin + 4, y + 24);
 
   // Footer text
   doc.setDrawColor(226, 232, 240);

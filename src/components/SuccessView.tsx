@@ -261,6 +261,19 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
         </div>
       </div>
 
+      {/* Mandatory Event Admission Notice */}
+      <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-300/80 text-amber-900 text-xs sm:text-sm print:hidden flex items-start gap-3">
+        <span className="text-lg shrink-0">⚠️</span>
+        <div>
+          <p className="font-extrabold text-amber-950">
+            Mandatory Event Admission Requirement:
+          </p>
+          <p className="mt-0.5 text-amber-800 leading-relaxed font-medium">
+            A <strong className="font-extrabold text-amber-950">Payment Approved PDF</strong> is mandatory for entry on event day. <strong className="font-bold text-red-700">No pending PDF will be accepted</strong> at the BTEC Auditorium entrance. Once your payment is verified by organizers, search your registration on the website to download your official approved voucher.
+          </p>
+        </div>
+      </div>
+
       {/* Action Buttons: Download Registration Info PDF and Close */}
       <div className="flex flex-col sm:flex-row flex-wrap items-center justify-center gap-3.5 print:hidden">
         <button
