@@ -7,13 +7,15 @@ import {
   User, 
   Phone, 
   Share2, 
+  Mail,
   CreditCard, 
   AlertTriangle,
   Loader2,
   Check,
   Image as ImageIcon,
   FileSpreadsheet,
-  Sparkles
+  Sparkles,
+  Trophy
 } from 'lucide-react';
 import { RegistrationFormData, Participant, SubmissionProgressStage } from '../types';
 
@@ -173,6 +175,12 @@ export const ReviewConfirmStep: React.FC<ReviewConfirmStepProps> = ({
               <Phone className="w-3 h-3 text-[#16A34A] shrink-0" />
               <span>{p.whatsapp || '—'}</span>
             </div>
+            {p.email && (
+              <div className="flex items-center gap-1.5 text-slate-600 truncate">
+                <Mail className="w-3 h-3 text-[#16A34A] shrink-0" />
+                <span className="truncate">{p.email}</span>
+              </div>
+            )}
             <div className="flex items-center gap-1.5 text-slate-600 truncate">
               <Share2 className="w-3 h-3 text-[#16A34A] shrink-0" />
               <span className="truncate">{p.facebook || '—'}</span>
@@ -216,6 +224,32 @@ export const ReviewConfirmStep: React.FC<ReviewConfirmStepProps> = ({
           </div>
         </div>
       )}
+
+      {/* Team Identity Banner */}
+      <div className="bg-gradient-to-r from-[#0A192F] via-[#102A43] to-[#0A192F] text-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-700/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#22C55E] to-[#16A34A] text-[#0A192F] flex items-center justify-center font-black shadow-sm shrink-0">
+            <Trophy className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-400 block">
+              Team Identity / দলের নাম
+            </span>
+            <span className="text-lg sm:text-xl font-black text-white tracking-tight">
+              {formData.teamName || 'Unnamed Team'}
+            </span>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => onEditStep(0)}
+          className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-300 hover:text-white transition py-1.5 px-3 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10"
+        >
+          <Edit3 className="w-3.5 h-3.5" />
+          <span>Edit Team Name</span>
+        </button>
+      </div>
 
       {/* 3 Members Review Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

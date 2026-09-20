@@ -1,7 +1,17 @@
 import React, { useRef, useState } from 'react';
-import { Upload, X, AlertCircle, Phone, User, Hash, BookOpen, Share2 } from 'lucide-react';
+import { Upload, X, AlertCircle, Phone, User, Hash, BookOpen, Share2, Mail, Trophy, Users, Sparkles } from 'lucide-react';
 import { Participant } from '../types';
 import { DEPARTMENTS, processAndCompressImage } from '../utils/formUtils';
+
+const SUGGESTED_TEAM_NAMES = [
+  'TexGenius',
+  'Fiber Innovators',
+  'Weaver Dynamics',
+  'EcoTextile Pioneers',
+  'Smart Fabricators',
+  'Apex Weavers',
+  'SpinTech Squad'
+];
 
 interface ParticipantStepFormProps {
   title: string;
@@ -11,6 +21,11 @@ interface ParticipantStepFormProps {
   onChange: (updated: Partial<Participant>) => void;
   errors: Record<string, string>;
   otherRolls: string[];
+  showEmail?: boolean;
+  showTeamName?: boolean;
+  teamName?: string;
+  onTeamNameChange?: (name: string) => void;
+  teamNameError?: string;
 }
 
 export const ParticipantStepForm: React.FC<ParticipantStepFormProps> = ({
@@ -20,7 +35,12 @@ export const ParticipantStepForm: React.FC<ParticipantStepFormProps> = ({
   participant,
   onChange,
   errors,
-  otherRolls
+  otherRolls,
+  showEmail = false,
+  showTeamName = false,
+  teamName = '',
+  onTeamNameChange,
+  teamNameError
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
@@ -81,6 +101,76 @@ export const ParticipantStepForm: React.FC<ParticipantStepFormProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column: Form Fields */}
         <div className="lg:col-span-8 space-y-4">
+          {/* Optional/Required Team Name (Shown in Leader Step) */}
+          {showTeamName && (
+            <div className="bg-gradient-to-br from-emerald-50/90 via-white to-teal-50/50 p-4 sm:p-5 rounded-2xl border-2 border-emerald-500/30 shadow-2xs space-y-2 mb-2">
+              <div className="flex flex-wrap items-center justify-between gap-1.5">
+                <label className="block text-xs font-black uppercase tracking-wider text-[#0A192F] flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-lg bg-[#22C55E]/20 text-[#16A34A] flex items-center justify-center">
+                    <Trophy className="w-3.5 h-3.5" />
+                  </div>
+                  <span>Team Name / দলের নাম</span>
+                  <span className="text-red-500 font-bold">*</span>
+                </label>
+                <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100/70 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                  Official Team Identity
+                </span>
+              </div>
+
+              <div className="relative">
+                <input
+                  type="text"
+                  value={teamName || ''}
+                  onChange={(e) => onTeamNameChange?.(e.target.value)}
+                  placeholder="e.g. TexGenius, Weaver Dynamics, Fiber Innovators"
+                  className={`w-full px-4 py-2.5 rounded-xl border text-sm font-bold text-slate-900 placeholder-slate-400 bg-white transition focus:outline-none focus:ring-2 pr-28 ${
+                    teamNameError
+                      ? 'border-red-400 focus:ring-red-200'
+                      : 'border-emerald-300 focus:border-[#16A34A] focus:ring-[#22C55E]/20'
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const picked = SUGGESTED_TEAM_NAMES[Math.floor(Math.random() * SUGGESTED_TEAM_NAMES.length)];
+                    onTeamNameChange?.(picked);
+                  }}
+                  className="absolute right-1.5 top-1.5 bottom-1.5 px-2.5 rounded-lg text-xs font-bold text-emerald-800 bg-emerald-100 hover:bg-emerald-200 transition flex items-center gap-1 active:scale-95"
+                  title="Generate a random team name idea"
+                >
+                  <Sparkles className="w-3 h-3 text-[#16A34A]" />
+                  <span>Suggest</span>
+                </button>
+              </div>
+
+              {/* Quick suggestion chips */}
+              <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                <span className="text-[11px] font-semibold text-slate-500">Quick Ideas:</span>
+                {SUGGESTED_TEAM_NAMES.slice(0, 4).map((name) => (
+                  <button
+                    key={name}
+                    type="button"
+                    onClick={() => onTeamNameChange?.(name)}
+                    className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-white hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 border border-slate-200 hover:border-emerald-300 transition"
+                  >
+                    + {name}
+                  </button>
+                ))}
+              </div>
+
+              {teamNameError ? (
+                <p className="text-xs text-red-500 flex items-center gap-1 font-medium">
+                  <AlertCircle className="w-3 h-3 shrink-0" />
+                  <span>{teamNameError}</span>
+                </p>
+              ) : (
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Enter your official 3-member team name. This will be printed on your presentation voucher and certificates.
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Full Name */}
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1.5">
@@ -221,6 +311,38 @@ export const ParticipantStepForm: React.FC<ParticipantStepFormProps> = ({
               )}
             </div>
           </div>
+
+          {/* Email Address (Leader / Enabled) */}
+          {showEmail && (
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1.5">
+                <Mail className="w-3.5 h-3.5 text-[#16A34A]" />
+                <span>Leader Email Address</span>
+                <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="email"
+                value={participant.email || ''}
+                onChange={(e) => onChange({ email: e.target.value.trim() })}
+                placeholder="leader@gmail.com"
+                className={`w-full px-3.5 py-2.5 rounded-xl border text-sm text-slate-800 placeholder-slate-400 bg-white transition focus:outline-none focus:ring-2 ${
+                  errors.email
+                    ? 'border-red-400 focus:ring-red-200'
+                    : 'border-slate-300 focus:border-[#16A34A] focus:ring-[#22C55E]/20'
+                }`}
+              />
+              {errors.email ? (
+                <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  <span>{errors.email}</span>
+                </p>
+              ) : (
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Registration voucher & official event notifications will be sent to this email address.
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Right Column: Photo Upload */}

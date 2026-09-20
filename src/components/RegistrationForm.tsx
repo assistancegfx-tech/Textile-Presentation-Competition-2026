@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { User, Users, CreditCard, CheckCircle2, ChevronRight, ChevronLeft, AlertCircle, ShieldAlert, RotateCcw, Search } from 'lucide-react';
+import { User, Users, CreditCard, CheckCircle2, ChevronRight, ChevronLeft, AlertCircle, ShieldAlert, RotateCcw, Search, Sparkles, Database } from 'lucide-react';
 import { RegistrationFormData, SubmissionResponse, Participant, SubmissionProgressStage } from '../types';
 import { ParticipantStepForm } from './ParticipantStepForm';
 import { PaymentStepForm } from './PaymentStepForm';
 import { ReviewConfirmStep } from './ReviewConfirmStep';
 import { SuccessView } from './SuccessView';
-import { validateBangladeshPhone, validateTransactionId } from '../utils/formUtils';
+import { validateBangladeshPhone, validateTransactionId, validateEmail, getDemoFormData } from '../utils/formUtils';
 
 const initialParticipant = (): Participant => ({
   name: '',
@@ -13,6 +13,7 @@ const initialParticipant = (): Participant => ({
   department: '',
   whatsapp: '',
   facebook: '',
+  email: '',
   photoBase64: undefined,
   photoPreview: undefined,
   photoName: undefined,
@@ -20,6 +21,7 @@ const initialParticipant = (): Participant => ({
 });
 
 const initialFormData = (): RegistrationFormData => ({
+  teamName: '',
   leader: initialParticipant(),
   member1: initialParticipant(),
   member2: initialParticipant(),
@@ -32,12 +34,14 @@ const initialFormData = (): RegistrationFormData => ({
 interface RegistrationFormProps {
   customScriptUrl?: string;
   onOpenViewEditModal?: (regId?: string) => void;
+  onOpenGoogleSheetModal?: () => void;
   onRegistrationSuccess?: (result: SubmissionResponse, formData: RegistrationFormData) => void;
 }
 
 export const RegistrationForm: React.FC<RegistrationFormProps> = ({
   customScriptUrl,
   onOpenViewEditModal,
+  onOpenGoogleSheetModal,
   onRegistrationSuccess
 }) => {
   const [currentStep, setCurrentStep] = useState<number>(0);
@@ -47,8 +51,10 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
   const [submitProgressStage, setSubmitProgressStage] = useState<SubmissionProgressStage>('idle');
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submissionResult, setSubmissionResult] = useState<SubmissionResponse | null>(null);
+  const [demoLoadedBanner, setDemoLoadedBanner] = useState<boolean>(false);
 
   const isFormPartiallyFilled = Boolean(
+    formData.teamName ||
     formData.leader.name ||
     formData.member1.name ||
     formData.member2.name ||
@@ -59,11 +65,23 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
     setFormData(initialFormData());
     setStepErrors({});
     setSubmitError(null);
+    setDemoLoadedBanner(false);
     setCurrentStep(0);
   };
 
+  const handleFillDemoData = (goToReview: boolean = false) => {
+    const demoData = getDemoFormData();
+    setFormData(demoData);
+    setStepErrors({});
+    setSubmitError(null);
+    setDemoLoadedBanner(true);
+    if (goToReview) {
+      setCurrentStep(4); // Jump straight to Review & Confirm
+    }
+  };
+
   const steps = [
-    { label: 'Group Leader', icon: User },
+    { label: 'Team & Leader', icon: User },
     { label: 'Member 1', icon: Users },
     { label: 'Member 2', icon: Users },
     { label: 'Payment', icon: CreditCard },
@@ -71,7 +89,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
   ];
 
   // Validation per step
-  const validateParticipant = (p: Participant, otherRolls: string[]): Record<string, string> => {
+  const validateParticipant = (p: Participant, otherRolls: string[], isLeader: boolean = false): Record<string, string> => {
     const errs: Record<string, string> = {};
     if (!p.name.trim()) errs.name = 'Full name is required.';
     if (!p.roll.trim()) {
@@ -86,6 +104,16 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
       errs.whatsapp = 'Please enter a valid Bangladesh phone number (e.g. 017XXXXXXXX).';
     }
     if (!p.facebook.trim()) errs.facebook = 'Facebook profile link or ID is required.';
+    
+    // Leader specific validation
+    if (isLeader) {
+      if (!p.email || !p.email.trim()) {
+        errs.email = 'Leader email address is required for official confirmation.';
+      } else if (!validateEmail(p.email)) {
+        errs.email = 'Please enter a valid email address (e.g. leader@gmail.com).';
+      }
+    }
+
     if (!p.photoPreview) errs.photo = 'Participant photo upload is required.';
 
     return errs;
@@ -112,20 +140,28 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
     let errs: Record<string, string> = {};
 
     if (currentStep === 0) {
-      errs = validateParticipant(formData.leader, [
+      if (!formData.teamName || !formData.teamName.trim()) {
+        errs.teamName = 'Team name is required.';
+      } else if (formData.teamName.trim().length < 2) {
+        errs.teamName = 'Team name must be at least 2 characters.';
+      }
+
+      const leaderErrs = validateParticipant(formData.leader, [
         formData.member1.roll.trim(),
         formData.member2.roll.trim()
-      ].filter(Boolean));
+      ].filter(Boolean), true);
+
+      errs = { ...errs, ...leaderErrs };
     } else if (currentStep === 1) {
       errs = validateParticipant(formData.member1, [
         formData.leader.roll.trim(),
         formData.member2.roll.trim()
-      ].filter(Boolean));
+      ].filter(Boolean), false);
     } else if (currentStep === 2) {
       errs = validateParticipant(formData.member2, [
         formData.leader.roll.trim(),
         formData.member1.roll.trim()
-      ].filter(Boolean));
+      ].filter(Boolean), false);
     } else if (currentStep === 3) {
       errs = validatePayment();
     }
@@ -222,7 +258,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
       setSubmitProgressStage('saving_sheets');
 
       let data: SubmissionResponse | null = null;
-      const defaultScriptUrl = 'https://script.google.com/macros/s/AKfycbzVPB_lyf20Tx7qNxgbNSSUxqi-9lQL4m-l6yD6QQMpgZSv3GSqk1o5qXDYhhInC3af_A/exec';
+      const defaultScriptUrl = 'https://script.google.com/macros/s/AKfycbxFVWAVQApNuw2g_zvbSEK_QhXIcso8MoDhne75A4L0ryUUeh2G4GEclUkMn8GY21VT2Q/exec';
       const envScriptUrl = 
         (import.meta as any).env?.VITE_GOOGLE_SCRIPT_URL || 
         (import.meta as any).env?.GOOGLE_SCRIPT_URL || 
@@ -409,15 +445,64 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
         ) : (
           /* Multi-step Registration Card */
           <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xl p-5 sm:p-8 md:p-10 relative">
-            {isFormPartiallyFilled && (
-              <div className="flex justify-end mb-4">
+            {/* Action Bar: Demo Fillup & Reset */}
+            <div className="flex flex-wrap items-center justify-between gap-2.5 mb-6 pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleFillDemoData(false)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-[#0A192F] bg-gradient-to-r from-emerald-50 to-teal-50 border border-[#22C55E]/40 hover:border-[#16A34A] hover:bg-emerald-100/60 shadow-2xs transition active:scale-95 group"
+                  title="Auto-fill the form with sample team data for instant testing"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-[#16A34A] group-hover:rotate-12 transition-transform" />
+                  <span>⚡ Demo Fillup</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleFillDemoData(true)}
+                  className="hidden sm:inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-[11px] font-semibold text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 transition"
+                  title="Fill demo data and jump straight to final review step"
+                >
+                  <span>Fill & Review ➔</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => onOpenGoogleSheetModal?.()}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-emerald-800 bg-emerald-50/80 hover:bg-emerald-100 border border-emerald-200 transition shadow-2xs"
+                  title="Connect and manage Google Sheet sync"
+                >
+                  <Database className="w-3.5 h-3.5 text-[#16A34A]" />
+                  <span>Google Sheet Sync</span>
+                </button>
+              </div>
+
+              {isFormPartiallyFilled && (
                 <button
                   type="button"
                   onClick={handleClearForm}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-500 hover:text-red-600 hover:bg-red-50 border border-slate-200 transition"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-500 hover:text-red-600 hover:bg-red-50 border border-slate-200 transition active:scale-95"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
                   <span>Reset Form</span>
+                </button>
+              )}
+            </div>
+
+            {/* Demo loaded banner */}
+            {demoLoadedBanner && (
+              <div className="mb-6 p-3 rounded-2xl bg-emerald-50/90 border border-emerald-200/80 flex items-center justify-between gap-3 text-xs text-emerald-900 animate-in fade-in slide-in-from-top-2 duration-300">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-[#16A34A] shrink-0" />
+                  <span><strong>Demo data loaded!</strong> Leader (Tanvir), Member 1, Member 2, photos & bKash info filled. You can navigate steps or edit any field.</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDemoLoadedBanner(false)}
+                  className="text-emerald-700 hover:text-emerald-900 font-bold px-2 py-0.5"
+                >
+                  ✕
                 </button>
               </div>
             )}
@@ -490,7 +575,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             <div>
               {currentStep === 0 && (
                 <ParticipantStepForm
-                  title="Group Leader Information"
+                  title="Team & Group Leader Information"
                   subtitle="Primary point of contact for the team and official representative."
                   roleBadge="Team Leader"
                   participant={formData.leader}
@@ -499,6 +584,19 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                   }
                   errors={stepErrors}
                   otherRolls={[formData.member1.roll, formData.member2.roll].filter(Boolean)}
+                  showEmail={true}
+                  showTeamName={true}
+                  teamName={formData.teamName}
+                  onTeamNameChange={(name) => {
+                    setFormData((prev) => ({ ...prev, teamName: name }));
+                    if (stepErrors.teamName) {
+                      setStepErrors((prev) => {
+                        const { teamName: _, ...rest } = prev;
+                        return rest;
+                      });
+                    }
+                  }}
+                  teamNameError={stepErrors.teamName}
                 />
               )}
 

@@ -31,7 +31,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Live Google Sheets synchronization
     const customScriptUrl = (req.headers['x-google-script-url'] || (req as any).headers?.['x-google-script-url']) as string | undefined;
-    const targetScriptUrl = customScriptUrl || (req.query?.scriptUrl as string) || process.env.GOOGLE_SCRIPT_URL || process.env.VITE_GOOGLE_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbzVPB_lyf20Tx7qNxgbNSSUxqi-9lQL4m-l6yD6QQMpgZSv3GSqk1o5qXDYhhInC3af_A/exec';
+    const targetScriptUrl = customScriptUrl || (req.query?.scriptUrl as string) || process.env.GOOGLE_SCRIPT_URL || process.env.VITE_GOOGLE_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbxFVWAVQApNuw2g_zvbSEK_QhXIcso8MoDhne75A4L0ryUUeh2G4GEclUkMn8GY21VT2Q/exec';
 
     if (targetScriptUrl && targetScriptUrl.startsWith('http')) {
       try {

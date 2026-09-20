@@ -21,17 +21,39 @@ import {
   KeyRound,
   Phone,
   Hash,
-  RotateCcw
+  RotateCcw,
+  Mail,
+  Trophy
 } from 'lucide-react';
 import { RegisteredTeamRecord, RegistrationFormData, Participant } from '../types';
 import { generateRegistrationPdf } from '../utils/pdfGenerator';
-import { DEPARTMENTS, validateBangladeshPhone } from '../utils/formUtils';
+import { DEPARTMENTS, validateBangladeshPhone, validateEmail } from '../utils/formUtils';
 
 interface ViewEditRegistrationModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialRegId?: string;
 }
+
+export const formatBdPhone = (phone: any): string => {
+  if (!phone) return '';
+  let str = String(phone).trim().replace(/[\s\-()]/g, '');
+  if (str.startsWith('+880')) str = str.slice(4);
+  else if (str.startsWith('880')) str = str.slice(3);
+  else if (str.startsWith('+88')) str = str.slice(3);
+  else if (str.startsWith('88')) str = str.slice(2);
+  
+  if (/^1[3-9]\d{8}$/.test(str)) {
+    return '0' + str;
+  }
+  return str;
+};
+
+export const normalizePhoneForCheck = (phone: any): string => {
+  if (!phone) return '';
+  const digits = String(phone).replace(/\D/g, '');
+  return digits.slice(-10);
+};
 
 export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps> = ({
   isOpen,
@@ -64,9 +86,10 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
           setRecentRegistrations(
             parsed.slice(0, 4).map((item: any) => ({
               registrationId: item.registrationId,
+              teamName: item.formData?.teamName || item.teamName || '',
               leaderName: item.formData?.leader?.name || 'Team',
               leaderRoll: item.formData?.leader?.roll || '',
-              leaderMobile: item.formData?.leader?.whatsapp || ''
+              leaderMobile: formatBdPhone(item.formData?.leader?.whatsapp || '')
             }))
           );
         }
@@ -84,22 +107,22 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
 
   if (!isOpen) return null;
 
-  const normalizePhoneForCheck = (phone: string) => {
-    const cleaned = (phone || '').trim().replace(/[\s\-()]/g, '');
+  const normalizePhoneForCheck = (phone: any) => {
+    const cleaned = String(phone || '').trim().replace(/[\s\-()]/g, '');
     if (cleaned.startsWith('+88')) return cleaned.slice(3);
     if (cleaned.startsWith('88')) return cleaned.slice(2);
     return cleaned;
   };
 
   const handleSearch = async (overrideId?: string, overrideRoll?: string, overrideMobile?: string) => {
-    const rawTargetId = (overrideId || searchId).trim();
+    const rawTargetId = String(overrideId || searchId || '').trim();
     let targetId = rawTargetId.toUpperCase();
     if (targetId && !targetId.startsWith('TEX') && /^\d+$/.test(targetId) && targetId.length <= 4) {
       targetId = `TEX2026-${targetId.padStart(3, '0')}`;
     }
 
-    const targetRoll = (overrideRoll !== undefined ? overrideRoll : searchRoll).trim();
-    const targetMobile = (overrideMobile !== undefined ? overrideMobile : searchMobile).trim();
+    const targetRoll = String(overrideRoll !== undefined ? overrideRoll : searchRoll || '').trim();
+    const targetMobile = String(overrideMobile !== undefined ? overrideMobile : searchMobile || '').trim();
 
     if (!targetId && !targetRoll) {
       setSearchError('Please enter your Registration Number (e.g. TEX2026-001) or Team Leader Roll.');
@@ -111,7 +134,7 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
     setSaveSuccessMsg(null);
     setIsEditing(false);
 
-    const scriptUrl = localStorage.getItem('tpc2026_google_script_url') || 'https://script.google.com/macros/s/AKfycbzVPB_lyf20Tx7qNxgbNSSUxqi-9lQL4m-l6yD6QQMpgZSv3GSqk1o5qXDYhhInC3af_A/exec';
+    const scriptUrl = localStorage.getItem('tpc2026_google_script_url') || 'https://script.google.com/macros/s/AKfycbxFVWAVQApNuw2g_zvbSEK_QhXIcso8MoDhne75A4L0ryUUeh2G4GEclUkMn8GY21VT2Q/exec';
 
     try {
       const queryParams = new URLSearchParams();
@@ -152,41 +175,46 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
             const gData = await gRes.json();
             if (gData && (gData.success || gData.found) && gData.registrationId) {
               candidateRecord = {
-                registrationId: gData.registrationId,
-                submissionDate: gData.submissionDate || new Date().toISOString(),
-                paymentStatus: gData.paymentStatus || 'Pending',
+                registrationId: String(gData.registrationId || ''),
+                submissionDate: String(gData.submissionDate || new Date().toISOString()),
+                paymentStatus: String(gData.paymentStatus || 'Pending') as any,
+                teamName: String(gData.teamName || ''),
                 editCount: 0,
                 maxEdits: 3,
                 remainingEdits: 3,
                 canEdit: true,
                 formData: {
+                  teamName: String(gData.teamName || ''),
                   leader: {
-                    name: gData.leaderName || '',
-                    roll: gData.leaderRoll || '',
-                    department: gData.leaderDepartment || 'Textile Engineering',
-                    whatsapp: gData.leaderWhatsApp || '',
-                    facebook: gData.leaderFacebook || '',
+                    name: String(gData.leaderName || ''),
+                    roll: String(gData.leaderRoll || ''),
+                    department: String(gData.leaderDepartment || 'Textile Engineering'),
+                    whatsapp: formatBdPhone(gData.leaderWhatsApp),
+                    facebook: String(gData.leaderFacebook || ''),
+                    email: String(gData.leaderEmail || gData.email || ''),
                     photoPreview: gData.leaderPhotoUrl || undefined
                   },
                   member1: {
-                    name: gData.member1Name || '',
-                    roll: gData.member1Roll || '',
-                    department: gData.member1Department || 'Textile Engineering',
-                    whatsapp: gData.member1WhatsApp || '',
-                    facebook: gData.member1Facebook || '',
+                    name: String(gData.member1Name || ''),
+                    roll: String(gData.member1Roll || ''),
+                    department: String(gData.member1Department || 'Textile Engineering'),
+                    whatsapp: formatBdPhone(gData.member1WhatsApp),
+                    facebook: String(gData.member1Facebook || ''),
+                    email: String(gData.member1Email || ''),
                     photoPreview: gData.member1PhotoUrl || undefined
                   },
                   member2: {
-                    name: gData.member2Name || '',
-                    roll: gData.member2Roll || '',
-                    department: gData.member2Department || 'Textile Engineering',
-                    whatsapp: gData.member2WhatsApp || '',
-                    facebook: gData.member2Facebook || '',
+                    name: String(gData.member2Name || ''),
+                    roll: String(gData.member2Roll || ''),
+                    department: String(gData.member2Department || 'Textile Engineering'),
+                    whatsapp: formatBdPhone(gData.member2WhatsApp),
+                    facebook: String(gData.member2Facebook || ''),
+                    email: String(gData.member2Email || ''),
                     photoPreview: gData.member2PhotoUrl || undefined
                   },
                   payment: {
-                    bkashNumber: gData.bkashNumber || '',
-                    transactionId: gData.transactionId || ''
+                    bkashNumber: formatBdPhone(gData.bkashNumber),
+                    transactionId: String(gData.transactionId || '')
                   }
                 }
               };
@@ -197,38 +225,52 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
         }
       }
 
-      // 3. Check LocalStorage fallback
       if (!candidateRecord) {
-        const localSaved = localStorage.getItem('tpc2026_saved_registrations');
-        if (localSaved) {
-          const list = JSON.parse(localSaved);
-          if (Array.isArray(list)) {
-            const found = list.find((item: any) => 
-              item.registrationId?.toUpperCase() === targetId ||
-              item.formData?.leader?.roll?.trim() === targetRoll ||
-              item.formData?.payment?.transactionId?.toUpperCase() === targetId
-            );
-            if (found) {
-              candidateRecord = found;
-            }
-          }
-        }
-      }
-
-      if (!candidateRecord) {
-        setSearchError(`No registration found for "${targetId || targetRoll}". Please verify the Registration ID or Roll number.`);
+        setSearchError(`No registration record found for "${targetId || targetRoll}". Please verify your Registration ID or Roll Number.`);
         setRecord(null);
         return;
       }
 
+      // Ensure all fields in formData are safe strings
+      if (candidateRecord.formData) {
+        const fd = candidateRecord.formData;
+        fd.teamName = String(fd.teamName || candidateRecord.teamName || '');
+        if (fd.leader) {
+          fd.leader.name = String(fd.leader.name || '');
+          fd.leader.roll = String(fd.leader.roll || '');
+          fd.leader.department = String(fd.leader.department || 'Textile Engineering');
+          fd.leader.whatsapp = formatBdPhone(fd.leader.whatsapp);
+          fd.leader.facebook = String(fd.leader.facebook || '');
+          fd.leader.email = String(fd.leader.email || '');
+        }
+        if (fd.member1) {
+          fd.member1.name = String(fd.member1.name || '');
+          fd.member1.roll = String(fd.member1.roll || '');
+          fd.member1.department = String(fd.member1.department || 'Textile Engineering');
+          fd.member1.whatsapp = formatBdPhone(fd.member1.whatsapp);
+          fd.member1.facebook = String(fd.member1.facebook || '');
+        }
+        if (fd.member2) {
+          fd.member2.name = String(fd.member2.name || '');
+          fd.member2.roll = String(fd.member2.roll || '');
+          fd.member2.department = String(fd.member2.department || 'Textile Engineering');
+          fd.member2.whatsapp = formatBdPhone(fd.member2.whatsapp);
+          fd.member2.facebook = String(fd.member2.facebook || '');
+        }
+        if (fd.payment) {
+          fd.payment.bkashNumber = formatBdPhone(fd.payment.bkashNumber);
+          fd.payment.transactionId = String(fd.payment.transactionId || '');
+        }
+      }
+
       // If Leader Roll and Mobile are specified in form, verify them flexibly
-      const recordLeaderRoll = (candidateRecord.formData?.leader?.roll || (candidateRecord as any).leaderRoll || '').trim();
-      const recordLeaderMobile = (candidateRecord.formData?.leader?.whatsapp || (candidateRecord as any).leaderWhatsApp || '').trim();
+      const recordLeaderRoll = String(candidateRecord.formData?.leader?.roll || (candidateRecord as any).leaderRoll || '').trim();
+      const recordLeaderMobile = String(candidateRecord.formData?.leader?.whatsapp || (candidateRecord as any).leaderWhatsApp || '').trim();
 
       if (targetRoll && recordLeaderRoll) {
         const rollMatches = recordLeaderRoll.toLowerCase() === targetRoll.toLowerCase() ||
-          (candidateRecord.formData?.member1?.roll || '').toLowerCase() === targetRoll.toLowerCase() ||
-          (candidateRecord.formData?.member2?.roll || '').toLowerCase() === targetRoll.toLowerCase();
+          String(candidateRecord.formData?.member1?.roll || '').toLowerCase() === targetRoll.toLowerCase() ||
+          String(candidateRecord.formData?.member2?.roll || '').toLowerCase() === targetRoll.toLowerCase();
         
         if (!rollMatches) {
           setSearchError('Verification notice: The Roll Number entered does not match this team record.');
@@ -238,11 +280,16 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
       }
 
       if (targetMobile && recordLeaderMobile) {
-        const mobileMatches = normalizePhoneForCheck(recordLeaderMobile) === normalizePhoneForCheck(targetMobile) ||
-          normalizePhoneForCheck(candidateRecord.formData?.member1?.whatsapp || '') === normalizePhoneForCheck(targetMobile) ||
-          normalizePhoneForCheck(candidateRecord.formData?.member2?.whatsapp || '') === normalizePhoneForCheck(targetMobile);
+        const targetClean = normalizePhoneForCheck(targetMobile);
+        const leaderClean = normalizePhoneForCheck(recordLeaderMobile);
+        const m1Clean = normalizePhoneForCheck(candidateRecord.formData?.member1?.whatsapp || '');
+        const m2Clean = normalizePhoneForCheck(candidateRecord.formData?.member2?.whatsapp || '');
 
-        if (!mobileMatches) {
+        const mobileMatches = (leaderClean && leaderClean === targetClean) ||
+                              (m1Clean && m1Clean === targetClean) ||
+                              (m2Clean && m2Clean === targetClean);
+
+        if (!mobileMatches && targetClean.length >= 6) {
           setSearchError('Verification notice: The Mobile Number entered does not match this team record.');
           setRecord(null);
           return;
@@ -354,6 +401,11 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
   const handleSaveEdit = async () => {
     if (!record || !editFormData) return;
 
+    if (!editFormData.teamName || !editFormData.teamName.trim()) {
+      setSaveError('Team Name is required.');
+      return;
+    }
+
     // Validate fields
     const roles: ('leader' | 'member1' | 'member2')[] = ['leader', 'member1', 'member2'];
     const labels = { leader: 'Team Leader', member1: 'Member 1', member2: 'Member 2' };
@@ -388,12 +440,20 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
     setIsSaving(true);
     setSaveError(null);
 
+    const scriptUrl = localStorage.getItem('tpc2026_google_script_url') || 'https://script.google.com/macros/s/AKfycbxFVWAVQApNuw2g_zvbSEK_QhXIcso8MoDhne75A4L0ryUUeh2G4GEclUkMn8GY21VT2Q/exec';
+
     try {
       let updatedRecord: any = null;
+      let sheetUpdateSuccess = false;
+
+      // 1. Send update to Backend API
       try {
         const res = await fetch(`/api/registration/${encodeURIComponent(record.registrationId)}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'x-google-script-url': scriptUrl
+          },
           body: JSON.stringify({
             formData: editFormData,
             backupRegistration: record
@@ -408,13 +468,36 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
           }
           if (res.ok && data.success && data.registration) {
             updatedRecord = data.registration;
+            sheetUpdateSuccess = data.sheetUpdated || false;
           }
         }
       } catch (fetchErr: any) {
         if (fetchErr.message && (fetchErr.message.includes('already') || fetchErr.message.includes('limit reached') || fetchErr.message.includes('required'))) {
           throw fetchErr;
         }
-        console.warn('API PUT warning, using local update:', fetchErr);
+        console.warn('API PUT warning, trying direct Google Sheet update:', fetchErr);
+      }
+
+      // 2. Direct Google Apps Script update (if backend didn't update sheet or as fallback)
+      if (!sheetUpdateSuccess && scriptUrl) {
+        try {
+          const scriptRes = await fetch(scriptUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'updateRegistration',
+              registrationId: record.registrationId,
+              formData: editFormData
+            }),
+            redirect: 'follow'
+          });
+          const sJson = await scriptRes.json();
+          if (sJson && sJson.success) {
+            sheetUpdateSuccess = true;
+          }
+        } catch (sErr) {
+          console.warn('Direct Google Sheet update notice:', sErr);
+        }
       }
 
       // If backend was unreachable or returned static HTML, update locally
@@ -436,7 +519,7 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
       setRecord(updatedRecord);
       setEditFormData(JSON.parse(JSON.stringify(updatedRecord.formData)));
       setIsEditing(false);
-      setSaveSuccessMsg(`Registration updated successfully. (${updatedRecord.remainingEdits} of 3 edits remaining)`);
+      setSaveSuccessMsg(`Registration and Google Sheet row updated successfully! (${updatedRecord.remainingEdits} of 3 edits remaining)`);
 
       // Update local storage
       try {
@@ -491,16 +574,13 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
         <div className="p-5 sm:p-7 max-h-[82vh] overflow-y-auto">
           {/* Security Search Box */}
           <div className="mb-6 p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200/90 space-y-3.5">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-200/70">
+            <div className="flex items-center pb-2 border-b border-slate-200/70">
               <div className="flex items-center gap-2">
                 <KeyRound className="w-4 h-4 text-[#16A34A]" />
                 <span className="text-xs font-black text-[#0A192F] uppercase tracking-wider">
-                  Security Verification Required
+                  Security Verification & Search
                 </span>
               </div>
-              <span className="text-[11px] text-slate-500 font-medium hidden sm:inline">
-                Registration No + Leader Roll & Mobile
-              </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -765,6 +845,23 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
                     </div>
                   </div>
 
+                  {/* Team Name Banner */}
+                  <div className="p-4 rounded-2xl bg-gradient-to-r from-[#0A192F] via-[#102A43] to-[#0A192F] text-white flex items-center justify-between shadow-xs">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-[#22C55E]/20 text-[#22C55E] flex items-center justify-center font-bold">
+                        <Trophy className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-emerald-400 block tracking-wider">
+                          Official Team Name
+                        </span>
+                        <span className="text-base font-black text-white">
+                          {record.formData.teamName || record.teamName || '—'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* 3 Members Grid */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {/* Leader */}
@@ -800,6 +897,12 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
                         <p className="text-xs text-slate-500 font-medium">WhatsApp</p>
                         <p className="text-xs font-bold text-slate-800">{record.formData.leader.whatsapp || '—'}</p>
                       </div>
+                      {record.formData.leader.email && (
+                        <div>
+                          <p className="text-xs text-slate-500 font-medium">Email Address</p>
+                          <p className="text-xs font-bold text-slate-800 truncate">{record.formData.leader.email}</p>
+                        </div>
+                      )}
                       <div>
                         <p className="text-xs text-slate-500 font-medium">Facebook</p>
                         <p className="text-xs text-slate-600 truncate">{record.formData.leader.facebook || '—'}</p>
@@ -962,6 +1065,27 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
                     </div>
                   )}
 
+                  {/* Team Name Input */}
+                  <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-50/90 to-teal-50/60 border-2 border-emerald-300 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-black text-[#0A192F] uppercase tracking-wider flex items-center gap-1.5">
+                        <Trophy className="w-4 h-4 text-[#16A34A]" />
+                        <span>Team Name / দলের নাম</span>
+                        <span className="text-red-500">*</span>
+                      </label>
+                      <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-full">
+                        Official Team Identity
+                      </span>
+                    </div>
+                    <input
+                      type="text"
+                      value={editFormData.teamName || ''}
+                      onChange={(e) => setEditFormData({ ...editFormData, teamName: e.target.value })}
+                      placeholder="e.g. Weaver Dynamics"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-emerald-300 text-sm font-bold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-[#22C55E]/30"
+                    />
+                  </div>
+
                   {/* Edit Form - 3 Participant Sections */}
                   <div className="space-y-5">
                     {(['leader', 'member1', 'member2'] as const).map((role, idx) => {
@@ -1033,6 +1157,22 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
                                 className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#22C55E]/30"
                               />
                             </div>
+
+                            {role === 'leader' && (
+                              <div className="sm:col-span-2">
+                                <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center gap-1">
+                                  <Mail className="w-3 h-3 text-[#16A34A]" />
+                                  <span>Leader Email Address *</span>
+                                </label>
+                                <input
+                                  type="email"
+                                  value={p.email || ''}
+                                  onChange={(e) => handleParticipantChange(role, 'email', e.target.value)}
+                                  placeholder="leader@gmail.com"
+                                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#22C55E]/30"
+                                />
+                              </div>
+                            )}
 
                             <div className="sm:col-span-2">
                               <label className="block text-[11px] font-bold text-slate-700 mb-1">

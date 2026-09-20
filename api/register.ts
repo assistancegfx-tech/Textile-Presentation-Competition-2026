@@ -105,7 +105,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Check if Google Apps Script URL is configured via environment variable, request header, or default
     const customScriptUrl = req.headers['x-google-script-url'] as string | undefined;
-    const targetScriptUrl = customScriptUrl || process.env.GOOGLE_SCRIPT_URL || process.env.VITE_GOOGLE_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbzVPB_lyf20Tx7qNxgbNSSUxqi-9lQL4m-l6yD6QQMpgZSv3GSqk1o5qXDYhhInC3af_A/exec';
+    const targetScriptUrl = customScriptUrl || process.env.GOOGLE_SCRIPT_URL || process.env.VITE_GOOGLE_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbxFVWAVQApNuw2g_zvbSEK_QhXIcso8MoDhne75A4L0ryUUeh2G4GEclUkMn8GY21VT2Q/exec';
 
     // If Google Apps Script Web App URL is configured, forward to Google Sheets & Drive
     if (targetScriptUrl && targetScriptUrl.startsWith('http')) {

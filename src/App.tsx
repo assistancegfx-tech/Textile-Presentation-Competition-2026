@@ -13,6 +13,7 @@ import { GuidelinesSection } from './components/GuidelinesSection';
 import { ContactSection } from './components/ContactSection';
 import { Footer } from './components/Footer';
 import { ViewEditRegistrationModal } from './components/ViewEditRegistrationModal';
+import { GoogleSheetSettingsModal } from './components/GoogleSheetSettingsModal';
 import { SuccessView } from './components/SuccessView';
 import { TextileGridBackground } from './components/TextileMotifs';
 import { PageId } from './types';
@@ -66,10 +67,15 @@ export default function App() {
   });
   const [isViewEditModalOpen, setIsViewEditModalOpen] = useState(false);
   const [viewEditRegId, setViewEditRegId] = useState('');
+  const [isGoogleSheetModalOpen, setIsGoogleSheetModalOpen] = useState(false);
 
   const handleOpenViewEdit = (regId?: string) => {
     setViewEditRegId(regId || '');
     setIsViewEditModalOpen(true);
+  };
+
+  const handleOpenGoogleSheet = () => {
+    setIsGoogleSheetModalOpen(true);
   };
 
   // Sync with browser back/forward, popstate, and URL hash
@@ -114,6 +120,7 @@ export default function App() {
         currentPage={currentPage}
         onNavigate={navigateToPage}
         onOpenViewEditModal={handleOpenViewEdit}
+        onOpenGoogleSheetModal={handleOpenGoogleSheet}
       />
 
       {/* Distinct Dedicated Page View with Subtle Fade-in Transition */}
@@ -138,6 +145,7 @@ export default function App() {
             {currentPage === 'registration' && (
               <RegistrationForm
                 onOpenViewEditModal={handleOpenViewEdit}
+                onOpenGoogleSheetModal={handleOpenGoogleSheet}
                 onRegistrationSuccess={(result, formData) => {
                   setLatestRegistration({ result, formData });
                   navigateToPage('registration-success');
@@ -194,13 +202,22 @@ export default function App() {
       </main>
 
       {/* Official Footer with Multi-Page Navigation */}
-      <Footer onNavigate={navigateToPage} />
+      <Footer
+        onNavigate={navigateToPage}
+        onOpenGoogleSheetModal={handleOpenGoogleSheet}
+      />
 
       {/* Find & Edit Registration Modal (up to 3 edits allowed) */}
       <ViewEditRegistrationModal
         isOpen={isViewEditModalOpen}
         onClose={() => setIsViewEditModalOpen(false)}
         initialRegId={viewEditRegId}
+      />
+
+      {/* Google Sheet Live Sync Setup Modal (25 Columns) */}
+      <GoogleSheetSettingsModal
+        isOpen={isGoogleSheetModalOpen}
+        onClose={() => setIsGoogleSheetModalOpen(false)}
       />
     </div>
   );

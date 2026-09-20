@@ -84,34 +84,48 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onNavigate }) => {
           <span className="text-slate-500 font-medium">Barishal Textile Engineering College</span>
         </motion.div>
 
-        {/* Main Title matching the poster */}
-        <div className="space-y-2">
-          <motion.h1
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className="text-4xl sm:text-6xl lg:text-7xl font-black text-[#0A192F] tracking-tight leading-[1.08] font-['Outfit']"
-          >
-            TEXTILE PRESENTATION<br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#0A192F] via-[#103463] to-[#16A34A]">
-              COMPETITION 2026
-            </span>
-          </motion.h1>
+        {/* Main Title with always-active continuous cool animations */}
+        <div className="space-y-3 relative">
+          {/* Continuous ambient behind-title glowing halo */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4/5 h-32 bg-gradient-to-r from-[#22C55E]/20 via-[#0EA5E9]/15 to-[#22C55E]/20 rounded-full blur-3xl pointer-events-none animate-glow-pulse -z-10" />
 
           <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.4, delay: 0.2 }}
-            className="flex justify-center py-2"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+            className="overflow-visible"
           >
-            <WeaveDecorativeAccent className="opacity-80" />
+            <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black text-[#0A192F] tracking-tight leading-[1.08] font-['Outfit'] select-none">
+              <span className="inline-block hover:scale-[1.02] transition-transform duration-300">
+                <span className="inline-block transition-colors duration-500 hover:text-[#16A34A]">TEXTILE</span>{' '}
+                <span className="inline-block transition-colors duration-500 hover:text-[#0A192F]">PRESENTATION</span>
+              </span>
+              <br />
+              <span className="relative inline-block mt-1">
+                {/* Continuous Shimmering Vibrant Gradient Headline */}
+                <span className="inline-block bg-gradient-to-r from-[#0A192F] via-[#16A34A] via-[#0284C7] to-[#0A192F] bg-clip-text text-transparent animate-title-shimmer drop-shadow-sm font-black tracking-normal">
+                  COMPETITION 2026
+                </span>
+              </span>
+            </h1>
+          </motion.div>
+
+          <motion.div
+            initial={{ scaleX: 0, opacity: 0 }}
+            animate={{ scaleX: 1, opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.38, ease: 'easeOut' }}
+            className="flex justify-center py-1.5"
+          >
+            <div className="relative group">
+              <WeaveDecorativeAccent className="opacity-95 drop-shadow-xs" />
+            </div>
           </motion.div>
 
           {/* Clean event meta line */}
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.4, delay: 0.25 }}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.45 }}
             className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm font-semibold text-slate-600"
           >
             <div className="flex items-center gap-1.5 text-slate-800">

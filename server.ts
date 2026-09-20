@@ -1,11 +1,13 @@
 import express, { Request, Response } from 'express';
 import path from 'path';
+import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
 
 interface StoredRegistration {
   registrationId: string;
   submissionDate: string;
   paymentStatus: 'Pending' | 'Verified' | 'Rejected';
+  teamName?: string;
   leaderRoll: string;
   m1Roll: string;
   m2Roll: string;
@@ -19,6 +21,31 @@ interface StoredRegistration {
 // In-memory persistent registry for duplicate detection and fallback storage
 const registrationsStore: StoredRegistration[] = [];
 let idSequence = 1;
+
+const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxFVWAVQApNuw2g_zvbSEK_QhXIcso8MoDhne75A4L0ryUUeh2G4GEclUkMn8GY21VT2Q/exec';
+
+function loadEnvFile() {
+  try {
+    const envPath = path.join(process.cwd(), '.env');
+    if (fs.existsSync(envPath)) {
+      const content = fs.readFileSync(envPath, 'utf8');
+      for (const line of content.split('\n')) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#')) continue;
+        const match = trimmed.match(/^([^=]+)=(.*)$/);
+        if (match) {
+          const key = match[1].trim();
+          let val = match[2].trim();
+          if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+            val = val.slice(1, -1);
+          }
+          process.env[key] = val;
+        }
+      }
+    }
+  } catch (_) {}
+}
+loadEnvFile();
 
 async function startServer() {
   const app = express();
@@ -37,18 +64,108 @@ async function startServer() {
     });
   });
 
+  // Serve latest Google Apps Script code
+  app.get('/api/script-code', (req: Request, res: Response) => {
+    try {
+      const scriptPath = path.join(process.cwd(), 'google-apps-script.js');
+      if (fs.existsSync(scriptPath)) {
+        const code = fs.readFileSync(scriptPath, 'utf-8');
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        return res.send(code);
+      }
+      return res.status(404).send('// google-apps-script.js not found');
+    } catch (e: any) {
+      return res.status(500).send('// Error reading script: ' + e.message);
+    }
+  });
+
+  let configuredGoogleScriptUrl = process.env.GOOGLE_SCRIPT_URL || process.env.VITE_GOOGLE_SCRIPT_URL || DEFAULT_SCRIPT_URL;
+
+  const getActiveScriptUrl = (req?: Request): string => {
+    const customHeader = req?.headers['x-google-script-url'] as string | undefined;
+    const customQuery = req?.query?.scriptUrl as string | undefined;
+    return customHeader || customQuery || configuredGoogleScriptUrl;
+  };
+
   app.get('/api/config', (req: Request, res: Response) => {
-    const hasEnvScript = !!process.env.GOOGLE_SCRIPT_URL;
     res.json({
-      hasGoogleScript: hasEnvScript,
-      configuredUrl: hasEnvScript ? 'Configured via Environment Variable' : null
+      hasGoogleScript: !!configuredGoogleScriptUrl,
+      configuredUrl: configuredGoogleScriptUrl
     });
+  });
+
+  // Google Apps Script URL configuration endpoints
+  app.get('/api/config/script-url', (_req: Request, res: Response) => {
+    res.json({ success: true, scriptUrl: configuredGoogleScriptUrl });
+  });
+
+  app.post('/api/config/script-url', (req: Request, res: Response) => {
+    const { scriptUrl } = req.body;
+    if (scriptUrl && typeof scriptUrl === 'string' && scriptUrl.startsWith('http')) {
+      configuredGoogleScriptUrl = scriptUrl.trim();
+      console.log(`[CONFIG] Google Script URL updated to: ${configuredGoogleScriptUrl}`);
+    }
+    res.json({ success: true, scriptUrl: configuredGoogleScriptUrl });
+  });
+
+  // Test connection to Google Apps Script & Google Sheet
+  app.post('/api/test-google-sheet', async (req: Request, res: Response) => {
+    const { scriptUrl } = req.body;
+    const targetUrl = (scriptUrl || configuredGoogleScriptUrl).trim();
+
+    if (!targetUrl || !targetUrl.startsWith('http')) {
+      return res.status(400).json({
+        success: false,
+        error: 'No valid Google Apps Script Web App URL provided.'
+      });
+    }
+
+    try {
+      const queryUrl = `${targetUrl}${targetUrl.includes('?') ? '&' : '?'}action=health`;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const getRes = await fetch(queryUrl, { signal: controller.signal, redirect: 'follow' });
+      clearTimeout(timeoutId);
+      const getText = await getRes.text();
+
+      if (getText.includes('unable to open the file') || getText.includes('Page not found') || getRes.status === 404) {
+        return res.json({
+          success: false,
+          error: 'Google error: "Unable to open the file at present". In Apps Script editor: select "setup" from the dropdown, click "▶ Run", and authorize permissions.'
+        });
+      }
+
+      let parsed: any = null;
+      try {
+        parsed = JSON.parse(getText);
+      } catch (_) {}
+
+      if (parsed && (parsed.status === 'ok' || parsed.success)) {
+        return res.json({
+          success: true,
+          message: 'Google Sheet connected successfully!',
+          sheetName: parsed.sheetName || 'Registrations',
+          totalRows: parsed.totalRows
+        });
+      }
+
+      return res.json({
+        success: true,
+        message: 'Google Apps Script connected!',
+        scriptStatus: parsed?.status || 'ok'
+      });
+    } catch (e: any) {
+      return res.status(500).json({
+        success: false,
+        error: e.message || 'Connection test failed.'
+      });
+    }
   });
 
   // Diagnostic endpoint to test Google Apps Script connectivity
   app.post('/api/test-google-script', async (req: Request, res: Response) => {
     const { scriptUrl } = req.body;
-    const targetUrl = scriptUrl || process.env.GOOGLE_SCRIPT_URL;
+    const targetUrl = scriptUrl || configuredGoogleScriptUrl;
 
     if (!targetUrl || !targetUrl.startsWith('http')) {
       return res.status(400).json({
@@ -174,11 +291,13 @@ async function startServer() {
         }
       }
 
-      console.log(`[REGISTRATION] Validation result: PASSED (Leader: ${leaderRoll}, Member 1: ${m1Roll}, Member 2: ${m2Roll}, Trx: ${transactionId})`);
+      const teamName = String(data?.teamName || '').trim();
+
+      console.log(`[REGISTRATION] Validation result: PASSED (Team: "${teamName}", Leader: ${leaderRoll}, Member 1: ${m1Roll}, Member 2: ${m2Roll}, Trx: ${transactionId})`);
 
       // Check if Google Apps Script Web App URL is configured
       const customScriptUrl = req.headers['x-google-script-url'] as string | undefined;
-      const targetScriptUrl = customScriptUrl || process.env.GOOGLE_SCRIPT_URL || process.env.VITE_GOOGLE_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbzVPB_lyf20Tx7qNxgbNSSUxqi-9lQL4m-l6yD6QQMpgZSv3GSqk1o5qXDYhhInC3af_A/exec';
+      const targetScriptUrl = customScriptUrl || process.env.GOOGLE_SCRIPT_URL || process.env.VITE_GOOGLE_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbxFVWAVQApNuw2g_zvbSEK_QhXIcso8MoDhne75A4L0ryUUeh2G4GEclUkMn8GY21VT2Q/exec';
 
       if (targetScriptUrl && targetScriptUrl.startsWith('http')) {
         try {
@@ -225,6 +344,7 @@ async function startServer() {
               registrationId: regId,
               submissionDate: nowStr,
               paymentStatus: 'Pending',
+              teamName: teamName || scriptData.teamName || '',
               leaderRoll,
               m1Roll,
               m2Roll,
@@ -238,6 +358,7 @@ async function startServer() {
               success: true,
               registrationId: regId,
               submissionDate: nowStr,
+              teamName: teamName || scriptData.teamName || '',
               paymentStatus: 'Pending',
               editCount: 0,
               maxEdits: 3,
@@ -265,6 +386,7 @@ async function startServer() {
         registrationId: regId,
         submissionDate,
         paymentStatus: 'Pending',
+        teamName,
         leaderRoll,
         m1Roll,
         m2Roll,
@@ -278,6 +400,7 @@ async function startServer() {
         success: true,
         registrationId: regId,
         submissionDate,
+        teamName,
         paymentStatus: 'Pending',
         editCount: 0,
         maxEdits: 3,
@@ -307,13 +430,13 @@ async function startServer() {
 
     // If Google Apps Script is configured, fetch live status from Google Sheets
     const customScriptUrl = req.headers['x-google-script-url'] as string | undefined;
-    const targetScriptUrl = customScriptUrl || req.query.scriptUrl as string || process.env.GOOGLE_SCRIPT_URL || process.env.VITE_GOOGLE_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbzVPB_lyf20Tx7qNxgbNSSUxqi-9lQL4m-l6yD6QQMpgZSv3GSqk1o5qXDYhhInC3af_A/exec';
+    const targetScriptUrl = customScriptUrl || req.query.scriptUrl as string || process.env.GOOGLE_SCRIPT_URL || process.env.VITE_GOOGLE_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbxFVWAVQApNuw2g_zvbSEK_QhXIcso8MoDhne75A4L0ryUUeh2G4GEclUkMn8GY21VT2Q/exec';
 
     if (targetScriptUrl && targetScriptUrl.startsWith('http')) {
       try {
         const queryUrl = `${targetScriptUrl}${targetScriptUrl.includes('?') ? '&' : '?'}action=get&regId=${encodeURIComponent(requestedId)}`;
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 6000);
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
         
         const gRes = await fetch(queryUrl, { signal: controller.signal, redirect: 'follow' });
         clearTimeout(timeoutId);
@@ -323,53 +446,83 @@ async function startServer() {
           if (gData && (gData.success || gData.found) && gData.registrationId) {
             const liveStatus = gData.paymentStatus || 'Pending';
             
+            const formatBdPhone = (phone: any): string => {
+              if (!phone) return '';
+              let str = String(phone).trim().replace(/[\s\-()]/g, '');
+              if (str.startsWith('+880')) str = str.slice(4);
+              else if (str.startsWith('880')) str = str.slice(3);
+              else if (str.startsWith('+88')) str = str.slice(3);
+              else if (str.startsWith('88')) str = str.slice(2);
+              if (/^1[3-9]\d{8}$/.test(str)) {
+                return '0' + str;
+              }
+              return str;
+            };
+
+            // Build the exact payload from Google Sheet row data
+            const sheetPayload = {
+              teamName: String(gData.teamName || (reg ? reg.teamName : '') || ''),
+              leader: {
+                name: String(gData.leaderName || ''),
+                roll: String(gData.leaderRoll || ''),
+                department: String(gData.leaderDepartment || 'Textile Engineering'),
+                whatsapp: formatBdPhone(gData.leaderWhatsApp),
+                facebook: String(gData.leaderFacebook || ''),
+                email: String(gData.leaderEmail || gData.email || ''),
+                photoUrl: String(gData.leaderPhotoUrl || ''),
+                photoPreview: String(gData.leaderPhotoUrl || '')
+              },
+              member1: {
+                name: String(gData.member1Name || ''),
+                roll: String(gData.member1Roll || ''),
+                department: String(gData.member1Department || 'Textile Engineering'),
+                whatsapp: formatBdPhone(gData.member1WhatsApp),
+                facebook: String(gData.member1Facebook || ''),
+                email: String(gData.member1Email || ''),
+                photoUrl: String(gData.member1PhotoUrl || ''),
+                photoPreview: String(gData.member1PhotoUrl || '')
+              },
+              member2: {
+                name: String(gData.member2Name || ''),
+                roll: String(gData.member2Roll || ''),
+                department: String(gData.member2Department || 'Textile Engineering'),
+                whatsapp: formatBdPhone(gData.member2WhatsApp),
+                facebook: String(gData.member2Facebook || ''),
+                email: String(gData.member2Email || ''),
+                photoUrl: String(gData.member2PhotoUrl || ''),
+                photoPreview: String(gData.member2PhotoUrl || '')
+              },
+              payment: {
+                bkashNumber: formatBdPhone(gData.bkashNumber),
+                transactionId: String(gData.transactionId || '')
+              }
+            };
+
             if (reg) {
-              // Update payment status from Google Sheets
+              // Overwrite with live Google Sheets data
+              reg.registrationId = gData.registrationId || reg.registrationId;
+              reg.submissionDate = gData.submissionDate || reg.submissionDate;
               reg.paymentStatus = liveStatus;
-              if (gData.leaderRoll) reg.leaderRoll = gData.leaderRoll;
-              if (gData.transactionId) reg.transactionId = gData.transactionId;
+              reg.teamName = String(gData.teamName || reg.teamName || '').trim();
+              reg.leaderRoll = String(gData.leaderRoll || reg.leaderRoll).trim();
+              reg.m1Roll = String(gData.member1Roll || reg.m1Roll).trim();
+              reg.m2Roll = String(gData.member2Roll || reg.m2Roll).trim();
+              reg.transactionId = String(gData.transactionId || reg.transactionId).trim().toUpperCase();
+              reg.payload = sheetPayload;
             } else {
-              // Reconstruct registration from Google Sheets if server memory was cleared
+              // Create registration record directly from Google Sheets
               reg = {
                 registrationId: gData.registrationId || requestedId,
                 submissionDate: gData.submissionDate || new Date().toISOString(),
                 paymentStatus: liveStatus,
+                teamName: String(gData.teamName || '').trim(),
                 leaderRoll: String(gData.leaderRoll || '').trim(),
                 m1Roll: String(gData.member1Roll || '').trim(),
                 m2Roll: String(gData.member2Roll || '').trim(),
                 transactionId: String(gData.transactionId || '').trim().toUpperCase(),
                 editCount: 0,
                 maxEdits: 3,
-                payload: {
-                  leader: {
-                    name: gData.leaderName || '',
-                    roll: gData.leaderRoll || '',
-                    department: gData.leaderDepartment || 'Textile Engineering',
-                    whatsapp: gData.leaderWhatsApp || '',
-                    facebook: gData.leaderFacebook || '',
-                    photoUrl: gData.leaderPhotoUrl || ''
-                  },
-                  member1: {
-                    name: gData.member1Name || '',
-                    roll: gData.member1Roll || '',
-                    department: gData.member1Department || 'Textile Engineering',
-                    whatsapp: gData.member1WhatsApp || '',
-                    facebook: gData.member1Facebook || '',
-                    photoUrl: gData.member1PhotoUrl || ''
-                  },
-                  member2: {
-                    name: gData.member2Name || '',
-                    roll: gData.member2Roll || '',
-                    department: gData.member2Department || 'Textile Engineering',
-                    whatsapp: gData.member2WhatsApp || '',
-                    facebook: gData.member2Facebook || '',
-                    photoUrl: gData.member2PhotoUrl || ''
-                  },
-                  payment: {
-                    bkashNumber: gData.bkashNumber || '',
-                    transactionId: gData.transactionId || ''
-                  }
-                }
+                payload: sheetPayload
               };
               registrationsStore.push(reg);
             }
@@ -401,13 +554,25 @@ async function startServer() {
     }
 
     if (reqMobile) {
-      const storedMobile = String(reg.payload?.leader?.whatsapp || '').trim().replace(/[\s\-()]/g, '');
-      const cleanStored = storedMobile.startsWith('+88') ? storedMobile.slice(3) : storedMobile.startsWith('88') ? storedMobile.slice(2) : storedMobile;
-      const cleanReq = reqMobile.startsWith('+88') ? reqMobile.slice(3) : reqMobile.startsWith('88') ? reqMobile.slice(2) : reqMobile;
-      if (cleanStored && cleanStored !== cleanReq) {
+      const normalizePhone = (num: any) => {
+        if (!num) return '';
+        const digits = String(num).replace(/\D/g, '');
+        return digits.slice(-10); // Match last 10 digits regardless of leading 0 or +88
+      };
+
+      const cleanReq = normalizePhone(reqMobile);
+      const cleanStored = normalizePhone(reg.payload?.leader?.whatsapp || '');
+      const cleanStoredM1 = normalizePhone(reg.payload?.member1?.whatsapp || '');
+      const cleanStoredM2 = normalizePhone(reg.payload?.member2?.whatsapp || '');
+
+      const isMatch = (cleanStored && cleanStored === cleanReq) ||
+                      (cleanStoredM1 && cleanStoredM1 === cleanReq) ||
+                      (cleanStoredM2 && cleanStoredM2 === cleanReq);
+
+      if (!isMatch && cleanReq.length >= 6) {
         return res.status(401).json({
           success: false,
-          error: 'Security verification failed: Leader Mobile number does not match this registration.'
+          error: 'Security verification failed: Mobile number does not match this registration record.'
         });
       }
     }
@@ -494,6 +659,7 @@ async function startServer() {
       registrationId: registration.registrationId,
       submissionDate: registration.submissionDate || new Date().toISOString(),
       paymentStatus: registration.paymentStatus || 'Pending',
+      teamName: String(registration.formData?.teamName || registration.teamName || '').trim(),
       leaderRoll: String(registration.formData?.leader?.roll || '').trim(),
       m1Roll: String(registration.formData?.member1?.roll || '').trim(),
       m2Roll: String(registration.formData?.member2?.roll || '').trim(),
@@ -535,6 +701,7 @@ async function startServer() {
           registrationId: backup.registrationId || requestedId,
           submissionDate: backup.submissionDate || new Date().toISOString(),
           paymentStatus: backup.paymentStatus || 'Pending',
+          teamName: String(backup.formData?.teamName || backup.teamName || '').trim(),
           leaderRoll: String(backup.formData?.leader?.roll || '').trim(),
           m1Roll: String(backup.formData?.member1?.roll || '').trim(),
           m2Roll: String(backup.formData?.member2?.roll || '').trim(),
@@ -597,17 +764,46 @@ async function startServer() {
           ...(updatedData.payment || {})
         }
       };
+      if (updatedData.teamName) {
+        reg.teamName = String(updatedData.teamName).trim();
+      }
       reg.leaderRoll = newLeaderRoll;
       reg.m1Roll = newM1Roll;
       reg.m2Roll = newM2Roll;
       reg.editCount = currentEdits + 1;
       reg.lastEditedAt = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' });
 
+      // Forward the edit to Google Apps Script / Google Sheets
+      const activeScriptUrl = getActiveScriptUrl(req);
+      let sheetUpdated = false;
+      if (activeScriptUrl && activeScriptUrl.startsWith('http')) {
+        try {
+          const scriptRes = await fetch(activeScriptUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'updateRegistration',
+              registrationId: requestedId,
+              formData: reg.payload
+            }),
+            redirect: 'follow'
+          });
+          const scriptJson: any = await scriptRes.json();
+          if (scriptJson && scriptJson.success) {
+            sheetUpdated = true;
+            console.log(`[EDIT] Google Sheet row updated successfully for ${requestedId}`);
+          }
+        } catch (sheetErr: any) {
+          console.warn('[EDIT] Google Sheets sync error during update:', sheetErr.message);
+        }
+      }
+
       const remaining = Math.max(0, 3 - reg.editCount);
 
       return res.json({
         success: true,
         message: `Registration updated successfully. You have ${remaining} of 3 edits remaining.`,
+        sheetUpdated,
         registration: {
           registrationId: reg.registrationId,
           submissionDate: reg.submissionDate,

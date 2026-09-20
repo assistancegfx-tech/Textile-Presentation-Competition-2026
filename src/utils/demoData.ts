@@ -68,6 +68,7 @@ export function getDemoFormData(): RegistrationFormData {
   const member2Photo = createDemoAvatar('TH', 'Member 2', '#6D28D9');
 
   return {
+    teamName: 'Textile Innovators',
     leader: {
       name: 'Tahmidur Rahman',
       roll: `2022${randomSuffix}`,

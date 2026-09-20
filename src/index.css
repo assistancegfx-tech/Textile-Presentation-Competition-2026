@@ -1,1 +1,76 @@
 @import "tailwindcss";
+
+/* Always-active Continuous Title & Hero Animations */
+@keyframes titleShimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes floatGentle {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes glowPulseContinuous {
+  0%, 100% {
+    opacity: 0.35;
+    transform: scale(0.98) translate(-50%, -50%);
+    filter: blur(48px);
+  }
+  50% {
+    opacity: 0.75;
+    transform: scale(1.06) translate(-50%, -50%);
+    filter: blur(56px);
+  }
+}
+
+@keyframes weaveWave {
+  0% {
+    background-position: 0% 0%;
+  }
+  100% {
+    background-position: 200% 0%;
+  }
+}
+
+@keyframes subtleBadgePulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(34, 197, 94, 0);
+  }
+}
+
+.animate-title-shimmer {
+  background-size: 250% auto;
+  animation: titleShimmer 5s ease-in-out infinite;
+}
+
+.animate-float-subtle {
+  animation: floatGentle 3.5s ease-in-out infinite;
+}
+
+.animate-glow-pulse {
+  animation: glowPulseContinuous 4s ease-in-out infinite;
+}
+
+.animate-weave-wave {
+  background-size: 200% 100%;
+  animation: weaveWave 3s linear infinite;
+}
+
+.animate-badge-pulse {
+  animation: subtleBadgePulse 2.5s infinite;
+}

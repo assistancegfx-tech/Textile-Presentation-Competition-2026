@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle2, Copy, Check, Download, Calendar, MapPin, Building2, ShieldAlert, Award, QrCode, X } from 'lucide-react';
-import confetti from 'canvas-confetti';
+import { CheckCircle2, Copy, Check, Download, Calendar, MapPin, Building2, ShieldAlert, Award, QrCode, X, Trophy } from 'lucide-react';
+import { fireCelebrationConfetti } from '../utils/confetti';
 import { SubmissionResponse, RegistrationFormData } from '../types';
 import { BtecLogo, CareerClubLogo } from './Logos';
 import { generateRegistrationPdf } from '../utils/pdfGenerator';
@@ -20,6 +20,7 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
 }) => {
   const [copied, setCopied] = useState(false);
   const regId = result.registrationId || 'TEX2026-001';
+  const displayTeamName = formData.teamName || result.teamName || '';
 
   // Save to local registry so participant can search and edit it up to 3 times
   useEffect(() => {
@@ -30,6 +31,7 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
         registrationId: regId,
         submissionDate: result.submissionDate || new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' }),
         paymentStatus: result.paymentStatus || 'Pending',
+        teamName: displayTeamName,
         editCount: result.editCount ?? 0,
         maxEdits: 3,
         remainingEdits: 3,
@@ -50,16 +52,16 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
   }, [regId, result, formData]);
 
   useEffect(() => {
-    // Launch festive confetti celebration
+    // Launch festive confetti celebration safely
     try {
-      confetti({
-        particleCount: 80,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#22C55E', '#0A192F', '#84CC16', '#F59E0B']
+      const cleanup = fireCelebrationConfetti({
+        particleCount: 85,
+        origin: { x: 0.5, y: 0.6 },
+        colors: ['#22C55E', '#0A192F', '#84CC16', '#F59E0B', '#38BDF8']
       });
+      return cleanup;
     } catch (e) {
-      // safe fallback if canvas-confetti is not loaded
+      // safe fallback
     }
   }, []);
 
@@ -120,34 +122,44 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
           </p>
         </div>
 
-        {/* Prominent Registration ID Display Card */}
-        <div className="bg-[#FAFBF9] rounded-2xl border-2 border-slate-200/90 p-5 text-center space-y-2 my-4">
-          <span className="text-xs font-bold uppercase tracking-widest text-slate-500">
-            Official Registration ID
-          </span>
-          <div className="flex items-center justify-center gap-3">
-            <span className="text-3xl sm:text-4xl font-black text-[#0A192F] font-['Space_Grotesk'] tracking-widest">
-              {regId}
+        {/* Prominent Registration ID & Team Display Card */}
+        <div className="bg-[#FAFBF9] rounded-2xl border-2 border-slate-200/90 p-5 text-center space-y-3 my-4">
+          {displayTeamName && (
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-100/70 border border-emerald-200 text-[#15803D] text-xs font-bold">
+              <Trophy className="w-3.5 h-3.5" />
+              <span>Team: {displayTeamName}</span>
+            </div>
+          )}
+
+          <div>
+            <span className="text-xs font-bold uppercase tracking-widest text-slate-500 block">
+              Official Registration ID
             </span>
-            <button
-              type="button"
-              onClick={handleCopyId}
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 active:scale-95 transition print:hidden"
-              title="Copy ID"
-            >
-              {copied ? (
-                <>
-                  <Check className="w-3.5 h-3.5 text-[#16A34A]" />
-                  <span className="text-[#16A34A]">Copied</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="w-3.5 h-3.5 text-slate-500" />
-                  <span>Copy</span>
-                </>
-              )}
-            </button>
+            <div className="flex items-center justify-center gap-3 mt-1">
+              <span className="text-3xl sm:text-4xl font-black text-[#0A192F] font-['Space_Grotesk'] tracking-widest">
+                {regId}
+              </span>
+              <button
+                type="button"
+                onClick={handleCopyId}
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 active:scale-95 transition print:hidden"
+                title="Copy ID"
+              >
+                {copied ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-[#16A34A]" />
+                    <span className="text-[#16A34A]">Copied</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Copy</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
+
           <p className="text-xs text-slate-500 font-medium">
             Please save this ID for future reference and auditorium check-in.
           </p>

@@ -17,6 +17,7 @@ export interface PaymentDetails {
 }
 
 export interface RegistrationFormData {
+  teamName: string;
   leader: Participant;
   member1: Participant;
   member2: Participant;
@@ -27,6 +28,7 @@ export interface SubmissionResponse {
   success: boolean;
   registrationId?: string;
   submissionDate?: string;
+  teamName?: string;
   paymentStatus?: 'Pending' | 'Verified' | 'Rejected';
   editCount?: number;
   maxEdits?: number;
@@ -45,6 +47,7 @@ export interface RegisteredTeamRecord {
   registrationId: string;
   submissionDate: string;
   paymentStatus: 'Pending' | 'Verified' | 'Rejected';
+  teamName?: string;
   editCount: number;
   maxEdits: number;
   remainingEdits: number;
@@ -58,12 +61,14 @@ export interface ExistingRegistrationRecord {
   registrationId: string;
   submittedAt: string;
   paymentStatus: 'Pending' | 'Verified' | 'Rejected';
+  teamName?: string;
   leader: {
     name: string;
     roll: string;
     department: string;
     whatsapp: string;
     facebook: string;
+    email?: string;
     photoPreview?: string;
   };
   member1: {
@@ -72,6 +77,7 @@ export interface ExistingRegistrationRecord {
     department: string;
     whatsapp: string;
     facebook: string;
+    email?: string;
     photoPreview?: string;
   };
   member2: {
@@ -80,6 +86,7 @@ export interface ExistingRegistrationRecord {
     department: string;
     whatsapp: string;
     facebook: string;
+    email?: string;
     photoPreview?: string;
   };
   payment: {

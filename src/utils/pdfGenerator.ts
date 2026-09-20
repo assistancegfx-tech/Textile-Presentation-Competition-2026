@@ -65,25 +65,33 @@ export function generateRegistrationPdf(data: RegistrationPdfData) {
   doc.setLineWidth(0.4);
   doc.roundedRect(margin, y, contentWidth, 24, 2, 2, 'FD');
 
-  // Left column in box: Reg ID
+  // Left column in box: Reg ID & Team Name
   doc.setTextColor(100, 116, 139);
-  doc.setFontSize(8);
+  doc.setFontSize(7.5);
   doc.setFont('helvetica', 'bold');
-  doc.text('REGISTRATION NUMBER', margin + 6, y + 7);
+  doc.text('REGISTRATION NUMBER', margin + 6, y + 6);
 
   doc.setTextColor(15, 23, 42); // Slate 900
-  doc.setFontSize(15);
+  doc.setFontSize(13);
   doc.setFont('helvetica', 'bold');
-  doc.text(data.registrationId, margin + 6, y + 16);
+  doc.text(data.registrationId, margin + 6, y + 12.5);
+
+  const teamNameText = (data.formData?.teamName || '').trim();
+  if (teamNameText) {
+    doc.setTextColor(22, 163, 74); // Green
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`TEAM: ${teamNameText.substring(0, 30)}`, margin + 6, y + 19);
+  }
 
   // Middle column in box: Submission Date
   doc.setTextColor(100, 116, 139);
-  doc.setFontSize(8);
-  doc.text('SUBMISSION DATE', margin + 75, y + 7);
+  doc.setFontSize(7.5);
+  doc.text('SUBMISSION DATE', margin + 75, y + 6);
   doc.setTextColor(51, 65, 85);
-  doc.setFontSize(10);
+  doc.setFontSize(9.5);
   doc.setFont('helvetica', 'normal');
-  doc.text(data.submissionDate || new Date().toLocaleDateString(), margin + 75, y + 15);
+  doc.text(data.submissionDate || new Date().toLocaleDateString(), margin + 75, y + 13);
 
   // Right column in box: Verification Status
   doc.setTextColor(100, 116, 139);
@@ -125,7 +133,7 @@ export function generateRegistrationPdf(data: RegistrationPdfData) {
   const drawParticipantCard = (
     title: string,
     role: string,
-    participant: { name: string; roll: string; department: string; whatsapp: string; facebook: string },
+    participant: { name: string; roll: string; department: string; whatsapp: string; facebook: string; email?: string },
     boxY: number
   ) => {
     doc.setFillColor(255, 255, 255);
@@ -181,7 +189,7 @@ export function generateRegistrationPdf(data: RegistrationPdfData) {
     doc.setFontSize(8.5);
     doc.text(participant.department || '—', col3X, boxY + 18);
 
-    // Line 2: WhatsApp & Facebook
+    // Line 2: WhatsApp, Email (if present) / Facebook
     doc.setTextColor(100, 116, 139);
     doc.setFontSize(7.5);
     doc.setFont('helvetica', 'normal');
@@ -191,15 +199,37 @@ export function generateRegistrationPdf(data: RegistrationPdfData) {
     doc.setFontSize(8.5);
     doc.text(participant.whatsapp || '—', col1X, boxY + 30);
 
-    doc.setTextColor(100, 116, 139);
-    doc.setFontSize(7.5);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Facebook Profile:', col2X, boxY + 25);
-    doc.setTextColor(15, 23, 42);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    const fbText = participant.facebook ? participant.facebook.replace(/^https?:\/\/(www\.)?/, '') : '—';
-    doc.text(fbText.length > 45 ? fbText.substring(0, 42) + '...' : fbText, col2X, boxY + 30);
+    if (participant.email) {
+      doc.setTextColor(100, 116, 139);
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Email Address:', col2X, boxY + 25);
+      doc.setTextColor(15, 23, 42);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      const emailText = participant.email;
+      doc.text(emailText.length > 30 ? emailText.substring(0, 27) + '...' : emailText, col2X, boxY + 30);
+
+      doc.setTextColor(100, 116, 139);
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Facebook Profile:', col3X, boxY + 25);
+      doc.setTextColor(15, 23, 42);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      const fbText = participant.facebook ? participant.facebook.replace(/^https?:\/\/(www\.)?/, '') : '—';
+      doc.text(fbText.length > 25 ? fbText.substring(0, 22) + '...' : fbText, col3X, boxY + 30);
+    } else {
+      doc.setTextColor(100, 116, 139);
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Facebook Profile:', col2X, boxY + 25);
+      doc.setTextColor(15, 23, 42);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      const fbText = participant.facebook ? participant.facebook.replace(/^https?:\/\/(www\.)?/, '') : '—';
+      doc.text(fbText.length > 45 ? fbText.substring(0, 42) + '...' : fbText, col2X, boxY + 30);
+    }
   };
 
   // Section Header: Team Members

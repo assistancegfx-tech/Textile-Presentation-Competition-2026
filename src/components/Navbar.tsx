@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, X, ArrowRight, Search } from 'lucide-react';
+import { Menu, X, ArrowRight, Search, Database } from 'lucide-react';
 import { BrandHeaderCombo } from './Logos';
 import { PageId } from '../types';
 
@@ -7,12 +7,14 @@ interface NavbarProps {
   currentPage: PageId;
   onNavigate: (page: PageId) => void;
   onOpenViewEditModal?: (regId?: string) => void;
+  onOpenGoogleSheetModal?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   currentPage,
   onNavigate,
-  onOpenViewEditModal
+  onOpenViewEditModal,
+  onOpenGoogleSheetModal
 }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -78,12 +80,23 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Action CTAs */}
           <div className="hidden lg:flex items-center gap-2">
+            {/* Google Sheet Live Sync CTA */}
+            <button
+              type="button"
+              onClick={() => onOpenGoogleSheetModal?.()}
+              title="Connect and manage Google Sheet sync"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border border-emerald-200 text-emerald-800 bg-emerald-50/60 hover:bg-emerald-100/80 hover:text-[#0A192F] transition shadow-2xs"
+            >
+              <Database className="w-3.5 h-3.5 text-[#16A34A]" />
+              <span>Sheet Live Sync</span>
+            </button>
+
             {/* Find / Edit Registration CTA */}
             <button
               type="button"
               onClick={() => onOpenViewEditModal?.()}
               title="Find and Edit registration details (up to 3 times)"
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold rounded-xl border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 hover:text-[#0A192F] transition shadow-2xs"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 hover:text-[#0A192F] transition shadow-2xs"
             >
               <Search className="w-3.5 h-3.5 text-[#16A34A]" />
               <span>Find / Edit</span>
@@ -149,6 +162,18 @@ export const Navbar: React.FC<NavbarProps> = ({
           </nav>
 
           <div className="pt-2 border-t border-slate-100 flex flex-col gap-2.5">
+            <button
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                onOpenGoogleSheetModal?.();
+              }}
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-3 text-xs font-bold rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-900 shadow-2xs"
+            >
+              <Database className="w-4 h-4 text-[#16A34A]" />
+              <span>Connect Google Sheet (25 Columns)</span>
+            </button>
+
             <button
               type="button"
               onClick={() => {
