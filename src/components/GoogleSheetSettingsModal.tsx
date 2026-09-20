@@ -214,7 +214,7 @@ export const GoogleSheetSettingsModal: React.FC<GoogleSheetSettingsModalProps> =
               <li>
                 In the top toolbar dropdown (next to "Debug"), select <strong>setup</strong> and click <strong>▶ Run</strong>.
                 <span className="block mt-1 text-[11px] text-emerald-800 font-medium pl-5">
-                  ✨ <em>This automatically formats your 25 columns, dark navy headers, dropdowns, plain text formatting for student rolls & WhatsApp numbers, and creates the Google Drive photo folder!</em>
+                  ✨ <em>This automatically formats your 25 columns, dark navy headers, dropdowns, plain text formatting for student rolls & WhatsApp numbers, creates the Google Drive photo folder, and authorizes the automatic confirmation email engine!</em>
                 </span>
               </li>
               <li>

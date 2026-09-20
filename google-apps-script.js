@@ -130,15 +130,21 @@ function setup() {
   const sheet = setupNewSheet(ss);
   const folder = getOrCreateDriveFolder(DRIVE_FOLDER_NAME);
 
+  let emailQuota = "N/A";
+  try {
+    emailQuota = MailApp.getRemainingDailyQuota();
+  } catch (_) {}
+
   Logger.log("==================================================");
   Logger.log("🎉 NEW GOOGLE SHEET SETUP COMPLETE!");
   Logger.log("📄 Spreadsheet: " + ss.getName());
   Logger.log("📋 Sheet Name: " + sheet.getName());
   Logger.log("📁 Drive Folder: " + folder.getName());
   Logger.log("✨ 25 columns configured with Team Name at Column D.");
+  Logger.log("📧 Daily Email Quota Remaining: " + emailQuota + " emails");
   Logger.log("==================================================");
 
-  return "Setup successful! 25 standard columns are ready with dropdowns and formatting.";
+  return "Setup successful! 25 standard columns are ready with dropdowns, photo folder, and automatic confirmation emails.";
 }
 
 /**
@@ -855,6 +861,34 @@ function doPost(e) {
       });
     } catch (_) {}
 
+    // =========================================================================
+    // 📧 SEND AUTOMATIC REGISTRATION CONFIRMATION EMAIL IMMEDIATELY
+    // =========================================================================
+    let emailSent = false;
+    let emailStatusMessage = "No valid leader email provided";
+
+    if (leaderEmail && leaderEmail.indexOf("@") !== -1) {
+      try {
+        emailSent = sendRegistrationConfirmationEmail({
+          registrationId: regId,
+          teamName: teamName || "N/A",
+          leaderName: leaderName,
+          leaderRoll: leaderRoll,
+          leaderDept: leaderDept,
+          leaderWhatsApp: leaderWhatsApp,
+          paymentStatus: "Pending",
+          submissionDate: submissionDate,
+          email: leaderEmail
+        });
+        emailStatusMessage = emailSent 
+          ? "Automatic confirmation email sent successfully to " + leaderEmail
+          : "Could not send email (quota limit or permissions)";
+      } catch (mailEx) {
+        emailStatusMessage = "Email error: " + mailEx.toString();
+        Logger.log("[EMAIL ERROR] " + mailEx.toString());
+      }
+    }
+
     return createResponse({
       success: true,
       status: "success",
@@ -862,7 +896,10 @@ function doPost(e) {
       submissionDate: submissionDate,
       teamName: teamName,
       paymentStatus: "Pending",
-      message: "Registration saved to Google Sheets with 25 aligned columns (including Team Name).",
+      emailSent: emailSent,
+      emailRecipient: leaderEmail,
+      emailStatusMessage: emailStatusMessage,
+      message: "Registration saved to Google Sheets and confirmation email processed.",
       photos: {
         leader: leaderPhotoUrl,
         member1: m1PhotoUrl,
@@ -969,4 +1006,195 @@ function saveBase64Image(folder, base64Data, filenamePrefix) {
 function createResponse(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+// =============================================================================
+// 📧 OFFICIAL REGISTRATION CONFIRMATION EMAIL ENGINE
+// =============================================================================
+
+/**
+ * Sends official registration confirmation email immediately after successful registration.
+ * Dynamically replaces all {{ }} placeholders with the corresponding registration data.
+ * 
+ * Exact format:
+ * Subject: Registration Confirmation – Textile Presentation Competition 2026 | {{Registration ID}}
+ * 
+ * Dear {{Group Leader Name}},
+ * 
+ * We are pleased to inform you that your registration for the Textile Presentation Competition 2026 has been successfully received and recorded.
+ * 
+ * Registration Details
+ * 
+ * Registration ID: {{Registration ID}}
+ * Team Name: {{Team Name}}
+ * Group Leader: {{Group Leader Name}}
+ * Roll No.: {{Group Leader Roll}}
+ * Department: {{Group Leader Department}}
+ * Mobile No.: {{Group Leader WhatsApp}}
+ * Payment Status: {{Payment Status}}
+ * Submission Date: {{Submission Date}}
+ * 
+ * Registration Verification
+ * 
+ * You may check and verify your registration information through our official website using:
+ * 
+ * Registration ID + Mobile No. + Roll No.
+ * 
+ * Please keep these details safe and readily available for future reference, verification, or any registration-related communication.
+ * 
+ * Thank you for your participation. We sincerely appreciate your interest in the Textile Presentation Competition 2026 and look forward to your participation.
+ * 
+ * Sincerely,
+ * Organizing Committee
+ * Career Club BTEC
+ * Barishal Textile Engineering College (BTEC)
+ */
+function sendRegistrationConfirmationEmail(details) {
+  if (!details || !details.email || details.email.indexOf("@") === -1) {
+    Logger.log("Skipping confirmation email: No valid recipient email address provided.");
+    return false;
+  }
+
+  const regId = String(details.registrationId || "").trim();
+  const teamName = String(details.teamName || "N/A").trim();
+  const leaderName = String(details.leaderName || "").trim();
+  const leaderRoll = String(details.leaderRoll || "").trim();
+  const leaderDept = String(details.leaderDept || "").trim();
+  const leaderWhatsApp = String(details.leaderWhatsApp || "").trim();
+  const paymentStatus = String(details.paymentStatus || "Pending").trim();
+  const submissionDate = String(details.submissionDate || Utilities.formatDate(new Date(), "Asia/Dhaka", "yyyy-MM-dd HH:mm:ss")).trim();
+
+  // Exact Subject format
+  const subject = "Registration Confirmation – Textile Presentation Competition 2026 | " + regId;
+
+  // Exact Plain Text Body with all placeholders dynamically replaced
+  const plainBody = 
+    "Dear " + leaderName + ",\n\n" +
+    "We are pleased to inform you that your registration for the Textile Presentation Competition 2026 has been successfully received and recorded.\n\n" +
+    "Registration Details\n\n" +
+    "Registration ID: " + regId + "\n" +
+    "Team Name: " + teamName + "\n" +
+    "Group Leader: " + leaderName + "\n" +
+    "Roll No.: " + leaderRoll + "\n" +
+    "Department: " + leaderDept + "\n" +
+    "Mobile No.: " + leaderWhatsApp + "\n" +
+    "Payment Status: " + paymentStatus + "\n" +
+    "Submission Date: " + submissionDate + "\n\n" +
+    "Registration Verification\n\n" +
+    "You may check and verify your registration information through our official website using:\n\n" +
+    "Registration ID + Mobile No. + Roll No.\n\n" +
+    "Please keep these details safe and readily available for future reference, verification, or any registration-related communication.\n\n" +
+    "Thank you for your participation. We sincerely appreciate your interest in the Textile Presentation Competition 2026 and look forward to your participation.\n\n" +
+    "Sincerely,\n" +
+    "Organizing Committee\n" +
+    "Career Club BTEC\n" +
+    "Barishal Textile Engineering College (BTEC)";
+
+  // Professional HTML Email Body preserving the identical text content and structure
+  const htmlBody = 
+    '<div style="font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; color: #0f172a; line-height: 1.6;">' +
+      '<div style="background-color: #0A192F; padding: 26px 30px; text-align: center; border-bottom: 3px solid #16A34A;">' +
+        '<h1 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -0.5px;">Textile Presentation Competition 2026</h1>' +
+        '<p style="color: #22C55E; margin: 5px 0 0 0; font-size: 13px; font-weight: 700;">Career Club BTEC • Barishal Textile Engineering College</p>' +
+      '</div>' +
+      '<div style="padding: 28px 30px 24px 30px;">' +
+        '<p style="font-size: 15px; margin: 0 0 16px 0; color: #0A192F;">Dear <strong>' + escapeHtml(leaderName) + '</strong>,</p>' +
+        '<p style="font-size: 14px; margin: 0 0 24px 0; color: #334155; line-height: 1.6;">We are pleased to inform you that your registration for the <strong>Textile Presentation Competition 2026</strong> has been successfully received and recorded.</p>' +
+        
+        '<div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 24px;">' +
+          '<h2 style="font-size: 15px; font-weight: 800; margin: 0 0 14px 0; color: #0A192F; border-bottom: 1px solid #cbd5e1; padding-bottom: 8px;">Registration Details</h2>' +
+          '<table style="width: 100%; border-collapse: collapse; font-size: 13.5px;">' +
+            '<tr><td style="padding: 6px 0; color: #64748b; width: 145px; font-weight: 600;">Registration ID:</td><td style="padding: 6px 0; color: #16A34A; font-weight: 800; font-family: monospace; font-size: 15px;">' + escapeHtml(regId) + '</td></tr>' +
+            '<tr><td style="padding: 6px 0; color: #64748b; font-weight: 600;">Team Name:</td><td style="padding: 6px 0; color: #0A192F; font-weight: 700;">' + escapeHtml(teamName) + '</td></tr>' +
+            '<tr><td style="padding: 6px 0; color: #64748b; font-weight: 600;">Group Leader:</td><td style="padding: 6px 0; color: #0A192F; font-weight: 600;">' + escapeHtml(leaderName) + '</td></tr>' +
+            '<tr><td style="padding: 6px 0; color: #64748b; font-weight: 600;">Roll No.:</td><td style="padding: 6px 0; color: #0A192F; font-weight: 600;">' + escapeHtml(leaderRoll) + '</td></tr>' +
+            '<tr><td style="padding: 6px 0; color: #64748b; font-weight: 600;">Department:</td><td style="padding: 6px 0; color: #0A192F; font-weight: 600;">' + escapeHtml(leaderDept) + '</td></tr>' +
+            '<tr><td style="padding: 6px 0; color: #64748b; font-weight: 600;">Mobile No.:</td><td style="padding: 6px 0; color: #0A192F; font-weight: 600;">' + escapeHtml(leaderWhatsApp) + '</td></tr>' +
+            '<tr><td style="padding: 6px 0; color: #64748b; font-weight: 600;">Payment Status:</td><td style="padding: 6px 0;"><span style="background-color: #fef3c7; color: #92400e; padding: 3px 10px; border-radius: 6px; font-weight: 700; font-size: 12px; display: inline-block;">' + escapeHtml(paymentStatus) + '</span></td></tr>' +
+            '<tr><td style="padding: 6px 0; color: #64748b; font-weight: 600;">Submission Date:</td><td style="padding: 6px 0; color: #0A192F; font-weight: 600;">' + escapeHtml(submissionDate) + '</td></tr>' +
+          '</table>' +
+        '</div>' +
+
+        '<div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 18px 20px; margin-bottom: 24px;">' +
+          '<h3 style="font-size: 14px; font-weight: 800; margin: 0 0 8px 0; color: #166534;">Registration Verification</h3>' +
+          '<p style="font-size: 13px; margin: 0 0 12px 0; color: #14532d;">You may check and verify your registration information through our official website using:</p>' +
+          '<div style="background-color: #ffffff; border: 1px dashed #22c55e; border-radius: 8px; padding: 10px 14px; font-weight: 800; color: #0A192F; font-size: 13.5px; text-align: center; letter-spacing: 0.3px;">' +
+            'Registration ID + Mobile No. + Roll No.' +
+          '</div>' +
+        '</div>' +
+
+        '<p style="font-size: 13px; color: #475569; margin: 0 0 16px 0; line-height: 1.6;">Please keep these details safe and readily available for future reference, verification, or any registration-related communication.</p>' +
+        '<p style="font-size: 13px; color: #475569; margin: 0 0 26px 0; line-height: 1.6;">Thank you for your participation. We sincerely appreciate your interest in the Textile Presentation Competition 2026 and look forward to your participation.</p>' +
+
+        '<div style="border-top: 1px solid #e2e8f0; padding-top: 18px; font-size: 13px; color: #334155; line-height: 1.5;">' +
+          '<p style="margin: 0; font-weight: 600;">Sincerely,</p>' +
+          '<p style="margin: 2px 0 0 0; font-weight: 800; color: #0A192F;">Organizing Committee</p>' +
+          '<p style="margin: 2px 0 0 0; color: #16A34A; font-weight: 700;">Career Club BTEC</p>' +
+          '<p style="margin: 2px 0 0 0; color: #64748b;">Barishal Textile Engineering College (BTEC)</p>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+
+  try {
+    MailApp.sendEmail({
+      to: details.email,
+      subject: subject,
+      body: plainBody,
+      htmlBody: htmlBody,
+      name: "Career Club BTEC"
+    });
+    Logger.log("[EMAIL SUCCESS] Confirmation email successfully sent via MailApp to: " + details.email);
+    return true;
+  } catch (mailErr) {
+    Logger.log("[EMAIL NOTICE] MailApp notice: " + mailErr.toString() + " - Attempting GmailApp fallback...");
+    try {
+      GmailApp.sendEmail(details.email, subject, plainBody, {
+        htmlBody: htmlBody,
+        name: "Career Club BTEC"
+      });
+      Logger.log("[EMAIL SUCCESS] Confirmation email successfully sent via GmailApp to: " + details.email);
+      return true;
+    } catch (gmailErr) {
+      Logger.log("[EMAIL FAILURE] Failed to send confirmation email via GmailApp: " + gmailErr.toString());
+      return false;
+    }
+  }
+}
+
+function escapeHtml(text) {
+  if (!text) return "";
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+/**
+ * 🧪 Test sending a confirmation email to the currently logged in Google user.
+ * Select "testConfirmationEmail" in Apps Script toolbar and click ▶ Run.
+ */
+function testConfirmationEmail() {
+  const userEmail = Session.getActiveUser().getEmail();
+  if (!userEmail) {
+    Logger.log("Could not detect active user email. Please run setup first.");
+    return "Error: No user email";
+  }
+
+  Logger.log("Sending test confirmation email to: " + userEmail);
+  const result = sendRegistrationConfirmationEmail({
+    registrationId: "TEX2026-001",
+    teamName: "TexGenius",
+    leaderName: "Test Group Leader",
+    leaderRoll: "12401",
+    leaderDept: "Yarn Engineering",
+    leaderWhatsApp: "01700000000",
+    paymentStatus: "Pending",
+    submissionDate: Utilities.formatDate(new Date(), "Asia/Dhaka", "yyyy-MM-dd HH:mm:ss"),
+    email: userEmail
+  });
+
+  Logger.log("Test email result: " + (result ? "SUCCESS" : "FAILED"));
+  return result ? "Test email sent to " + userEmail : "Test email failed";
 }

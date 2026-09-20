@@ -354,6 +354,10 @@ async function startServer() {
               payload: data
             });
 
+            const emailSent = scriptData.emailSent !== undefined ? Boolean(scriptData.emailSent) : Boolean(leader.email);
+            const emailRecipient = scriptData.emailRecipient || leader.email || '';
+            console.log(`[REGISTRATION] Confirmation email status: ${emailSent ? 'SENT' : 'NOT SENT'} to "${emailRecipient}"`);
+
             return res.status(200).json({
               success: true,
               registrationId: regId,
@@ -363,6 +367,8 @@ async function startServer() {
               editCount: 0,
               maxEdits: 3,
               remainingEdits: 3,
+              emailSent,
+              emailRecipient,
               message: 'Registration and photos saved to Google Sheets & Drive successfully',
               source: 'google_sheets',
               photos: scriptData.photos
@@ -396,6 +402,8 @@ async function startServer() {
         payload: data
       });
 
+      const leaderEmail = leader.email || '';
+
       return res.status(200).json({
         success: true,
         registrationId: regId,
@@ -405,6 +413,8 @@ async function startServer() {
         editCount: 0,
         maxEdits: 3,
         remainingEdits: 3,
+        emailSent: Boolean(leaderEmail),
+        emailRecipient: leaderEmail,
         message: 'Registration submitted successfully',
         source: 'local'
       });

@@ -33,6 +33,8 @@ export interface SubmissionResponse {
   editCount?: number;
   maxEdits?: number;
   remainingEdits?: number;
+  emailSent?: boolean;
+  emailRecipient?: string;
   message: string;
   error?: string;
   source?: 'google_sheets' | 'local_fallback';
