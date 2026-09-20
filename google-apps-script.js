@@ -1076,7 +1076,7 @@ function sendRegistrationConfirmationEmail(details) {
   // Exact Subject format
   const subject = "Registration Confirmation – Textile Presentation Competition 2026 | " + regId;
 
-  // Exact Plain Text Body with all placeholders dynamically replaced
+  // Clean, formal and professional plain text body
   const plainBody = 
     "Dear " + leaderName + ",\n\n" +
     "We are pleased to inform you that your registration for the Textile Presentation Competition 2026 has been successfully received and recorded.\n\n" +
@@ -1093,7 +1093,6 @@ function sendRegistrationConfirmationEmail(details) {
     "You may check and verify your registration information through our official website using:\n\n" +
     "Registration ID + Mobile No. + Roll No.\n\n" +
     "Please keep these details safe and readily available for future reference, verification, or any registration-related communication.\n\n" +
-    "Official Registration Voucher PDF is attached to this email. Please download and keep it safe for entry at BTEC Auditorium.\n\n" +
     "Support & Inquiries: careerclubbtec@gmail.com | Helpline: +880 1798-246810\n\n" +
     "Thank you for your participation. We sincerely appreciate your interest in the Textile Presentation Competition 2026 and look forward to your participation.\n\n" +
     "Sincerely,\n" +
@@ -1101,7 +1100,7 @@ function sendRegistrationConfirmationEmail(details) {
     "Career Club BTEC\n" +
     "Barishal Textile Engineering College (BTEC)";
 
-  // Professional HTML Email Body preserving the identical text content and structure
+  // Professional Formal HTML Email Body
   const htmlBody = 
     '<div style="font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; color: #0f172a; line-height: 1.6;">' +
       '<div style="background-color: #0A192F; padding: 26px 30px; text-align: center; border-bottom: 3px solid #16A34A;">' +
@@ -1111,14 +1110,6 @@ function sendRegistrationConfirmationEmail(details) {
       '<div style="padding: 28px 30px 24px 30px;">' +
         '<p style="font-size: 15px; margin: 0 0 16px 0; color: #0A192F;">Dear <strong>' + escapeHtml(leaderName) + '</strong>,</p>' +
         '<p style="font-size: 14px; margin: 0 0 24px 0; color: #334155; line-height: 1.6;">We are pleased to inform you that your registration for the <strong>Textile Presentation Competition 2026</strong> has been successfully received and recorded.</p>' +
-        
-        '<div style="background-color: #ecfdf5; border: 1.5px solid #10b981; border-radius: 12px; padding: 14px 18px; margin-bottom: 24px;">' +
-          '<div style="display: flex; align-items: center; gap: 8px;">' +
-            '<span style="font-size: 18px;">📎</span>' +
-            '<span style="font-size: 13.5px; font-weight: 800; color: #065f46;">Official Registration Voucher Attached</span>' +
-          '</div>' +
-          '<p style="font-size: 12.5px; margin: 6px 0 0 0; color: #047857;">Your official Registration Voucher PDF (<strong>Registration_Voucher_' + escapeHtml(regId) + '.pdf</strong>) has been attached to this email. Please download, print or carry it on competition day for venue entry.</p>' +
-        '</div>' +
 
         '<div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 24px;">' +
           '<h2 style="font-size: 15px; font-weight: 800; margin: 0 0 14px 0; color: #0A192F; border-bottom: 1px solid #cbd5e1; padding-bottom: 8px;">Registration Details</h2>' +
