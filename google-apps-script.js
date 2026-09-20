@@ -460,6 +460,28 @@ function handlePaymentApprovalNotification(sheet, rowNum, newStatus) {
   }
 }
 
+const DEFAULT_WEBSITE_URL = "https://ais-pre-6zeawg7kx2bdfewoufqpj5-305877422476.asia-southeast1.run.app";
+
+/**
+ * Dynamically resolves the active website base URL
+ */
+function getWebsiteBaseUrl(customUrl) {
+  if (customUrl && typeof customUrl === "string" && customUrl.startsWith("http")) {
+    const clean = customUrl.trim().replace(/\/+$/, "");
+    try {
+      PropertiesService.getScriptProperties().setProperty("SAVED_WEBSITE_URL", clean);
+    } catch (_) {}
+    return clean;
+  }
+  try {
+    const saved = PropertiesService.getScriptProperties().getProperty("SAVED_WEBSITE_URL");
+    if (saved && typeof saved === "string" && saved.startsWith("http")) {
+      return saved.trim().replace(/\/+$/, "");
+    }
+  } catch (_) {}
+  return DEFAULT_WEBSITE_URL;
+}
+
 /**
  * Specialized email generator for Payment Approved with UPDATED PDF Voucher attachment
  * Strictly follows clean, professional formatting without unnecessary decorative symbols.
@@ -489,7 +511,7 @@ function sendPaymentApprovedEmail(details) {
   }
   const teamMembersStr = memberList.join(", ");
 
-  const baseUrl = String(details.websiteUrl || "https://ais-pre-6zeawg7kx2bdfewoufqpj5-305877422476.asia-southeast1.run.app").trim().replace(/\/+$/, "");
+  const baseUrl = getWebsiteBaseUrl(details.websiteUrl);
   const viewParams = [
     "action=view-registration",
     "regId=" + encodeURIComponent(regId),
@@ -1481,7 +1503,7 @@ function sendRegistrationConfirmationEmail(details) {
   const submissionDate = String(details.submissionDate || Utilities.formatDate(new Date(), "Asia/Dhaka", "yyyy-MM-dd HH:mm:ss")).trim();
 
   // Construct direct automatic View Your Registration link with pre-filled parameters
-  const baseUrl = String(details.websiteUrl || "https://ais-pre-6zeawg7kx2bdfewoufqpj5-305877422476.asia-southeast1.run.app").trim().replace(/\/+$/, "");
+  const baseUrl = getWebsiteBaseUrl(details.websiteUrl);
   const viewParams = [
     "action=view-registration",
     "regId=" + encodeURIComponent(regId),

@@ -112,18 +112,25 @@ export default function App() {
         const searchParams = new URLSearchParams(window.location.search);
         const hashStr = window.location.hash || '';
         const hashParams = hashStr.includes('?') ? new URLSearchParams(hashStr.split('?')[1]) : null;
+        const rawPath = window.location.pathname.toLowerCase().replace(/^\/+/, '');
 
-        const action = searchParams.get('action') || hashParams?.get('action');
-        const paramRegId = searchParams.get('regId') || searchParams.get('reg') || hashParams?.get('regId');
+        const action = (searchParams.get('action') || hashParams?.get('action') || '').toLowerCase();
+        const paramRegId = searchParams.get('regId') || searchParams.get('reg') || hashParams?.get('regId') || hashParams?.get('reg');
         const paramRoll = searchParams.get('roll') || searchParams.get('leaderRoll') || hashParams?.get('roll');
         const paramMobile = searchParams.get('mobile') || searchParams.get('phone') || searchParams.get('leaderMobile') || hashParams?.get('mobile');
 
-        if (action === 'view-registration' || paramRegId || paramRoll) {
-          if (paramRegId || paramRoll) {
-            handleOpenViewEdit(paramRegId || '', paramRoll || '', paramMobile || '', true);
-          } else if (action === 'view-registration') {
-            handleOpenViewEdit();
-          }
+        const isViewAction = 
+          action === 'view-registration' || 
+          action === 'download-voucher' || 
+          action === 'voucher' || 
+          action === 'download' || 
+          action === 'view' ||
+          rawPath === 'view-registration' ||
+          rawPath === 'download-voucher' ||
+          rawPath === 'voucher';
+
+        if (isViewAction || paramRegId || paramRoll) {
+          handleOpenViewEdit(paramRegId || '', paramRoll || '', paramMobile || '', Boolean(paramRegId || paramRoll));
         }
       } catch (err) {
         console.warn('Error reading URL parameters:', err);
