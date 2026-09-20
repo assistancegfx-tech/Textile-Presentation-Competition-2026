@@ -160,7 +160,10 @@ export default function App() {
             className="w-full"
           >
             {currentPage === 'home' && (
-              <HeroSection onNavigate={navigateToPage} />
+              <HeroSection
+                onNavigate={navigateToPage}
+                onOpenViewEditModal={handleOpenViewEdit}
+              />
             )}
 
             {currentPage === 'event' && (

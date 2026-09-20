@@ -6,8 +6,8 @@ export const ContactSection: React.FC = () => {
   const contactLinks = [
     {
       label: 'WhatsApp Support',
-      value: '+880 1798-246810',
-      href: 'https://wa.me/8801798246810',
+      value: '+880 1305-912237',
+      href: 'https://wa.me/8801305912237',
       description: 'Quick response for registration & payment help',
       icon: MessageSquare,
       color: 'bg-[#22C55E]/10 text-[#15803D]'
@@ -30,8 +30,8 @@ export const ContactSection: React.FC = () => {
     },
     {
       label: 'Helpline Phone',
-      value: '+880 1798-246810',
-      href: 'tel:+8801798246810',
+      value: '+880 1305-912237',
+      href: 'tel:+8801305912237',
       description: 'Available 9:00 AM – 9:00 PM BST daily',
       icon: Phone,
       color: 'bg-slate-100 text-slate-800'

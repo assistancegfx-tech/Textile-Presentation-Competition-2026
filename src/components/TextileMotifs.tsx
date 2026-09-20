@@ -35,11 +35,6 @@ export const WeaveDecorativeAccent: React.FC<{ className?: string }> = ({ classN
           <feGaussianBlur stdDeviation="2" result="blur" />
           <feComposite in="SourceGraphic" in2="blur" operator="over" />
         </filter>
-        <radialGradient id="shuttleGlow">
-          <stop offset="0%" stopColor="#FFFFFF" stopOpacity="1" />
-          <stop offset="40%" stopColor="#4ADE80" stopOpacity="0.8" />
-          <stop offset="100%" stopColor="#16A34A" stopOpacity="0" />
-        </radialGradient>
       </defs>
 
       {/* Static background warp guidelines */}
@@ -83,14 +78,6 @@ export const WeaveDecorativeAccent: React.FC<{ className?: string }> = ({ classN
       <circle cx="132" cy="14" r="2" fill="#22C55E" opacity="0.8" />
       <circle cx="174" cy="14" r="2" fill="#F59E0B" opacity="0.8" />
       <circle cx="216" cy="14" r="2" fill="#22C55E" opacity="0.8" />
-
-      {/* Continuous Loom Shuttle / Fiber Glint traveling across the weaving threads */}
-      <g className="animate-shuttle-travel">
-        <circle cx="0" cy="14" r="7" fill="url(#shuttleGlow)" />
-        <circle cx="0" cy="14" r="3.2" fill="#FFFFFF" />
-        <circle cx="-5" cy="14" r="1.5" fill="#4ADE80" opacity="0.7" />
-        <circle cx="-9" cy="14" r="1" fill="#22C55E" opacity="0.4" />
-      </g>
     </svg>
   </div>
 );

@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Calendar, MapPin, Building2, Presentation, Users, ArrowRight, Award, CheckCircle2 } from 'lucide-react';
+import { Calendar, MapPin, Building2, Presentation, Users, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { PageId } from '../types';
 
 interface EventInfoSectionProps {
@@ -41,15 +41,6 @@ export const EventInfoSection: React.FC<EventInfoSectionProps> = ({ onNavigate }
       iconColor: 'text-[#4D7C0F]',
       iconBg: 'bg-[#84CC16]/20'
     }
-  ];
-
-  const tracks = [
-    'Smart Textiles & Nanotechnology',
-    'Sustainable Wet Processing & Effluent Reduction',
-    'Yarn & Spinning Process Optimization',
-    'Technical Apparel Manufacturing & Automation',
-    'Circular Economy & Recycled Fibers',
-    'Supply Chain Digitization & Quality Systems'
   ];
 
   return (
@@ -102,72 +93,42 @@ export const EventInfoSection: React.FC<EventInfoSectionProps> = ({ onNavigate }
         })}
       </div>
 
-      {/* Two Column Section: Team Structure + Topics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Team Model Card */}
-        <motion.div
-          initial={{ opacity: 0, x: -15 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.4, delay: 0.3 }}
-          className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-2xs space-y-4"
-        >
-          <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
-            <div className="w-10 h-10 rounded-xl bg-[#22C55E]/15 text-[#16A34A] flex items-center justify-center">
-              <Users className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-base font-extrabold text-[#0A192F]">Team Composition</h3>
-              <p className="text-xs text-slate-500">Strictly 3 members per registered team</p>
-            </div>
+      {/* Team Composition Section */}
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.3 }}
+        className="bg-white rounded-2xl border border-slate-200/90 p-6 md:p-8 shadow-2xs space-y-5 max-w-3xl mx-auto w-full"
+      >
+        <div className="flex items-center gap-3.5 pb-4 border-b border-slate-100">
+          <div className="w-11 h-11 rounded-xl bg-[#22C55E]/15 text-[#16A34A] flex items-center justify-center shrink-0">
+            <Users className="w-5 h-5" />
           </div>
-
-          <ul className="space-y-2.5 text-xs text-slate-600">
-            <li className="flex items-start gap-2">
-              <CheckCircle2 className="w-4 h-4 text-[#16A34A] shrink-0 mt-0.5" />
-              <span><strong>1 Group Leader</strong>: Primary contact person and coordinator for the team.</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <CheckCircle2 className="w-4 h-4 text-[#16A34A] shrink-0 mt-0.5" />
-              <span><strong>2 Team Members</strong>: Active co-presenters on stage during the jury round.</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <CheckCircle2 className="w-4 h-4 text-[#16A34A] shrink-0 mt-0.5" />
-              <span>Cross-batch and cross-departmental teams are welcome.</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <CheckCircle2 className="w-4 h-4 text-[#16A34A] shrink-0 mt-0.5" />
-              <span>Each student can only register in one team.</span>
-            </li>
-          </ul>
-        </motion.div>
-
-        {/* Suggested Presentation Themes */}
-        <motion.div
-          initial={{ opacity: 0, x: 15 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.4, delay: 0.3 }}
-          className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-2xs space-y-4"
-        >
-          <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
-            <div className="w-10 h-10 rounded-xl bg-[#0A192F]/10 text-[#0A192F] flex items-center justify-center">
-              <Award className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-base font-extrabold text-[#0A192F]">Suggested Presentation Tracks</h3>
-              <p className="text-xs text-slate-500">Original research, innovation or case studies</p>
-            </div>
+          <div>
+            <h3 className="text-lg font-extrabold text-[#0A192F]">Team Composition</h3>
+            <p className="text-xs text-slate-500">Strictly 3 members per registered team</p>
           </div>
+        </div>
 
-          <div className="grid grid-cols-1 gap-2 text-xs">
-            {tracks.map((track, tIdx) => (
-              <div key={tIdx} className="flex items-center gap-2 p-2 rounded-lg bg-[#FAFBF9] border border-slate-200/60 text-slate-700">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A]" />
-                <span className="font-semibold">{track}</span>
-              </div>
-            ))}
-          </div>
-        </motion.div>
-      </div>
+        <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs sm:text-sm text-slate-600">
+          <li className="flex items-start gap-2.5 p-3 rounded-xl bg-[#FAFBF9] border border-slate-100">
+            <CheckCircle2 className="w-4 h-4 text-[#16A34A] shrink-0 mt-0.5" />
+            <span><strong>1 Group Leader</strong>: Primary contact person and coordinator for the team.</span>
+          </li>
+          <li className="flex items-start gap-2.5 p-3 rounded-xl bg-[#FAFBF9] border border-slate-100">
+            <CheckCircle2 className="w-4 h-4 text-[#16A34A] shrink-0 mt-0.5" />
+            <span><strong>2 Team Members</strong>: Active co-presenters on stage during the jury round.</span>
+          </li>
+          <li className="flex items-start gap-2.5 p-3 rounded-xl bg-[#FAFBF9] border border-slate-100">
+            <CheckCircle2 className="w-4 h-4 text-[#16A34A] shrink-0 mt-0.5" />
+            <span>Cross-batch and cross-departmental teams are welcome.</span>
+          </li>
+          <li className="flex items-start gap-2.5 p-3 rounded-xl bg-[#FAFBF9] border border-slate-100">
+            <CheckCircle2 className="w-4 h-4 text-[#16A34A] shrink-0 mt-0.5" />
+            <span>Each student can only register in one team.</span>
+          </li>
+        </ul>
+      </motion.div>
 
       {/* Action CTA Banner */}
       {onNavigate && (

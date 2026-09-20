@@ -474,7 +474,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
               className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold text-slate-800 bg-white border border-slate-300 hover:border-[#16A34A] hover:bg-emerald-50 hover:text-[#16A34A] shadow-2xs transition active:scale-98 group cursor-pointer"
             >
               <Search className="w-3.5 h-3.5 text-[#16A34A] group-hover:scale-110 transition-transform" />
-              <span>Already registered? View or Edit your team (up to 3 edits)</span>
+              <span>Already registered? View Your Registration (up to 3 edits)</span>
             </button>
           </div>
         </div>

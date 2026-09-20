@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Calendar, MapPin, ArrowRight, BookOpen, Users, HelpCircle, Sparkles } from 'lucide-react';
+import { Calendar, MapPin, ArrowRight, BookOpen, Users, HelpCircle, Sparkles, Search } from 'lucide-react';
 import { WeaveDecorativeAccent } from './TextileMotifs';
 import { PageId } from '../types';
 
@@ -13,9 +13,10 @@ interface TimeLeft {
 
 interface HeroSectionProps {
   onNavigate: (page: PageId) => void;
+  onOpenViewEditModal?: (regId?: string) => void;
 }
 
-export const HeroSection: React.FC<HeroSectionProps> = ({ onNavigate }) => {
+export const HeroSection: React.FC<HeroSectionProps> = ({ onNavigate, onOpenViewEditModal }) => {
   const [timeLeft, setTimeLeft] = useState<TimeLeft>({
     days: 0,
     hours: 0,
@@ -180,31 +181,45 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onNavigate }) => {
           </div>
         </motion.div>
 
-        {/* Action Button */}
+        {/* Action Buttons */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, delay: 0.35 }}
-          className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3"
+          className="pt-2 flex flex-col items-center justify-center gap-3 w-full max-w-lg mx-auto"
         >
+          {/* Primary Action Button */}
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => onNavigate('registration')}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-xl text-sm font-extrabold text-white bg-[#0A192F] hover:bg-[#122846] transition shadow-md shadow-[#0A192F]/15 group cursor-pointer"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-9 py-3.5 rounded-2xl text-sm sm:text-base font-extrabold text-white bg-[#0A192F] hover:bg-[#122846] transition-all shadow-lg shadow-[#0A192F]/20 group cursor-pointer border border-[#0A192F]"
           >
             <span>Register Your Team</span>
             <ArrowRight className="w-4 h-4 text-[#22C55E] group-hover:translate-x-1 transition-transform" />
           </motion.button>
 
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => onNavigate('event')}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl text-sm font-bold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 transition cursor-pointer"
-          >
-            <span>View Event Details</span>
-          </motion.button>
+          {/* Prominently Set Below "Register Your Team" Button */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 w-full">
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => onOpenViewEditModal?.()}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-[#0A192F] bg-white hover:bg-emerald-50/80 border-2 border-[#16A34A]/70 hover:border-[#16A34A] transition-all shadow-xs cursor-pointer group"
+            >
+              <Search className="w-4 h-4 text-[#16A34A] group-hover:scale-110 transition-transform" />
+              <span>View Your Registration</span>
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => onNavigate('event')}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-slate-600 bg-white/80 hover:bg-slate-50 border border-slate-300 transition-all cursor-pointer"
+            >
+              <span>View Event Details</span>
+            </motion.button>
+          </div>
         </motion.div>
 
         {/* 3 Quick Navigation Cards - Beautifully crafted & balanced */}

@@ -23,7 +23,9 @@ import {
   Hash,
   RotateCcw,
   Mail,
-  Trophy
+  Trophy,
+  MessageCircle,
+  ExternalLink
 } from 'lucide-react';
 import { RegisteredTeamRecord, RegistrationFormData, Participant } from '../types';
 import { generateRegistrationPdf } from '../utils/pdfGenerator';
@@ -650,10 +652,10 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-extrabold text-white">
-                Find & Edit Registration
+                View Your Registration
               </h2>
               <p className="text-xs text-slate-400">
-                View team details & edit up to 3 times with your Registration No
+                View registration voucher, check payment status & edit details (up to 3 times)
               </p>
             </div>
           </div>
@@ -912,6 +914,18 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
                         <span>Refresh Live Status</span>
                       </button>
 
+                      <a
+                        href="https://chat.whatsapp.com/Fnta8tls8Gh4UKlVDQT7h0?s=cl&p=a&mlu=4&ilr=4"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-extrabold text-white bg-[#25D366] hover:bg-[#128C7E] active:scale-98 shadow-xs transition"
+                        title="Join Official Competition WhatsApp Group"
+                      >
+                        <MessageCircle className="w-3.5 h-3.5 fill-white" />
+                        <span>Join WhatsApp Group</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+
                       <button
                         type="button"
                         onClick={handleDownloadPdf}
@@ -940,6 +954,29 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
                         </div>
                       )}
                     </div>
+                  </div>
+
+                  {/* Official WhatsApp Group Callout */}
+                  <div className="p-3.5 rounded-2xl bg-[#25D366]/10 border border-[#25D366]/40 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-xl bg-[#25D366] text-white flex items-center justify-center shrink-0 shadow-xs">
+                        <MessageCircle className="w-5 h-5 fill-white" />
+                      </div>
+                      <div>
+                        <p className="font-extrabold text-[#0A192F]">Official Participant WhatsApp Group</p>
+                        <p className="text-slate-600 font-medium text-[11px]">Join to receive topic drops, presentation schedules, mentor sessions, and live announcements.</p>
+                      </div>
+                    </div>
+                    <a
+                      href="https://chat.whatsapp.com/Fnta8tls8Gh4UKlVDQT7h0?s=cl&p=a&mlu=4&ilr=4"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="shrink-0 inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#25D366] hover:bg-[#128C7E] transition shadow-xs whitespace-nowrap"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5 fill-white" />
+                      <span>Join Group</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
                   </div>
 
                   {/* Event Admission Status & Mandatory Policy Notice */}

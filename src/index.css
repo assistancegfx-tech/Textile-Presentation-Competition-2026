@@ -83,23 +83,6 @@
   }
 }
 
-@keyframes shuttleMove {
-  0% {
-    transform: translateX(-20px);
-    opacity: 0;
-  }
-  10% {
-    opacity: 1;
-  }
-  90% {
-    opacity: 1;
-  }
-  100% {
-    transform: translateX(190px);
-    opacity: 0;
-  }
-}
-
 .animate-weave-yarn-1 {
   stroke-dasharray: 12 5;
   animation: weaveYarnDash 2.4s linear infinite;
@@ -117,10 +100,6 @@
 
 .animate-weave-glow {
   animation: weaveGlowTravel 2.2s ease-in-out infinite;
-}
-
-.animate-shuttle-travel {
-  animation: shuttleMove 2.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
 @keyframes subtleBadgePulse {

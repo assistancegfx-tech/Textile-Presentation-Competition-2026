@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle2, Copy, Check, Download, Calendar, MapPin, Building2, ShieldAlert, Award, QrCode, X, Trophy } from 'lucide-react';
+import { CheckCircle2, Copy, Check, Download, Calendar, MapPin, Building2, ShieldAlert, Award, QrCode, X, Trophy, MessageCircle, ExternalLink } from 'lucide-react';
 import { fireCelebrationConfetti } from '../utils/confetti';
 import { SubmissionResponse, RegistrationFormData } from '../types';
 import { BtecLogo, CareerClubLogo } from './Logos';
 import { generateRegistrationPdf } from '../utils/pdfGenerator';
+
+export const OFFICIAL_WHATSAPP_GROUP_URL = 'https://chat.whatsapp.com/Fnta8tls8Gh4UKlVDQT7h0?s=cl&p=a&mlu=4&ilr=4';
 
 interface SuccessViewProps {
   result: SubmissionResponse;
@@ -261,6 +263,41 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
         </div>
       </div>
 
+      {/* Official WhatsApp Participant Group Invitation Card */}
+      <div className="bg-gradient-to-br from-[#25D366]/15 via-emerald-50 to-white rounded-3xl border-2 border-[#25D366]/60 p-6 sm:p-7 shadow-lg shadow-[#25D366]/10 print:hidden relative overflow-hidden">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-5 text-center md:text-left">
+          <div className="flex flex-col sm:flex-row items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-[#25D366] text-white flex items-center justify-center shadow-md shadow-[#25D366]/30 shrink-0">
+              <MessageCircle className="w-8 h-8 fill-white" />
+            </div>
+            <div className="space-y-1">
+              <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-[#25D366]/20 text-[#128C7E] text-[11px] font-black uppercase tracking-wider">
+                <span>Action Required</span>
+                <span>•</span>
+                <span>Official WhatsApp Community</span>
+              </div>
+              <h3 className="text-lg sm:text-xl font-black text-[#0A192F] font-['Outfit']">
+                Join the Competition WhatsApp Group
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-600 max-w-lg leading-relaxed">
+                All team members (Leader & Members) must join the official WhatsApp group for presentation topic distributions, guidelines, mentor sessions, and schedule notifications.
+              </p>
+            </div>
+          </div>
+
+          <a
+            href={OFFICIAL_WHATSAPP_GROUP_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full md:w-auto inline-flex items-center justify-center gap-2.5 px-7 py-3.5 rounded-2xl text-sm font-extrabold text-white bg-[#25D366] hover:bg-[#128C7E] active:scale-98 shadow-md shadow-[#25D366]/30 transition-all duration-200 shrink-0 whitespace-nowrap cursor-pointer group"
+          >
+            <MessageCircle className="w-5 h-5 fill-white" />
+            <span>Join WhatsApp Group</span>
+            <ExternalLink className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
+          </a>
+        </div>
+      </div>
+
       {/* Mandatory Event Admission Notice */}
       <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-300/80 text-amber-900 text-xs sm:text-sm print:hidden flex items-start gap-3">
         <span className="text-lg shrink-0">⚠️</span>
@@ -274,8 +311,19 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
         </div>
       </div>
 
-      {/* Action Buttons: Download Registration Info PDF and Close */}
+      {/* Action Buttons: Join WhatsApp, Download Registration Info PDF, and Close */}
       <div className="flex flex-col sm:flex-row flex-wrap items-center justify-center gap-3.5 print:hidden">
+        <a
+          href={OFFICIAL_WHATSAPP_GROUP_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl text-sm font-extrabold text-white bg-[#25D366] hover:bg-[#128C7E] active:scale-98 shadow-md shadow-[#25D366]/25 transition-all duration-200 cursor-pointer"
+        >
+          <MessageCircle className="w-4 h-4 fill-white" />
+          <span>Join WhatsApp Group</span>
+          <ExternalLink className="w-3.5 h-3.5" />
+        </a>
+
         <button
           type="button"
           onClick={handleDownloadPdf}

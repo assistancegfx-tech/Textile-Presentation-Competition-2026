@@ -1131,11 +1131,14 @@ function sendRegistrationConfirmationEmail(details) {
     "Mobile No.: " + leaderWhatsApp + "\n" +
     "Payment Status: " + paymentStatus + "\n" +
     "Submission Date: " + submissionDate + "\n\n" +
+    "Official WhatsApp Community:\n\n" +
+    "All registered participants (Leader and Members) must join the official WhatsApp group for presentation topics, guidelines, mentor sessions, and event day schedules:\n" +
+    "https://chat.whatsapp.com/Fnta8tls8Gh4UKlVDQT7h0?s=cl&p=a&mlu=4&ilr=4\n\n" +
     "Registration Verification\n\n" +
     "You may check and verify your registration information through our official website using:\n\n" +
     "Registration ID + Mobile No. + Roll No.\n\n" +
     "Please keep these details safe and readily available for future reference, verification, or any registration-related communication.\n\n" +
-    "Support & Inquiries: careerclubbtec@gmail.com | Helpline: +880 1798-246810\n\n" +
+    "Support & Inquiries: careerclubbtec@gmail.com | Helpline: +880 1305-912237\n\n" +
     "Thank you for your participation. We sincerely appreciate your interest in the Textile Presentation Competition 2026 and look forward to your participation.\n\n" +
     "Sincerely,\n" +
     "Organizing Committee\n" +
@@ -1167,6 +1170,14 @@ function sendRegistrationConfirmationEmail(details) {
           '</table>' +
         '</div>' +
 
+        '<div style="background-color: #f0fdf4; border: 2px solid #22c55e; border-radius: 12px; padding: 20px; margin-bottom: 24px; text-align: center;">' +
+          '<h3 style="font-size: 15px; font-weight: 800; margin: 0 0 6px 0; color: #166534;">Official Participant WhatsApp Group</h3>' +
+          '<p style="font-size: 13px; margin: 0 0 16px 0; color: #15803d; line-height: 1.5;">Please ensure all 3 team members join the competition WhatsApp group for presentation topics, guidelines, and schedules.</p>' +
+          '<a href="https://chat.whatsapp.com/Fnta8tls8Gh4UKlVDQT7h0?s=cl&p=a&mlu=4&ilr=4" target="_blank" style="display: inline-block; background-color: #25D366; color: #ffffff; text-decoration: none; font-weight: 800; font-size: 14px; padding: 12px 24px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">' +
+            'Join WhatsApp Group' +
+          '</a>' +
+        '</div>' +
+
         '<div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 18px 20px; margin-bottom: 24px;">' +
           '<h3 style="font-size: 14px; font-weight: 800; margin: 0 0 8px 0; color: #166534;">Registration Verification</h3>' +
           '<p style="font-size: 13px; margin: 0 0 12px 0; color: #14532d;">You may check and verify your registration information through our official website using:</p>' +
@@ -1183,7 +1194,7 @@ function sendRegistrationConfirmationEmail(details) {
           '<p style="margin: 2px 0 0 0; font-weight: 800; color: #0A192F;">Organizing Committee</p>' +
           '<p style="margin: 2px 0 0 0; color: #16A34A; font-weight: 700;">Career Club BTEC</p>' +
           '<p style="margin: 2px 0 0 0; color: #64748b;">Barishal Textile Engineering College (BTEC)</p>' +
-          '<p style="margin: 6px 0 0 0; font-size: 12px; color: #94a3b8;">Email: <a href="mailto:careerclubbtec@gmail.com" style="color: #16A34A; text-decoration: none;">careerclubbtec@gmail.com</a> | Helpline: +880 1798-246810</p>' +
+          '<p style="margin: 6px 0 0 0; font-size: 12px; color: #94a3b8;">Email: <a href="mailto:careerclubbtec@gmail.com" style="color: #16A34A; text-decoration: none;">careerclubbtec@gmail.com</a> | Helpline: +880 1305-912237</p>' +
         '</div>' +
       '</div>' +
     '</div>';
@@ -1261,7 +1272,7 @@ function sendRegistrationConfirmationEmail(details) {
               '<strong>IMPORTANT EVENT INSTRUCTIONS:</strong><br/>' +
               '• Please print this voucher or carry this digital PDF along with your student ID on the event day.<br/>' +
               '• Reporting time: 8:30 AM BST on 04 October 2026 at BTEC Auditorium.<br/>' +
-              '• Support Helpline: +880 1798-246810 | Email: careerclubbtec@gmail.com' +
+              '• Support Helpline: +880 1305-912237 | Email: careerclubbtec@gmail.com' +
             '</div>' +
             '<div class="footer">' +
               '© 2026 Career Club BTEC • Barishal Textile Engineering College • Doc Ref: ' + escapeHtml(regId) +

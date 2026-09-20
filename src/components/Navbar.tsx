@@ -80,15 +80,15 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Action CTAs */}
           <div className="hidden lg:flex items-center gap-2">
-            {/* Find / Edit Registration CTA */}
+            {/* View Your Registration CTA */}
             <button
               type="button"
               onClick={() => onOpenViewEditModal?.()}
-              title="Find and Edit registration details (up to 3 times)"
+              title="View and Edit registration details (up to 3 times)"
               className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 hover:text-[#0A192F] transition shadow-2xs"
             >
               <Search className="w-3.5 h-3.5 text-[#16A34A]" />
-              <span>Find / Edit</span>
+              <span>View Your Registration</span>
             </button>
 
             {/* Primary CTA button to Registration page */}
@@ -160,7 +160,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               className="w-full flex items-center justify-center gap-2 py-2.5 px-3 text-xs font-bold rounded-xl border border-slate-300 bg-white text-slate-800 shadow-2xs"
             >
               <Search className="w-4 h-4 text-[#16A34A]" />
-              <span>Find & Edit Registration (Up to 3 Edits)</span>
+              <span>View Your Registration</span>
             </button>
           </div>
         </div>
