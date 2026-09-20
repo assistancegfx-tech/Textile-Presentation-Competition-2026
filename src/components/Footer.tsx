@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'motion/react';
 import { ArrowUp, Code2 } from 'lucide-react';
 import { CareerClubLogo } from './Logos';
 import { PageId } from '../types';
@@ -19,13 +20,15 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenGoogleSheetMod
         <div className="flex flex-col md:flex-row items-center justify-between pb-8 border-b border-slate-800 gap-6 text-center md:text-left">
           {/* Brand & Identity */}
           <div className="flex flex-col sm:flex-row items-center gap-4">
-            <button
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={() => onNavigate('home')}
-              className="flex items-center focus:outline-none hover:opacity-90 transition"
+              className="flex items-center focus:outline-none hover:opacity-90 transition cursor-pointer"
               aria-label="Career Club BTEC Home"
             >
               <CareerClubLogo className="w-14 h-14 shrink-0 drop-shadow-sm" />
-            </button>
+            </motion.button>
             <div>
               <h3 className="text-lg font-black tracking-tight font-['Outfit']">
                 Textile Presentation Competition 2026
@@ -41,44 +44,56 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenGoogleSheetMod
 
           {/* Quick links & Back to Top */}
           <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-xs text-slate-300 font-semibold">
-            <button
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={() => onNavigate('home')}
-              className="hover:text-[#22C55E] transition"
+              className="hover:text-[#22C55E] transition cursor-pointer"
             >
               Home
-            </button>
-            <button
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={() => onNavigate('event')}
-              className="hover:text-[#22C55E] transition"
+              className="hover:text-[#22C55E] transition cursor-pointer"
             >
               Event Details
-            </button>
-            <button
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={() => onNavigate('registration')}
-              className="hover:text-[#22C55E] transition text-[#22C55E]"
+              className="hover:text-[#22C55E] transition text-[#22C55E] cursor-pointer"
             >
               Registration
-            </button>
-            <button
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={() => onNavigate('guidelines')}
-              className="hover:text-[#22C55E] transition"
+              className="hover:text-[#22C55E] transition cursor-pointer"
             >
               Guidelines
-            </button>
-            <button
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={() => onNavigate('contact')}
-              className="hover:text-[#22C55E] transition"
+              className="hover:text-[#22C55E] transition cursor-pointer"
             >
               Contact
-            </button>
-            <button
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
               type="button"
               onClick={scrollToTop}
-              className="w-8 h-8 rounded-xl bg-slate-800 hover:bg-[#22C55E] hover:text-[#0A192F] flex items-center justify-center transition"
+              className="w-8 h-8 rounded-xl bg-slate-800 hover:bg-[#22C55E] hover:text-[#0A192F] flex items-center justify-center transition cursor-pointer"
               title="Back to Top"
             >
               <ArrowUp className="w-4 h-4" />
-            </button>
+            </motion.button>
           </div>
         </div>
 

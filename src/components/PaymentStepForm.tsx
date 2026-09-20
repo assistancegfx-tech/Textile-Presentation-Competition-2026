@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion } from 'motion/react';
 import { Copy, Check, Smartphone, Hash, Phone, Info } from 'lucide-react';
 import { PaymentDetails } from '../types';
 
@@ -57,10 +58,12 @@ export const PaymentStepForm: React.FC<PaymentStepFormProps> = ({
               <span className="text-2xl sm:text-3xl font-black text-slate-900 font-['Space_Grotesk'] tracking-wider">
                 {officialBkashNumber}
               </span>
-              <button
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 type="button"
                 onClick={handleCopyNumber}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-white border border-pink-300 text-[#E2136E] hover:bg-pink-50 transition active:scale-95 shadow-2xs cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-white border border-pink-300 text-[#E2136E] hover:bg-pink-50 transition shadow-2xs cursor-pointer"
               >
                 {copied ? (
                   <>
@@ -73,7 +76,7 @@ export const PaymentStepForm: React.FC<PaymentStepFormProps> = ({
                     <span>Copy</span>
                   </>
                 )}
-              </button>
+              </motion.button>
             </div>
           </div>
 

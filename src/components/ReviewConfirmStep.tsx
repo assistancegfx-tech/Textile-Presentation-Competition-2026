@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'motion/react';
 import { 
   CheckCircle2, 
   Edit3, 
@@ -130,14 +131,16 @@ export const ReviewConfirmStep: React.FC<ReviewConfirmStepProps> = ({
           </span>
           <h4 className="text-base font-extrabold text-[#0A192F]">{roleTitle}</h4>
         </div>
-        <button
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
           type="button"
           onClick={() => onEditStep(stepIndex)}
-          className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-[#16A34A] transition py-1 px-2 rounded-lg hover:bg-slate-50"
+          className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-[#16A34A] transition py-1 px-2 rounded-lg hover:bg-slate-50 cursor-pointer"
         >
           <Edit3 className="w-3.5 h-3.5" />
           <span>Edit</span>
-        </button>
+        </motion.button>
       </div>
 
       <div className="flex gap-4">
@@ -385,21 +388,25 @@ export const ReviewConfirmStep: React.FC<ReviewConfirmStepProps> = ({
 
       {/* Agreement & Action Buttons */}
       <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-200/80">
-        <button
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
           type="button"
           onClick={() => onEditStep(0)}
           disabled={isSubmitting}
-          className="w-full sm:w-auto px-5 py-3 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 bg-white hover:bg-[#0A192F] hover:text-white hover:border-[#0A192F] active:scale-98 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer shadow-2xs"
+          className="w-full sm:w-auto px-5 py-3 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 bg-white hover:bg-[#0A192F] hover:text-white hover:border-[#0A192F] transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer shadow-2xs"
         >
           <Edit3 className="w-4 h-4" />
           <span>Edit Information</span>
-        </button>
+        </motion.button>
 
-        <button
+        <motion.button
+          whileHover={{ scale: isSubmitting ? 1 : 1.02 }}
+          whileTap={{ scale: isSubmitting ? 1 : 0.98 }}
           type="button"
           onClick={onConfirmSubmit}
           disabled={isSubmitting}
-          className="w-full sm:w-auto px-8 py-3.5 rounded-xl text-sm font-extrabold text-white bg-[#0A192F] hover:bg-[#16A34A] border border-[#0A192F] hover:border-[#16A34A] active:scale-98 transition-all duration-200 shadow-lg shadow-[#0A192F]/15 flex items-center justify-center gap-2.5 disabled:opacity-85 disabled:cursor-not-allowed group cursor-pointer"
+          className="w-full sm:w-auto px-8 py-3.5 rounded-xl text-sm font-extrabold text-white bg-[#0A192F] hover:bg-[#16A34A] border border-[#0A192F] hover:border-[#16A34A] transition-all shadow-lg shadow-[#0A192F]/15 flex items-center justify-center gap-2.5 disabled:opacity-85 disabled:cursor-not-allowed group cursor-pointer"
         >
           {isSubmitting ? (
             <>
@@ -413,7 +420,7 @@ export const ReviewConfirmStep: React.FC<ReviewConfirmStepProps> = ({
               <ArrowRight className="w-4 h-4 text-[#22C55E] group-hover:text-white group-hover:translate-x-1 transition-all" />
             </>
           )}
-        </button>
+        </motion.button>
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import { motion } from 'motion/react';
 import { Upload, X, AlertCircle, Phone, User, Hash, BookOpen, Share2, Mail, Trophy, Users } from 'lucide-react';
 import { Participant } from '../types';
 import { DEPARTMENTS, processAndCompressImage } from '../utils/formUtils';
@@ -364,14 +365,16 @@ export const ParticipantStepForm: React.FC<ParticipantStepFormProps> = ({
                   alt={participant.name || 'Participant'}
                   className="w-full h-full object-cover"
                 />
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
                   type="button"
                   onClick={removePhoto}
-                  className="absolute top-1.5 right-1.5 p-1 bg-red-600 text-white rounded-full shadow-sm hover:bg-red-700 transition"
+                  className="absolute top-1.5 right-1.5 p-1 bg-red-600 text-white rounded-full shadow-sm hover:bg-red-700 transition cursor-pointer"
                   title="Remove photo"
                 >
                   <X className="w-3 h-3" />
-                </button>
+                </motion.button>
               </div>
 
               <div className="space-y-1">
@@ -380,18 +383,22 @@ export const ParticipantStepForm: React.FC<ParticipantStepFormProps> = ({
                     Original Quality • {(participant.photoSize / (1024 * 1024)).toFixed(2)} MB
                   </p>
                 )}
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="w-full py-1.5 px-3 rounded-lg text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition"
+                  className="w-full py-1.5 px-3 rounded-lg text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition cursor-pointer"
                 >
                   Change Photo
-                </button>
+                </motion.button>
               </div>
             </div>
           ) : (
             /* Upload Box */
-            <div
+            <motion.div
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
               onClick={() => fileInputRef.current?.click()}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
@@ -421,7 +428,7 @@ export const ParticipantStepForm: React.FC<ParticipantStepFormProps> = ({
               <p className="text-[10px] text-slate-400 mt-0.5">
                 JPG, PNG, WEBP • Max 5MB • Same Quality
               </p>
-            </div>
+            </motion.div>
           )}
 
           {(errors.photo || photoError) && (

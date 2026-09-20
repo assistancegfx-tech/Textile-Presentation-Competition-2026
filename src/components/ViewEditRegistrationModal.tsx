@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   X,
   Search,
@@ -25,10 +26,16 @@ import {
   Mail,
   Trophy,
   MessageCircle,
-  ExternalLink
+  ExternalLink,
+  Sparkles,
+  Copy,
+  Check,
+  Crown,
+  ShieldCheck
 } from 'lucide-react';
 import { RegisteredTeamRecord, RegistrationFormData, Participant } from '../types';
 import { generateRegistrationPdf } from '../utils/pdfGenerator';
+import { fireCelebrationConfetti } from '../utils/confetti';
 import { DEPARTMENTS, validateBangladeshPhone, validateEmail, processAndCompressImage } from '../utils/formUtils';
 
 interface ViewEditRegistrationModalProps {
@@ -86,6 +93,20 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
 
   // Track if auto search was triggered for this modal open session
   const [hasAutoSearched, setHasAutoSearched] = useState(false);
+  const [showSearchBox, setShowSearchBox] = useState(false);
+
+  // Copy feedback state
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+  const handleCopyText = (text: string, fieldName: string) => {
+    if (!text) return;
+    try {
+      navigator.clipboard.writeText(text);
+      setCopiedField(fieldName);
+      setTimeout(() => setCopiedField(null), 2000);
+    } catch {
+      // fallback
+    }
+  };
 
   // Recent local registrations
   const [recentRegistrations, setRecentRegistrations] = useState<{ registrationId: string; leaderName: string; leaderRoll: string; leaderMobile: string }[]>([]);
@@ -346,6 +367,15 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
 
       setRecord(candidateRecord);
       setEditFormData(JSON.parse(JSON.stringify(candidateRecord.formData)));
+      setShowSearchBox(false);
+
+      // Trigger celebratory confetti if record is payment verified
+      const isPaid = /^(paid|verified|approved|received|completed|success)/i.test((candidateRecord.paymentStatus || '').trim());
+      if (isPaid) {
+        setTimeout(() => {
+          fireCelebrationConfetti({ particleCount: 65, spread: 70 });
+        }, 350);
+      }
     } catch (err: any) {
       setSearchError(err.message || 'Failed to connect to registration server.');
       setRecord(null);
@@ -672,139 +702,170 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
             </div>
           </div>
 
-          <button
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
           >
             <X className="w-5 h-5" />
-          </button>
+          </motion.button>
         </div>
 
         {/* Modal Body */}
         <div className="p-5 sm:p-7 max-h-[82vh] overflow-y-auto">
-          {/* Security Search Box */}
-          <div className="mb-6 p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200/90 space-y-3.5">
-            <div className="flex items-center pb-2 border-b border-slate-200/70">
+          {/* If record is loaded, show a clean switcher bar */}
+          {record && (
+            <div className="mb-4 p-3 px-4 rounded-xl bg-slate-50 border border-slate-200/90 flex flex-wrap items-center justify-between gap-2.5 text-xs shadow-2xs">
               <div className="flex items-center gap-2">
-                <KeyRound className="w-4 h-4 text-[#16A34A]" />
-                <span className="text-xs font-black text-[#0A192F] uppercase tracking-wider">
-                  Security Verification & Search
-                </span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {/* Registration Number */}
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                  <Hash className="w-3 h-3 text-[#16A34A]" />
-                  <span>Registration ID *</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={searchId}
-                    onChange={(e) => setSearchId(e.target.value.toUpperCase())}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                    placeholder="e.g. TPC-010203-01"
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs font-extrabold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-[#22C55E]/30 focus:border-[#16A34A] tracking-wider uppercase placeholder:normal-case placeholder:font-normal"
-                  />
+                <div className="w-6 h-6 rounded-lg bg-[#22C55E]/10 text-[#16A34A] flex items-center justify-center shrink-0">
+                  <KeyRound className="w-3.5 h-3.5" />
                 </div>
+                <span className="text-slate-500 font-medium">Viewing record:</span>
+                <span className="font-extrabold text-[#0A192F] font-mono tracking-wide">{record.registrationId}</span>
               </div>
-
-              {/* Leader Roll */}
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                  <User className="w-3 h-3 text-[#16A34A]" />
-                  <span>Leader Roll No *</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={searchRoll}
-                    onChange={(e) => setSearchRoll(e.target.value.trim())}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                    placeholder="e.g. 20220145"
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-[#22C55E]/30 focus:border-[#16A34A] placeholder:font-normal"
-                  />
-                </div>
-              </div>
-
-              {/* Leader Mobile */}
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                  <Phone className="w-3 h-3 text-[#16A34A]" />
-                  <span>Leader Mobile No *</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type="tel"
-                    value={searchMobile}
-                    onChange={(e) => setSearchMobile(e.target.value.trim())}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                    placeholder="e.g. 01712345678"
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-[#22C55E]/30 focus:border-[#16A34A] placeholder:font-normal"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-1 flex flex-col sm:flex-row items-center justify-between gap-3">
-              <p className="text-[11px] text-slate-500 text-center sm:text-left">
-                Both Leader Roll & Mobile are verified against your record for authorized access.
-              </p>
-
-              <button
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
                 type="button"
-                onClick={() => handleSearch()}
-                disabled={isLoading}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-[#0A192F] hover:bg-[#122846] active:scale-98 transition disabled:opacity-60 shadow-xs whitespace-nowrap"
+                onClick={() => setShowSearchBox(!showSearchBox)}
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-[#16A34A] hover:text-[#15803D] bg-white hover:bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200 transition cursor-pointer"
               >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin text-[#22C55E]" />
-                    <span>Verifying...</span>
-                  </>
-                ) : (
-                  <>
-                    <Search className="w-4 h-4 text-[#22C55E]" />
-                    <span>Verify & Find Record</span>
-                  </>
-                )}
-              </button>
+                <Search className="w-3 h-3 text-[#16A34A]" />
+                <span>{showSearchBox ? 'Hide Search Form' : 'Search Another Registration'}</span>
+              </motion.button>
             </div>
+          )}
 
-            {/* Quick Suggestions from Local Storage */}
-            {recentRegistrations.length > 0 && !record && (
-              <div className="mt-3 pt-3 border-t border-slate-200 flex flex-wrap items-center gap-1.5 text-xs">
-                <span className="text-slate-500 font-medium">Recent on this device:</span>
-                {recentRegistrations.map((item) => (
-                  <button
-                    key={item.registrationId}
-                    type="button"
-                    onClick={() => {
-                      setSearchId(item.registrationId);
-                      setSearchRoll(item.leaderRoll);
-                      setSearchMobile(item.leaderMobile);
-                      handleSearch(item.registrationId, item.leaderRoll, item.leaderMobile);
-                    }}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-slate-300 text-slate-700 font-bold hover:border-[#16A34A] hover:text-[#16A34A] transition"
-                  >
-                    <span>{item.registrationId}</span>
-                    <span className="text-[10px] text-slate-400 font-normal">({item.leaderName})</span>
-                  </button>
-                ))}
+          {/* Security Search Box (visible if no record loaded OR user clicked to search another) */}
+          {(!record || showSearchBox) && (
+            <div className="mb-6 p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200/90 space-y-3.5">
+              <div className="flex items-center pb-2 border-b border-slate-200/70">
+                <div className="flex items-center gap-2">
+                  <KeyRound className="w-4 h-4 text-[#16A34A]" />
+                  <span className="text-xs font-black text-[#0A192F] uppercase tracking-wider">
+                    Security Verification & Search
+                  </span>
+                </div>
               </div>
-            )}
 
-            {searchError && (
-              <div className="mt-3 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{searchError}</span>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {/* Registration Number */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                    <Hash className="w-3 h-3 text-[#16A34A]" />
+                    <span>Registration ID *</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={searchId}
+                      onChange={(e) => setSearchId(e.target.value.toUpperCase())}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                      placeholder="e.g. TPC-010203-01"
+                      className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs font-extrabold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-[#22C55E]/30 focus:border-[#16A34A] tracking-wider uppercase placeholder:normal-case placeholder:font-normal"
+                    />
+                  </div>
+                </div>
+
+                {/* Leader Roll */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                    <User className="w-3 h-3 text-[#16A34A]" />
+                    <span>Leader Roll No *</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={searchRoll}
+                      onChange={(e) => setSearchRoll(e.target.value.trim())}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                      placeholder="e.g. 20220145"
+                      className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-[#22C55E]/30 focus:border-[#16A34A] placeholder:font-normal"
+                    />
+                  </div>
+                </div>
+
+                {/* Leader Mobile */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                    <Phone className="w-3 h-3 text-[#16A34A]" />
+                    <span>Leader Mobile No *</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="tel"
+                      value={searchMobile}
+                      onChange={(e) => setSearchMobile(e.target.value.trim())}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                      placeholder="e.g. 01712345678"
+                      className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-[#22C55E]/30 focus:border-[#16A34A] placeholder:font-normal"
+                    />
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
+
+              <div className="pt-1 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <p className="text-[11px] text-slate-500 text-center sm:text-left">
+                  Both Leader Roll & Mobile are verified against your record for authorized access.
+                </p>
+
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  type="button"
+                  onClick={() => handleSearch()}
+                  disabled={isLoading}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-[#0A192F] hover:bg-[#122846] transition disabled:opacity-60 shadow-xs whitespace-nowrap cursor-pointer"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-[#22C55E]" />
+                      <span>Verifying...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Search className="w-4 h-4 text-[#22C55E]" />
+                      <span>Verify & Find Record</span>
+                    </>
+                  )}
+                </motion.button>
+              </div>
+
+              {/* Quick Suggestions from Local Storage */}
+              {recentRegistrations.length > 0 && !record && (
+                <div className="mt-3 pt-3 border-t border-slate-200 flex flex-wrap items-center gap-1.5 text-xs">
+                  <span className="text-slate-500 font-medium">Recent on this device:</span>
+                  {recentRegistrations.map((item) => (
+                    <motion.button
+                      key={item.registrationId}
+                      whileHover={{ scale: 1.04 }}
+                      whileTap={{ scale: 0.96 }}
+                      type="button"
+                      onClick={() => {
+                        setSearchId(item.registrationId);
+                        setSearchRoll(item.leaderRoll);
+                        setSearchMobile(item.leaderMobile);
+                        handleSearch(item.registrationId, item.leaderRoll, item.leaderMobile);
+                      }}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-slate-300 text-slate-700 font-bold hover:border-[#16A34A] hover:text-[#16A34A] transition cursor-pointer"
+                    >
+                      <span>{item.registrationId}</span>
+                      <span className="text-[10px] text-slate-400 font-normal">({item.leaderName})</span>
+                    </motion.button>
+                  ))}
+                </div>
+              )}
+
+              {searchError && (
+                <div className="mt-3 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{searchError}</span>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Success message banner if updated */}
           {saveSuccessMsg && (
@@ -825,406 +886,592 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
 
           {/* Registration Record Loaded */}
           {record && (
-            <div className="space-y-6">
-              {/* Record Header Banner */}
-              <div className="p-4 sm:p-5 rounded-2xl bg-[#0A192F]/5 border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-extrabold uppercase tracking-wider text-slate-500">
-                      Registration ID:
-                    </span>
-                    <span className="text-base font-black text-[#0A192F] tracking-wide">
-                      {record.registrationId}
-                    </span>
-                    {(() => {
-                      const statusStr = (record.paymentStatus || 'Pending').trim();
-                      const isPaid = /^(paid|verified|approved|received|completed|success)/i.test(statusStr);
-                      const isRejected = /^(rejected|declined|failed|invalid)/i.test(statusStr);
-
-                      if (isPaid) {
-                        return (
-                          <span className="px-3 py-1 rounded-full text-[11px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-2xs flex items-center gap-1">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-[#16A34A]" />
-                            <span>Payment Verified (Paid)</span>
-                          </span>
-                        );
-                      }
-                      if (isRejected) {
-                        return (
-                          <span className="px-3 py-1 rounded-full text-[11px] font-black bg-rose-100 text-rose-800 border border-rose-300 shadow-2xs flex items-center gap-1">
-                            <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
-                            <span>Payment Rejected</span>
-                          </span>
-                        );
-                      }
-                      return (
-                        <span className="px-3 py-1 rounded-full text-[11px] font-black bg-amber-100 text-amber-800 border border-amber-300 shadow-2xs flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5 text-amber-600" />
-                          <span>{record.paymentStatus || 'Pending Verification'}</span>
-                        </span>
-                      );
-                    })()}
-                  </div>
-                  <p className="text-xs text-slate-500 mt-1 flex items-center gap-2">
-                    <Clock className="w-3.5 h-3.5" />
-                    <span>Submitted: {record.submissionDate || 'Recently'}</span>
-                    {record.lastEditedAt && (
-                      <span className="text-slate-400">• Last edited: {record.lastEditedAt}</span>
-                    )}
-                  </p>
-                </div>
-
-                {/* Edit Allowance Pill */}
-                <div className="flex flex-col sm:items-end">
-                  <div
-                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black border ${
-                      record.remainingEdits === 3
-                        ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                        : record.remainingEdits > 0
-                        ? 'bg-amber-50 text-amber-800 border-amber-300'
-                        : 'bg-rose-50 text-rose-800 border-rose-300'
-                    }`}
-                  >
-                    {record.remainingEdits > 0 ? (
-                      <>
-                        <Edit3 className="w-3.5 h-3.5" />
-                        <span>{record.remainingEdits} of 3 Edits Remaining</span>
-                      </>
-                    ) : (
-                      <>
-                        <Lock className="w-3.5 h-3.5" />
-                        <span>0 of 3 Edits Remaining (Locked)</span>
-                      </>
-                    )}
-                  </div>
-                  <span className="text-[10px] text-slate-500 mt-1">
-                    {record.remainingEdits > 0
-                      ? 'You can modify team details anytime'
-                      : 'Maximum edit limit reached'}
-                  </span>
-                </div>
-              </div>
-
+            <div className="space-y-5">
               {/* VIEW MODE */}
               {!isEditing && (
-                <div className="space-y-5">
-                  {/* Top Action Toolbar */}
-                  <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
-                    <h3 className="text-sm font-extrabold text-[#0A192F] uppercase tracking-wider">
-                      Registered Team Information
-                    </h3>
+                <motion.div
+                  initial={{ opacity: 0, y: 14 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.35, ease: 'easeOut' }}
+                  className="space-y-5"
+                >
+                  {/* Unified Team & Registration Hero Card */}
+                  <div className="relative overflow-hidden p-5 sm:p-6 rounded-2xl bg-white border border-slate-200/90 shadow-sm hover:shadow-md transition-shadow space-y-4">
+                    {/* Subtle top decorative gradient line */}
+                    <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#22C55E] via-teal-400 to-[#16A34A]" />
 
-                    <div className="flex flex-wrap items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleSearch(record.registrationId, record.formData?.leader?.roll, record.formData?.leader?.whatsapp)}
-                        disabled={isLoading}
-                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-extrabold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 active:scale-98 shadow-2xs transition"
-                        title="Check Google Sheets for updated payment status"
+                    {/* Top Row: Team Name, ID & Status Badge */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 pb-4 border-b border-slate-100 pt-1">
+                      <motion.div
+                        initial={{ opacity: 0, x: -16 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.45, ease: 'easeOut' }}
+                        className="space-y-1.5"
                       >
-                        <RotateCcw className={`w-3.5 h-3.5 text-[#16A34A] ${isLoading ? 'animate-spin' : ''}`} />
-                        <span>Refresh Live Status</span>
-                      </button>
+                        <div className="flex items-center gap-2.5 flex-wrap">
+                          {/* Floating Trophy Icon */}
+                          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500/20 via-[#22C55E]/15 to-teal-500/10 text-[#16A34A] border border-emerald-500/25 flex items-center justify-center shrink-0 shadow-2xs">
+                            <Trophy className="w-5 h-5 text-[#16A34A]" />
+                          </div>
 
-                      <a
+                          {/* Team Name */}
+                          <h3 className="text-xl sm:text-2xl font-black text-[#0A192F] tracking-tight leading-none">
+                            {record.formData.teamName || record.teamName || '—'}
+                          </h3>
+                        </div>
+
+                        {/* Registration ID & Meta with 1-click Copy */}
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 sm:pl-11">
+                          <button
+                            type="button"
+                            onClick={() => handleCopyText(record.registrationId, 'regId')}
+                            className="group inline-flex items-center gap-1.5 font-mono font-bold text-slate-800 bg-slate-100 hover:bg-emerald-50 hover:text-emerald-800 border border-slate-200/80 hover:border-emerald-300 px-2.5 py-0.5 rounded-md tracking-wider transition cursor-pointer"
+                            title="Click to copy Registration ID"
+                          >
+                            <span>ID: {record.registrationId}</span>
+                            {copiedField === 'regId' ? (
+                              <Check className="w-3 h-3 text-[#16A34A]" />
+                            ) : (
+                              <Copy className="w-3 h-3 text-slate-400 group-hover:text-emerald-600 transition-colors" />
+                            )}
+                            {copiedField === 'regId' && (
+                              <span className="text-[10px] font-extrabold text-[#16A34A] animate-in fade-in">Copied!</span>
+                            )}
+                          </button>
+                          <span className="text-slate-300">•</span>
+                          <span>Submitted: {record.submissionDate || 'Recently'}</span>
+                          {record.lastEditedAt && (
+                            <>
+                              <span className="text-slate-300">•</span>
+                              <span className="text-slate-400">Edited: {record.lastEditedAt}</span>
+                            </>
+                          )}
+                        </div>
+                      </motion.div>
+
+                      {/* Status & Edit Badges */}
+                      <div className="flex flex-wrap items-center gap-2.5 sm:self-center">
+                        {/* Animated Payment Status Badge */}
+                        {(() => {
+                          const statusStr = (record.paymentStatus || 'Pending').trim();
+                          const isPaid = /^(paid|verified|approved|received|completed|success)/i.test(statusStr);
+                          const isRejected = /^(rejected|declined|failed|invalid)/i.test(statusStr);
+
+                          if (isPaid) {
+                            return (
+                              <motion.button
+                                type="button"
+                                onClick={() => fireCelebrationConfetti({ particleCount: 50, spread: 60 })}
+                                whileHover={{ scale: 1.03 }}
+                                whileTap={{ scale: 0.97 }}
+                                className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1.5 shadow-2xs hover:bg-emerald-200/70 transition cursor-pointer select-none"
+                                title="Payment Confirmed by BTEC Committee! Click to celebrate"
+                              >
+                                <CheckCircle2 className="w-4 h-4 text-[#16A34A] shrink-0" />
+                                <span className="font-extrabold tracking-wide uppercase text-[11px]">
+                                  Payment Verified
+                                </span>
+                                <Sparkles className="w-3 h-3 text-amber-500" />
+                              </motion.button>
+                            );
+                          }
+                          if (isRejected) {
+                            return (
+                              <motion.span
+                                initial={{ scale: 0.9 }}
+                                animate={{ scale: 1 }}
+                                className="px-3.5 py-1.5 rounded-full text-xs font-black bg-rose-100 text-rose-800 border-2 border-rose-300 flex items-center gap-1.5 shadow-2xs"
+                              >
+                                <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
+                                <span>Payment Rejected</span>
+                              </motion.span>
+                            );
+                          }
+                          return (
+                            <motion.div
+                              animate={{ scale: [1, 1.02, 1] }}
+                              transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+                              className="relative inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold bg-amber-50 text-amber-900 border border-amber-300 shadow-2xs"
+                            >
+                              <motion.div
+                                animate={{ rotate: 360 }}
+                                transition={{ duration: 4, repeat: Infinity, ease: 'linear' }}
+                                className="w-4 h-4 rounded-full bg-amber-200/80 text-amber-800 flex items-center justify-center shrink-0"
+                              >
+                                <Clock className="w-3 h-3 text-amber-700" />
+                              </motion.div>
+                              <span>Pending Verification</span>
+                            </motion.div>
+                          );
+                        })()}
+
+                        {/* Remaining Edits Pill */}
+                        <div
+                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${
+                            record.remainingEdits === 3
+                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                              : record.remainingEdits > 0
+                              ? 'bg-amber-50 text-amber-800 border-amber-200'
+                              : 'bg-slate-100 text-slate-500 border-slate-200'
+                          }`}
+                        >
+                          {record.remainingEdits > 0 ? (
+                            <>
+                              <Edit3 className="w-3 h-3 text-amber-600" />
+                              <span>{record.remainingEdits} of 3 Edits Left</span>
+                            </>
+                          ) : (
+                            <>
+                              <Lock className="w-3 h-3 text-slate-400" />
+                              <span>Edits Locked</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Actions Toolbar with Motion Hover Effects */}
+                    <div className="flex flex-wrap items-center justify-between gap-2.5 pt-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <motion.button
+                          type="button"
+                          onClick={handleDownloadPdf}
+                          whileHover={{ scale: 1.03, y: -1 }}
+                          whileTap={{ scale: 0.97 }}
+                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-extrabold text-white bg-gradient-to-r from-[#16A34A] to-[#15803D] hover:from-[#15803D] hover:to-[#166534] shadow-sm shadow-emerald-700/20 active:scale-98 transition cursor-pointer"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          <span>Download PDF Pass</span>
+                        </motion.button>
+
+                        {record.remainingEdits > 0 && (
+                          <motion.button
+                            type="button"
+                            onClick={handleStartEdit}
+                            whileHover={{ scale: 1.03, y: -1 }}
+                            whileTap={{ scale: 0.97 }}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-[#0A192F] bg-amber-100 hover:bg-amber-200 border border-amber-300/90 shadow-2xs active:scale-98 transition cursor-pointer"
+                          >
+                            <Edit3 className="w-3.5 h-3.5 text-amber-700" />
+                            <span>Edit Details</span>
+                          </motion.button>
+                        )}
+
+                        <motion.button
+                          type="button"
+                          onClick={() => handleSearch(record.registrationId, record.formData?.leader?.roll, record.formData?.leader?.whatsapp)}
+                          disabled={isLoading}
+                          whileHover={{ scale: 1.03, y: -1 }}
+                          whileTap={{ scale: 0.97 }}
+                          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 shadow-2xs active:scale-98 transition cursor-pointer"
+                          title="Check Google Sheets for updated payment status"
+                        >
+                          <RotateCcw className={`w-3.5 h-3.5 text-[#16A34A] ${isLoading ? 'animate-spin' : ''}`} />
+                          <span>Refresh Status</span>
+                        </motion.button>
+                      </div>
+
+                      <motion.a
                         href="https://chat.whatsapp.com/Fnta8tls8Gh4UKlVDQT7h0?s=cl&p=a&mlu=4&ilr=4"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-extrabold text-white bg-[#25D366] hover:bg-[#128C7E] active:scale-98 shadow-xs transition"
-                        title="Join Official Competition WhatsApp Group"
+                        whileHover={{ scale: 1.03, y: -1 }}
+                        whileTap={{ scale: 0.97 }}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#25D366] hover:bg-[#128C7E] shadow-sm shadow-[#25D366]/20 transition"
+                        title="Join Official WhatsApp Group"
                       >
                         <MessageCircle className="w-3.5 h-3.5 fill-white" />
-                        <span>Join WhatsApp Group</span>
+                        <span>WhatsApp Group</span>
                         <ExternalLink className="w-3 h-3" />
-                      </a>
+                      </motion.a>
+                    </div>
+                  </div>
 
+                  {/* Admission Notice Banner */}
+                  {/^(paid|verified|approved|received|completed|success)/i.test((record.paymentStatus || '').trim()) ? (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.1 }}
+                      className="p-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border border-emerald-200 text-emerald-950 text-xs flex items-center justify-between gap-3 shadow-2xs"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                          <ShieldCheck className="w-4 h-4" />
+                        </div>
+                        <span className="font-semibold">
+                          Official Entry Pass Validated — Print or carry your Registration PDF to the BTEC Auditorium on 04 October 2026.
+                        </span>
+                      </div>
                       <button
                         type="button"
-                        onClick={handleDownloadPdf}
-                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-extrabold text-white bg-[#16A34A] hover:bg-[#15803D] active:scale-98 shadow-xs transition"
+                        onClick={() => fireCelebrationConfetti({ particleCount: 50, spread: 60 })}
+                        className="hidden sm:inline-flex items-center gap-1 text-[11px] font-black uppercase text-emerald-800 bg-emerald-200/60 hover:bg-emerald-200 px-2.5 py-1 rounded-md transition cursor-pointer shrink-0"
                       >
-                        <Download className="w-3.5 h-3.5" />
-                        <span>Download Registration Info PDF</span>
+                        <Sparkles className="w-3 h-3 text-amber-600" />
+                        <span>Verified</span>
                       </button>
-
-                      {record.remainingEdits > 0 ? (
-                        <button
-                          type="button"
-                          onClick={handleStartEdit}
-                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-extrabold text-[#0A192F] bg-amber-100 hover:bg-amber-200 border border-amber-300 active:scale-98 shadow-xs transition"
-                        >
-                          <Edit3 className="w-3.5 h-3.5 text-amber-700" />
-                          <span>Edit Registration</span>
-                        </button>
-                      ) : (
-                        <div
-                          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-slate-400 bg-slate-100 cursor-not-allowed border border-slate-200"
-                          title="This registration has reached the maximum allowance of 3 edits."
-                        >
-                          <Lock className="w-3.5 h-3.5" />
-                          <span>Edits Locked (Max 3)</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Official WhatsApp Group Callout */}
-                  <div className="p-3.5 rounded-2xl bg-[#25D366]/10 border border-[#25D366]/40 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-9 h-9 rounded-xl bg-[#25D366] text-white flex items-center justify-center shrink-0 shadow-xs">
-                        <MessageCircle className="w-5 h-5 fill-white" />
-                      </div>
-                      <div>
-                        <p className="font-extrabold text-[#0A192F]">Official Participant WhatsApp Group</p>
-                        <p className="text-slate-600 font-medium text-[11px]">Join to receive topic drops, presentation schedules, mentor sessions, and live announcements.</p>
-                      </div>
-                    </div>
-                    <a
-                      href="https://chat.whatsapp.com/Fnta8tls8Gh4UKlVDQT7h0?s=cl&p=a&mlu=4&ilr=4"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="shrink-0 inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#25D366] hover:bg-[#128C7E] transition shadow-xs whitespace-nowrap"
-                    >
-                      <MessageCircle className="w-3.5 h-3.5 fill-white" />
-                      <span>Join Group</span>
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
-                  </div>
-
-                  {/* Event Admission Status & Mandatory Policy Notice */}
-                  {/^(paid|verified|approved|received|completed|success)/i.test((record.paymentStatus || '').trim()) ? (
-                    <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs flex items-center justify-between gap-3 shadow-2xs">
-                      <div className="flex items-center gap-2.5">
-                        <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-                        <div>
-                          <p className="font-extrabold text-emerald-950">Payment Approved & Validated</p>
-                          <p className="text-emerald-700 font-medium">This PDF is your official event voucher. Carry this voucher to the BTEC Auditorium on 04 October 2026.</p>
-                        </div>
-                      </div>
-                      <span className="shrink-0 px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-emerald-200 text-emerald-900">
-                        Entry Pass Valid
-                      </span>
-                    </div>
+                    </motion.div>
                   ) : (
-                    <div className="p-3.5 rounded-2xl bg-amber-50/90 border border-amber-300 text-amber-950 text-xs flex items-start sm:items-center justify-between gap-3 shadow-2xs">
-                      <div className="flex items-start sm:items-center gap-2.5">
-                        <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5 sm:mt-0" />
-                        <div>
-                          <p className="font-extrabold text-amber-950">
-                            Mandatory Entry Rule: Payment Approved PDF Required
-                          </p>
-                          <p className="text-amber-800 font-medium">
-                            A <strong className="font-extrabold text-amber-950">Payment Approved PDF is mandatory in the event</strong>. <strong className="font-bold text-red-700">No pending PDF will be accepted</strong> at the BTEC Auditorium entrance. Once verified by organizers, click "Refresh Live Status" to download your approved entry pass.
-                          </p>
-                        </div>
+                    <motion.div
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.1 }}
+                      className="p-3.5 px-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center justify-between gap-2.5 shadow-2xs"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+                        <span className="font-medium text-amber-900">
+                          Payment verification in progress. Once confirmed, refresh to download your verified admission pass.
+                        </span>
                       </div>
-                      <span className="shrink-0 px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-red-100 text-red-800 border border-red-200">
-                        Pending Approval
+                      <span className="text-[11px] font-bold text-amber-800 bg-amber-100/80 px-2.5 py-0.5 rounded shrink-0">
+                        Pending
                       </span>
-                    </div>
+                    </motion.div>
                   )}
 
-                  {/* Team Name Banner */}
-                  <div className="p-4 rounded-2xl bg-gradient-to-r from-[#0A192F] via-[#102A43] to-[#0A192F] text-white flex items-center justify-between shadow-xs">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-[#22C55E]/20 text-[#22C55E] flex items-center justify-center font-bold">
-                        <Trophy className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <span className="text-[10px] uppercase font-bold text-emerald-400 block tracking-wider">
-                          Official Team Name
-                        </span>
-                        <span className="text-base font-black text-white">
-                          {record.formData.teamName || record.teamName || '—'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 3 Members Grid */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* Leader */}
-                    <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-3">
-                      <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                        <span className="text-[11px] font-black uppercase text-[#16A34A] tracking-wider">
-                          Group Leader
-                        </span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 font-bold">
-                          Primary
-                        </span>
-                      </div>
-                      {record.formData.leader.photoPreview && (
-                        <img
-                          src={record.formData.leader.photoPreview}
-                          alt="Leader"
-                          className="w-14 h-14 rounded-xl object-cover border border-slate-200"
-                        />
-                      )}
-                      <div>
-                        <p className="text-xs text-slate-500 font-medium">Name</p>
-                        <p className="text-sm font-bold text-slate-900">{record.formData.leader.name || '—'}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-slate-500 font-medium">Roll Number</p>
-                        <p className="text-sm font-bold text-slate-900">{record.formData.leader.roll || '—'}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-slate-500 font-medium">Department</p>
-                        <p className="text-xs font-semibold text-slate-700">{record.formData.leader.department || '—'}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-slate-500 font-medium">Mobile Number</p>
-                        <p className="text-xs font-bold text-slate-800">{record.formData.leader.whatsapp || '—'}</p>
-                      </div>
-                      {record.formData.leader.email && (
-                        <div>
-                          <p className="text-xs text-slate-500 font-medium">Email Address</p>
-                          <p className="text-xs font-bold text-slate-800 truncate">{record.formData.leader.email}</p>
-                        </div>
-                      )}
-                      <div>
-                        <p className="text-xs text-slate-500 font-medium">Facebook</p>
-                        <p className={`text-xs truncate ${!record.formData.leader.facebook?.trim() || record.formData.leader.facebook.trim() === 'Blank' ? 'text-slate-400 italic' : 'text-slate-600'}`}>
-                          {record.formData.leader.facebook?.trim() || 'Blank'}
-                        </p>
-                      </div>
+                  {/* 3 Participants Grid (Clean Layout without Participant Images) */}
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-xs font-extrabold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                        <Users className="w-3.5 h-3.5 text-[#16A34A]" />
+                        <span>Team Members Information</span>
+                      </h4>
+                      <span className="text-[11px] font-semibold text-slate-400">3 Members Required</span>
                     </div>
 
-                    {/* Member 1 */}
-                    <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-3">
-                      <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                        <span className="text-[11px] font-black uppercase text-slate-700 tracking-wider">
-                          Member 1
-                        </span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-bold">
-                          Presenter
-                        </span>
-                      </div>
-                      {record.formData.member1.photoPreview && (
-                        <img
-                          src={record.formData.member1.photoPreview}
-                          alt="Member 1"
-                          className="w-14 h-14 rounded-xl object-cover border border-slate-200"
-                        />
-                      )}
-                      <div>
-                        <p className="text-xs text-slate-500 font-medium">Name</p>
-                        <p className="text-sm font-bold text-slate-900">{record.formData.member1.name || '—'}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-slate-500 font-medium">Roll Number</p>
-                        <p className="text-sm font-bold text-slate-900">{record.formData.member1.roll || '—'}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-slate-500 font-medium">Department</p>
-                        <p className="text-xs font-semibold text-slate-700">{record.formData.member1.department || '—'}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-slate-500 font-medium">Mobile Number</p>
-                        <p className="text-xs font-bold text-slate-800">{record.formData.member1.whatsapp || '—'}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-slate-500 font-medium">Facebook</p>
-                        <p className={`text-xs truncate ${!record.formData.member1.facebook?.trim() || record.formData.member1.facebook.trim() === 'Blank' ? 'text-slate-400 italic' : 'text-slate-600'}`}>
-                          {record.formData.member1.facebook?.trim() || 'Blank'}
-                        </p>
-                      </div>
-                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {/* Leader Card */}
+                      <motion.div
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.15 }}
+                        whileHover={{ y: -4, transition: { duration: 0.2 } }}
+                        className="relative overflow-hidden p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-2xs hover:shadow-md hover:border-emerald-300 transition flex flex-col justify-between space-y-4 group"
+                      >
+                        {/* Top Accent line */}
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-500" />
 
-                    {/* Member 2 */}
-                    <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-3">
-                      <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                        <span className="text-[11px] font-black uppercase text-slate-700 tracking-wider">
-                          Member 2
-                        </span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-bold">
-                          Presenter
-                        </span>
-                      </div>
-                      {record.formData.member2.photoPreview && (
-                        <img
-                          src={record.formData.member2.photoPreview}
-                          alt="Member 2"
-                          className="w-14 h-14 rounded-xl object-cover border border-slate-200"
-                        />
-                      )}
-                      <div>
-                        <p className="text-xs text-slate-500 font-medium">Name</p>
-                        <p className="text-sm font-bold text-slate-900">{record.formData.member2.name || '—'}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-slate-500 font-medium">Roll Number</p>
-                        <p className="text-sm font-bold text-slate-900">{record.formData.member2.roll || '—'}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-slate-500 font-medium">Department</p>
-                        <p className="text-xs font-semibold text-slate-700">{record.formData.member2.department || '—'}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-slate-500 font-medium">Mobile Number</p>
-                        <p className="text-xs font-bold text-slate-800">{record.formData.member2.whatsapp || '—'}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-slate-500 font-medium">Facebook</p>
-                        <p className={`text-xs truncate ${!record.formData.member2.facebook?.trim() || record.formData.member2.facebook.trim() === 'Blank' ? 'text-slate-400 italic' : 'text-slate-600'}`}>
-                          {record.formData.member2.facebook?.trim() || 'Blank'}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Payment Verification Info */}
-                  {(() => {
-                    const statusStr = (record.paymentStatus || 'Pending').trim();
-                    const isPaid = /^(paid|verified|approved|received|completed|success)/i.test(statusStr);
-                    const isRejected = /^(rejected|declined|failed|invalid)/i.test(statusStr);
-
-                    return (
-                      <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs ${
-                        isPaid
-                          ? 'bg-emerald-50/80 border-emerald-200'
-                          : isRejected
-                          ? 'bg-rose-50 border-rose-200'
-                          : 'bg-slate-50 border-slate-200'
-                      }`}>
-                        <div>
-                          <span className={isPaid ? 'text-emerald-800 font-bold' : isRejected ? 'text-rose-800 font-bold' : 'text-slate-500 font-medium'}>
-                            {isPaid ? '✓ Payment Status: Verified' : 'Payment Verification:'}
-                          </span>
-                          <div className="flex flex-wrap items-center gap-3 mt-1 font-bold text-slate-800">
-                            <span>bKash: {record.formData.payment.bkashNumber || '—'}</span>
-                            <span>•</span>
-                            <span>TrxID: {record.formData.payment.transactionId || '—'}</span>
-                            <span>•</span>
-                            <span className="text-[#E2136E] font-bold">149 BDT Paid</span>
+                        <div className="space-y-3 pt-0.5">
+                          {/* Role Badge */}
+                          <div className="flex items-center justify-between">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-800 border border-emerald-200">
+                              <Crown className="w-3 h-3 text-[#16A34A]" />
+                              <span>Group Leader</span>
+                            </span>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                              Primary Contact
+                            </span>
                           </div>
-                          {isPaid && (
-                            <p className="text-[11px] text-emerald-700 font-semibold mt-1">
-                              ✓ Your payment has been confirmed by the Career Club BTEC organizing committee.
-                            </p>
+
+                          {/* Name & Roll */}
+                          <div>
+                            <h5 className="text-base font-extrabold text-[#0A192F] leading-tight break-words group-hover:text-[#16A34A] transition-colors">
+                              {record.formData.leader.name || '—'}
+                            </h5>
+                            <div className="mt-1.5 flex items-center gap-1.5 text-xs">
+                              <span className="text-[10px] font-bold uppercase text-slate-400">Roll:</span>
+                              <span className="font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded-md">
+                                {record.formData.leader.roll || '—'}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Member Meta */}
+                          <div className="space-y-2 pt-2 border-t border-slate-100 text-xs text-slate-600">
+                            <div>
+                              <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">Department</span>
+                              <span className="font-semibold text-slate-800 block truncate">{record.formData.leader.department || '—'}</span>
+                            </div>
+
+                            <div>
+                              <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">Mobile / WhatsApp</span>
+                              <a
+                                href={`tel:${record.formData.leader.whatsapp || ''}`}
+                                className="font-bold text-slate-800 hover:text-[#16A34A] transition inline-flex items-center gap-1.5"
+                              >
+                                <Phone className="w-3 h-3 text-[#16A34A] shrink-0" />
+                                <span>{record.formData.leader.whatsapp || '—'}</span>
+                              </a>
+                            </div>
+
+                            {record.formData.leader.email && (
+                              <div>
+                                <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">Email Address</span>
+                                <a
+                                  href={`mailto:${record.formData.leader.email}`}
+                                  className="font-semibold text-slate-800 hover:text-[#16A34A] transition inline-flex items-center gap-1.5 truncate max-w-full"
+                                >
+                                  <Mail className="w-3 h-3 text-[#16A34A] shrink-0" />
+                                  <span className="truncate">{record.formData.leader.email}</span>
+                                </a>
+                              </div>
+                            )}
+
+                            <div>
+                              <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">Facebook Profile</span>
+                              {record.formData.leader.facebook && record.formData.leader.facebook.trim() !== 'Blank' ? (
+                                <a
+                                  href={record.formData.leader.facebook.startsWith('http') ? record.formData.leader.facebook : `https://${record.formData.leader.facebook}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="font-semibold text-[#1877F2] hover:underline inline-flex items-center gap-1 truncate max-w-full"
+                                >
+                                  <span className="truncate">{record.formData.leader.facebook}</span>
+                                  <ExternalLink className="w-2.5 h-2.5 shrink-0" />
+                                </a>
+                              ) : (
+                                <span className="text-slate-400 italic">Not provided</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+
+                      {/* Member 1 Card */}
+                      <motion.div
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.22 }}
+                        whileHover={{ y: -4, transition: { duration: 0.2 } }}
+                        className="relative overflow-hidden p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-2xs hover:shadow-md hover:border-slate-300 transition flex flex-col justify-between space-y-4 group"
+                      >
+                        {/* Top Accent line */}
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-slate-300 to-slate-400" />
+
+                        <div className="space-y-3 pt-0.5">
+                          {/* Role Badge */}
+                          <div className="flex items-center justify-between">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200">
+                              <Users className="w-3 h-3 text-slate-500" />
+                              <span>Member 1</span>
+                            </span>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                              Presenter
+                            </span>
+                          </div>
+
+                          {/* Name & Roll */}
+                          <div>
+                            <h5 className="text-base font-extrabold text-[#0A192F] leading-tight break-words group-hover:text-[#16A34A] transition-colors">
+                              {record.formData.member1.name || '—'}
+                            </h5>
+                            <div className="mt-1.5 flex items-center gap-1.5 text-xs">
+                              <span className="text-[10px] font-bold uppercase text-slate-400">Roll:</span>
+                              <span className="font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded-md">
+                                {record.formData.member1.roll || '—'}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Member Meta */}
+                          <div className="space-y-2 pt-2 border-t border-slate-100 text-xs text-slate-600">
+                            <div>
+                              <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">Department</span>
+                              <span className="font-semibold text-slate-800 block truncate">{record.formData.member1.department || '—'}</span>
+                            </div>
+
+                            <div>
+                              <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">Mobile / WhatsApp</span>
+                              <a
+                                href={`tel:${record.formData.member1.whatsapp || ''}`}
+                                className="font-bold text-slate-800 hover:text-[#16A34A] transition inline-flex items-center gap-1.5"
+                              >
+                                <Phone className="w-3 h-3 text-[#16A34A] shrink-0" />
+                                <span>{record.formData.member1.whatsapp || '—'}</span>
+                              </a>
+                            </div>
+
+                            <div>
+                              <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">Facebook Profile</span>
+                              {record.formData.member1.facebook && record.formData.member1.facebook.trim() !== 'Blank' ? (
+                                <a
+                                  href={record.formData.member1.facebook.startsWith('http') ? record.formData.member1.facebook : `https://${record.formData.member1.facebook}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="font-semibold text-[#1877F2] hover:underline inline-flex items-center gap-1 truncate max-w-full"
+                                >
+                                  <span className="truncate">{record.formData.member1.facebook}</span>
+                                  <ExternalLink className="w-2.5 h-2.5 shrink-0" />
+                                </a>
+                              ) : (
+                                <span className="text-slate-400 italic">Not provided</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+
+                      {/* Member 2 Card */}
+                      <motion.div
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.28 }}
+                        whileHover={{ y: -4, transition: { duration: 0.2 } }}
+                        className="relative overflow-hidden p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-2xs hover:shadow-md hover:border-slate-300 transition flex flex-col justify-between space-y-4 group"
+                      >
+                        {/* Top Accent line */}
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-slate-300 to-slate-400" />
+
+                        <div className="space-y-3 pt-0.5">
+                          {/* Role Badge */}
+                          <div className="flex items-center justify-between">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200">
+                              <Users className="w-3 h-3 text-slate-500" />
+                              <span>Member 2</span>
+                            </span>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                              Presenter
+                            </span>
+                          </div>
+
+                          {/* Name & Roll */}
+                          <div>
+                            <h5 className="text-base font-extrabold text-[#0A192F] leading-tight break-words group-hover:text-[#16A34A] transition-colors">
+                              {record.formData.member2.name || '—'}
+                            </h5>
+                            <div className="mt-1.5 flex items-center gap-1.5 text-xs">
+                              <span className="text-[10px] font-bold uppercase text-slate-400">Roll:</span>
+                              <span className="font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded-md">
+                                {record.formData.member2.roll || '—'}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Member Meta */}
+                          <div className="space-y-2 pt-2 border-t border-slate-100 text-xs text-slate-600">
+                            <div>
+                              <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">Department</span>
+                              <span className="font-semibold text-slate-800 block truncate">{record.formData.member2.department || '—'}</span>
+                            </div>
+
+                            <div>
+                              <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">Mobile / WhatsApp</span>
+                              <a
+                                href={`tel:${record.formData.member2.whatsapp || ''}`}
+                                className="font-bold text-slate-800 hover:text-[#16A34A] transition inline-flex items-center gap-1.5"
+                              >
+                                <Phone className="w-3 h-3 text-[#16A34A] shrink-0" />
+                                <span>{record.formData.member2.whatsapp || '—'}</span>
+                              </a>
+                            </div>
+
+                            <div>
+                              <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">Facebook Profile</span>
+                              {record.formData.member2.facebook && record.formData.member2.facebook.trim() !== 'Blank' ? (
+                                <a
+                                  href={record.formData.member2.facebook.startsWith('http') ? record.formData.member2.facebook : `https://${record.formData.member2.facebook}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="font-semibold text-[#1877F2] hover:underline inline-flex items-center gap-1 truncate max-w-full"
+                                >
+                                  <span className="truncate">{record.formData.member2.facebook}</span>
+                                  <ExternalLink className="w-2.5 h-2.5 shrink-0" />
+                                </a>
+                              ) : (
+                                <span className="text-slate-400 italic">Not provided</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    </div>
+                  </div>
+
+                  {/* Payment & Transaction Details Card */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.32 }}
+                    className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-2xs hover:shadow-sm transition-shadow"
+                  >
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-2.5 mb-3">
+                      <div className="flex items-center gap-2">
+                        <CreditCard className="w-4 h-4 text-[#16A34A]" />
+                        <h4 className="text-xs font-extrabold text-[#0A192F] uppercase tracking-wider">
+                          Payment & Transaction Details
+                        </h4>
+                      </div>
+                      <span className="text-xs font-bold text-[#E2136E] bg-pink-50 px-2.5 py-0.5 rounded-full border border-pink-200">
+                        bKash Payment
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                      {/* bKash Sender */}
+                      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100/90 hover:border-slate-200 transition">
+                        <span className="text-[10px] font-bold uppercase text-slate-400 block mb-1">
+                          Sender bKash Number
+                        </span>
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-slate-900 text-sm">
+                            {record.formData.payment.bkashNumber || '—'}
+                          </span>
+                          {record.formData.payment.bkashNumber && (
+                            <button
+                              type="button"
+                              onClick={() => handleCopyText(record.formData.payment.bkashNumber, 'bkash')}
+                              className="text-slate-400 hover:text-slate-700 cursor-pointer p-1"
+                              title="Copy bKash Number"
+                            >
+                              {copiedField === 'bkash' ? (
+                                <Check className="w-3.5 h-3.5 text-[#16A34A]" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5" />
+                              )}
+                            </button>
                           )}
                         </div>
-
-                        {isPaid ? (
-                          <span className="px-3 py-1 rounded-full text-[11px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 w-fit flex items-center gap-1">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-[#16A34A]" />
-                            <span>Paid & Verified</span>
-                          </span>
-                        ) : isRejected ? (
-                          <span className="px-3 py-1 rounded-full text-[11px] font-black bg-rose-100 text-rose-800 border border-rose-300 w-fit flex items-center gap-1">
-                            <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
-                            <span>Payment Rejected</span>
-                          </span>
-                        ) : (
-                          <span className="px-3 py-1 rounded-full text-[11px] font-black bg-amber-100 text-amber-800 border border-amber-300 w-fit flex items-center gap-1">
-                            <Clock className="w-3.5 h-3.5 text-amber-600" />
-                            <span>Verification in Progress</span>
-                          </span>
-                        )}
                       </div>
-                    );
-                  })()}
-                </div>
+
+                      {/* Transaction ID with 1-Click Copy */}
+                      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100/90 hover:border-slate-200 transition">
+                        <span className="text-[10px] font-bold uppercase text-slate-400 block mb-1">
+                          Transaction ID (TrxID)
+                        </span>
+                        <div className="flex items-center justify-between">
+                          <span className="font-extrabold text-slate-900 text-sm tracking-wide font-mono">
+                            {record.formData.payment.transactionId || '—'}
+                          </span>
+                          {record.formData.payment.transactionId && (
+                            <button
+                              type="button"
+                              onClick={() => handleCopyText(record.formData.payment.transactionId, 'trxId')}
+                              className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-500 hover:text-[#16A34A] bg-white border border-slate-200 px-2 py-0.5 rounded cursor-pointer transition shadow-2xs"
+                              title="Copy Transaction ID"
+                            >
+                              {copiedField === 'trxId' ? (
+                                <>
+                                  <Check className="w-3 h-3 text-[#16A34A]" />
+                                  <span className="text-[#16A34A]">Copied!</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="w-3 h-3" />
+                                  <span>Copy</span>
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Fee Amount */}
+                      <div className="p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-100 hover:border-emerald-200 transition">
+                        <span className="text-[10px] font-bold uppercase text-emerald-700/80 block mb-1">
+                          Registration Fee
+                        </span>
+                        <div className="flex items-center justify-between">
+                          <span className="font-extrabold text-emerald-800 text-sm">
+                            149 BDT (Single Team Entry)
+                          </span>
+                          <CheckCircle2 className="w-4 h-4 text-[#16A34A] shrink-0" />
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                </motion.div>
               )}
 
               {/* EDIT MODE */}
@@ -1408,20 +1655,24 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
 
                   {/* Edit Actions Bottom Bar */}
                   <div className="pt-4 border-t border-slate-200 flex items-center justify-end gap-3">
-                    <button
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
                       type="button"
                       onClick={handleCancelEdit}
                       disabled={isSaving}
-                      className="px-5 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50 transition active:scale-98"
+                      className="px-5 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50 transition cursor-pointer"
                     >
                       Cancel
-                    </button>
+                    </motion.button>
 
-                    <button
+                    <motion.button
+                      whileHover={{ scale: isSaving ? 1 : 1.02 }}
+                      whileTap={{ scale: isSaving ? 1 : 0.98 }}
                       type="button"
                       onClick={handleSaveEdit}
                       disabled={isSaving}
-                      className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-extrabold text-white bg-[#0A192F] hover:bg-[#122846] transition active:scale-98 shadow-md shadow-[#0A192F]/20 disabled:opacity-60"
+                      className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-extrabold text-white bg-[#0A192F] hover:bg-[#122846] transition shadow-md shadow-[#0A192F]/20 disabled:opacity-60 cursor-pointer"
                     >
                       {isSaving ? (
                         <>
@@ -1434,7 +1685,7 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
                           <span>Save Changes (Use 1 Edit)</span>
                         </>
                       )}
-                    </button>
+                    </motion.button>
                   </div>
                 </div>
               )}

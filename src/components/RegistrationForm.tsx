@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
 import { User, Users, CreditCard, CheckCircle2, ChevronRight, ChevronLeft, AlertCircle, ShieldAlert, RotateCcw, Search } from 'lucide-react';
 import { RegistrationFormData, SubmissionResponse, Participant, SubmissionProgressStage } from '../types';
 import { ParticipantStepForm } from './ParticipantStepForm';
@@ -493,14 +494,16 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             {/* Action Bar: Reset Form if filled */}
             {isFormPartiallyFilled && (
               <div className="flex items-center justify-end mb-6 pb-4 border-b border-slate-100">
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
                   type="button"
                   onClick={handleClearForm}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-500 hover:text-white hover:bg-red-600 hover:border-red-600 border border-slate-200 transition active:scale-95 cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-500 hover:text-white hover:bg-red-600 hover:border-red-600 border border-slate-200 transition cursor-pointer"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
                   <span>Reset Form</span>
-                </button>
+                </motion.button>
               </div>
             )}
 
@@ -656,26 +659,30 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             {currentStep < 4 && (
               <div className="mt-8 pt-6 border-t border-slate-100 flex items-center justify-between">
                 {currentStep > 0 ? (
-                  <button
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     type="button"
                     onClick={handlePrev}
-                    className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 bg-white hover:bg-[#0A192F] hover:text-white hover:border-[#0A192F] transition active:scale-98 cursor-pointer shadow-2xs"
+                    className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 bg-white hover:bg-[#0A192F] hover:text-white hover:border-[#0A192F] transition cursor-pointer shadow-2xs"
                   >
                     <ChevronLeft className="w-4 h-4" />
                     <span>Previous</span>
-                  </button>
+                  </motion.button>
                 ) : (
                   <div />
                 )}
 
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   type="button"
                   onClick={handleNext}
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-extrabold text-white bg-[#0A192F] hover:bg-[#16A34A] border border-[#0A192F] hover:border-[#16A34A] transition active:scale-98 shadow-md shadow-[#0A192F]/15 cursor-pointer group"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-extrabold text-white bg-[#0A192F] hover:bg-[#16A34A] border border-[#0A192F] hover:border-[#16A34A] transition shadow-md shadow-[#0A192F]/15 cursor-pointer group"
                 >
                   <span>Continue to {steps[currentStep + 1]?.label}</span>
                   <ChevronRight className="w-4 h-4 text-[#22C55E] group-hover:text-white group-hover:translate-x-1 transition-all" />
-                </button>
+                </motion.button>
               </div>
             )}
           </div>
