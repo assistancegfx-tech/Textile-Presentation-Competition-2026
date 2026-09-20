@@ -911,6 +911,7 @@ function doPost(e) {
       try {
         emailSent = sendRegistrationConfirmationEmail({
           registrationId: regId,
+          websiteUrl: data.websiteUrl || (data.formData && data.formData.websiteUrl) || "",
           teamName: teamName || "N/A",
           leaderName: leaderName,
           leaderRoll: leaderRoll,
@@ -1044,7 +1045,14 @@ function saveBase64Image(folder, base64Data, filenamePrefix) {
     data = parts[1];
   }
   const decoded = Utilities.base64Decode(data);
-  const blob = Utilities.newBlob(decoded, contentType, filenamePrefix + "_" + Date.now() + ".jpg");
+  let ext = ".jpg";
+  if (contentType.indexOf("png") !== -1) {
+    ext = ".png";
+  } else if (contentType.indexOf("webp") !== -1) {
+    ext = ".webp";
+  }
+  const cleanPrefix = String(filenamePrefix || "photo").replace(/[^a-zA-Z0-9_\-]/g, "_");
+  const blob = Utilities.newBlob(decoded, contentType, cleanPrefix + "_" + Date.now() + ext);
   const file = folder.createFile(blob);
   try {
     file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
@@ -1052,6 +1060,11 @@ function saveBase64Image(folder, base64Data, filenamePrefix) {
     Logger.log("Permission notice: " + shareErr.toString());
   }
   return file.getUrl();
+}
+
+function saveBase64ImageToDrive(folder, base64Data, targetId, role, name) {
+  const prefix = (targetId ? (targetId + "_") : "") + (role || "photo") + (name ? ("_" + String(name).replace(/\s+/g, "_")) : "");
+  return saveBase64Image(folder, base64Data, prefix);
 }
 
 function createResponse(obj) {
@@ -1085,13 +1098,10 @@ function createResponse(obj) {
  * Payment Status: {{Payment Status}}
  * Submission Date: {{Submission Date}}
  * 
- * Registration Verification
+ * View Your Registration
  * 
- * You may check and verify your registration information through our official website using:
- * 
- * Registration ID + Mobile No. + Roll No.
- * 
- * Please keep these details safe and readily available for future reference, verification, or any registration-related communication.
+ * Click the link below to automatically view your registration details, payment verification status, and voucher:
+ * {{View Your Registration Link}}
  * 
  * Thank you for your participation. We sincerely appreciate your interest in the Textile Presentation Competition 2026 and look forward to your participation.
  * 
@@ -1115,6 +1125,16 @@ function sendRegistrationConfirmationEmail(details) {
   const paymentStatus = String(details.paymentStatus || "Pending").trim();
   const submissionDate = String(details.submissionDate || Utilities.formatDate(new Date(), "Asia/Dhaka", "yyyy-MM-dd HH:mm:ss")).trim();
 
+  // Construct direct automatic View Your Registration link with pre-filled parameters
+  const baseUrl = String(details.websiteUrl || "https://ais-pre-6zeawg7kx2bdfewoufqpj5-305877422476.asia-southeast1.run.app").trim().replace(/\/+$/, "");
+  const viewParams = [
+    "action=view-registration",
+    "regId=" + encodeURIComponent(regId),
+    "roll=" + encodeURIComponent(leaderRoll),
+    "mobile=" + encodeURIComponent(leaderWhatsApp)
+  ].join("&");
+  const viewRegistrationUrl = baseUrl + "/?" + viewParams;
+
   // Exact Subject format
   const subject = "Registration Confirmation – Textile Presentation Competition 2026 | " + regId;
 
@@ -1134,10 +1154,9 @@ function sendRegistrationConfirmationEmail(details) {
     "Official WhatsApp Community:\n\n" +
     "All registered participants (Leader and Members) must join the official WhatsApp group for presentation topics, guidelines, mentor sessions, and event day schedules:\n" +
     "https://chat.whatsapp.com/Fnta8tls8Gh4UKlVDQT7h0?s=cl&p=a&mlu=4&ilr=4\n\n" +
-    "Registration Verification\n\n" +
-    "You may check and verify your registration information through our official website using:\n\n" +
-    "Registration ID + Mobile No. + Roll No.\n\n" +
-    "Please keep these details safe and readily available for future reference, verification, or any registration-related communication.\n\n" +
+    "View & Manage Your Registration:\n\n" +
+    "Click the link below to automatically view your registration details, track verified payment status, and download your official PDF voucher:\n" +
+    viewRegistrationUrl + "\n\n" +
     "Support & Inquiries: careerclubbtec@gmail.com | Helpline: +880 1305-912237\n\n" +
     "Thank you for your participation. We sincerely appreciate your interest in the Textile Presentation Competition 2026 and look forward to your participation.\n\n" +
     "Sincerely,\n" +
@@ -1178,15 +1197,14 @@ function sendRegistrationConfirmationEmail(details) {
           '</a>' +
         '</div>' +
 
-        '<div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 18px 20px; margin-bottom: 24px;">' +
-          '<h3 style="font-size: 14px; font-weight: 800; margin: 0 0 8px 0; color: #166534;">Registration Verification</h3>' +
-          '<p style="font-size: 13px; margin: 0 0 12px 0; color: #14532d;">You may check and verify your registration information through our official website using:</p>' +
-          '<div style="background-color: #ffffff; border: 1px dashed #22c55e; border-radius: 8px; padding: 10px 14px; font-weight: 800; color: #0A192F; font-size: 13.5px; text-align: center; letter-spacing: 0.3px;">' +
-            'Registration ID + Mobile No. + Roll No.' +
-          '</div>' +
+        '<div style="background-color: #f8fafc; border: 2px solid #0A192F; border-radius: 14px; padding: 22px 20px; margin-bottom: 24px; text-align: center;">' +
+          '<h3 style="font-size: 16px; font-weight: 800; margin: 0 0 6px 0; color: #0A192F;">View & Manage Your Registration</h3>' +
+          '<p style="font-size: 13px; margin: 0 0 16px 0; color: #475569; line-height: 1.5;">Click below to automatically view your verified details, track payment status, download your voucher, or update team info without typing:</p>' +
+          '<a href="' + escapeHtml(viewRegistrationUrl) + '" target="_blank" style="display: inline-block; background-color: #0A192F; color: #ffffff; text-decoration: none; font-weight: 800; font-size: 14px; padding: 13px 30px; border-radius: 10px; box-shadow: 0 3px 6px rgba(10,25,47,0.25); letter-spacing: 0.2px;">' +
+            '🔍 View Your Registration' +
+          '</a>' +
         '</div>' +
 
-        '<p style="font-size: 13px; color: #475569; margin: 0 0 16px 0; line-height: 1.6;">Please keep these details safe and readily available for future reference, verification, or any registration-related communication.</p>' +
         '<p style="font-size: 13px; color: #475569; margin: 0 0 26px 0; line-height: 1.6;">Thank you for your participation. We sincerely appreciate your interest in the Textile Presentation Competition 2026 and look forward to your participation.</p>' +
 
         '<div style="border-top: 1px solid #e2e8f0; padding-top: 18px; font-size: 13px; color: #334155; line-height: 1.5;">' +

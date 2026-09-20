@@ -279,6 +279,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
 
       const payloadToSend = {
         ...normalizedFormData,
+        websiteUrl: typeof window !== 'undefined' ? window.location.origin : '',
         pdfBase64
       };
 

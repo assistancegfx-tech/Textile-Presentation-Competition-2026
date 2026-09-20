@@ -51,9 +51,9 @@ export function validateEmail(email: string): boolean {
 }
 
 /**
- * Client-side image resizer and compressor
- * Takes a File (JPG/PNG), creates an image preview, resizes it to max 800x800,
- * and returns clean base64 dataURL + preview.
+ * Client-side image processor
+ * Preserves 100% original image quality without lossy downscaling/compression.
+ * Enforces maximum 5 MB file size limit and validates image integrity.
  */
 export async function processAndCompressImage(file: File): Promise<{
   base64: string;
@@ -61,72 +61,45 @@ export async function processAndCompressImage(file: File): Promise<{
   fileName: string;
   sizeBytes: number;
 }> {
-  // Validate format
-  const validTypes = ['image/jpeg', 'image/png', 'image/jpg'];
-  if (!validTypes.includes(file.type.toLowerCase())) {
-    throw new Error('Only JPG, JPEG, and PNG image formats are accepted.');
+  // Validate image format
+  const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
+  if (!validTypes.includes(file.type.toLowerCase()) && !file.type.startsWith('image/')) {
+    throw new Error('Only JPG, JPEG, PNG, and WEBP image formats are accepted.');
   }
 
-  // Check initial size cap (e.g. 8MB)
-  if (file.size > 8 * 1024 * 1024) {
-    throw new Error('Image file is too large. Please select a photo under 8MB.');
+  // Strictly enforce 5MB maximum file size limit
+  const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
+  if (file.size > MAX_FILE_SIZE_BYTES) {
+    const sizeInMb = (file.size / (1024 * 1024)).toFixed(2);
+    throw new Error(`Image size is ${sizeInMb}MB, which exceeds the maximum limit of 5MB. Please choose a photo under 5MB.`);
   }
 
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (readerEvent) => {
+      const dataUrl = readerEvent.target?.result as string;
+      if (!dataUrl) {
+        reject(new Error('Failed to read image file data.'));
+        return;
+      }
+
+      // Verify that the file can be loaded and decoded as a valid image
       const img = new Image();
       img.onload = () => {
-        // Canvas compression for fast network & Google Drive upload
-        const MAX_WIDTH = 480;
-        const MAX_HEIGHT = 480;
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height) {
-          if (width > MAX_WIDTH) {
-            height = Math.round((height * MAX_WIDTH) / width);
-            width = MAX_WIDTH;
-          }
-        } else {
-          if (height > MAX_HEIGHT) {
-            width = Math.round((width * MAX_HEIGHT) / height);
-            height = MAX_HEIGHT;
-          }
-        }
-
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-
-        if (!ctx) {
-          reject(new Error('Failed to process image canvas.'));
-          return;
-        }
-
-        ctx.drawImage(img, 0, 0, width, height);
-
-        // Compress to efficient JPEG (0.75) for fast upload under Vercel execution limits
-        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.75);
-
-        // Estimate size
-        const head = 'data:image/jpeg;base64,';
-        const sizeBytes = Math.round(((compressedBase64.length - head.length) * 3) / 4);
-
+        // Preserves 100% original uncompressed quality without canvas downsampling
         resolve({
-          base64: compressedBase64,
-          previewUrl: compressedBase64,
+          base64: dataUrl,
+          previewUrl: dataUrl,
           fileName: file.name,
-          sizeBytes
+          sizeBytes: file.size
         });
       };
 
       img.onerror = () => {
-        reject(new Error('Failed to load image for compression. Please choose another image.'));
+        reject(new Error('Selected file is not a valid image. Please choose another photo.'));
       };
 
-      img.src = readerEvent.target?.result as string;
+      img.src = dataUrl;
     };
 
     reader.onerror = () => {

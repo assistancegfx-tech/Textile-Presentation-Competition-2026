@@ -67,24 +67,70 @@ export default function App() {
   });
   const [isViewEditModalOpen, setIsViewEditModalOpen] = useState(false);
   const [viewEditRegId, setViewEditRegId] = useState('');
+  const [viewEditRoll, setViewEditRoll] = useState('');
+  const [viewEditMobile, setViewEditMobile] = useState('');
+  const [viewEditAutoSearch, setViewEditAutoSearch] = useState(false);
   const [isGoogleSheetModalOpen, setIsGoogleSheetModalOpen] = useState(false);
 
-  const handleOpenViewEdit = (regId?: string) => {
+  const handleOpenViewEdit = (regId?: string, roll?: string, mobile?: string, autoSearch = false) => {
     setViewEditRegId(regId || '');
+    setViewEditRoll(roll || '');
+    setViewEditMobile(mobile || '');
+    setViewEditAutoSearch(autoSearch);
     setIsViewEditModalOpen(true);
+  };
+
+  const handleCloseViewEdit = () => {
+    setIsViewEditModalOpen(false);
+    setViewEditAutoSearch(false);
+    try {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has('action') || url.searchParams.has('regId') || url.searchParams.has('roll') || url.searchParams.has('mobile')) {
+        url.searchParams.delete('action');
+        url.searchParams.delete('regId');
+        url.searchParams.delete('roll');
+        url.searchParams.delete('mobile');
+        window.history.replaceState({}, '', url.pathname + (url.search ? url.search : '') + url.hash);
+      }
+    } catch (_) {}
   };
 
   const handleOpenGoogleSheet = () => {
     setIsGoogleSheetModalOpen(true);
   };
 
-  // Sync with browser back/forward, popstate, and URL hash
+  // Sync with browser back/forward, popstate, URL hash, and email action links
   useEffect(() => {
     const handleUrlChange = () => {
       const newPage = parseHashToPage();
       setCurrentPage(newPage);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     };
+
+    const checkUrlParams = () => {
+      try {
+        const searchParams = new URLSearchParams(window.location.search);
+        const hashStr = window.location.hash || '';
+        const hashParams = hashStr.includes('?') ? new URLSearchParams(hashStr.split('?')[1]) : null;
+
+        const action = searchParams.get('action') || hashParams?.get('action');
+        const paramRegId = searchParams.get('regId') || searchParams.get('reg') || hashParams?.get('regId');
+        const paramRoll = searchParams.get('roll') || searchParams.get('leaderRoll') || hashParams?.get('roll');
+        const paramMobile = searchParams.get('mobile') || searchParams.get('phone') || searchParams.get('leaderMobile') || hashParams?.get('mobile');
+
+        if (action === 'view-registration' || paramRegId || paramRoll) {
+          if (paramRegId || paramRoll) {
+            handleOpenViewEdit(paramRegId || '', paramRoll || '', paramMobile || '', true);
+          } else if (action === 'view-registration') {
+            handleOpenViewEdit();
+          }
+        }
+      } catch (err) {
+        console.warn('Error reading URL parameters:', err);
+      }
+    };
+
+    checkUrlParams();
 
     const handleRegistrationUpdated = (e: any) => {
       const updated = e.detail;
@@ -238,8 +284,11 @@ export default function App() {
       {/* Find & Edit Registration Modal (up to 3 edits allowed) */}
       <ViewEditRegistrationModal
         isOpen={isViewEditModalOpen}
-        onClose={() => setIsViewEditModalOpen(false)}
+        onClose={handleCloseViewEdit}
         initialRegId={viewEditRegId}
+        initialRoll={viewEditRoll}
+        initialMobile={viewEditMobile}
+        autoSearch={viewEditAutoSearch}
         onUpdated={(updated) => {
           setLatestRegistration(prev => {
             if (!prev || prev.result?.registrationId?.toUpperCase() === updated.registrationId.toUpperCase()) {

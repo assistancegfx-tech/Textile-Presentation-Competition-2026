@@ -29,12 +29,15 @@ import {
 } from 'lucide-react';
 import { RegisteredTeamRecord, RegistrationFormData, Participant } from '../types';
 import { generateRegistrationPdf } from '../utils/pdfGenerator';
-import { DEPARTMENTS, validateBangladeshPhone, validateEmail } from '../utils/formUtils';
+import { DEPARTMENTS, validateBangladeshPhone, validateEmail, processAndCompressImage } from '../utils/formUtils';
 
 interface ViewEditRegistrationModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialRegId?: string;
+  initialRoll?: string;
+  initialMobile?: string;
+  autoSearch?: boolean;
   onUpdated?: (record: RegisteredTeamRecord) => void;
 }
 
@@ -62,11 +65,14 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
   isOpen,
   onClose,
   initialRegId = '',
+  initialRoll = '',
+  initialMobile = '',
+  autoSearch = false,
   onUpdated
 }) => {
   const [searchId, setSearchId] = useState(initialRegId);
-  const [searchRoll, setSearchRoll] = useState('');
-  const [searchMobile, setSearchMobile] = useState('');
+  const [searchRoll, setSearchRoll] = useState(initialRoll);
+  const [searchMobile, setSearchMobile] = useState(initialMobile);
   const [isLoading, setIsLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [record, setRecord] = useState<RegisteredTeamRecord | null>(null);
@@ -77,6 +83,9 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
+
+  // Track if auto search was triggered for this modal open session
+  const [hasAutoSearched, setHasAutoSearched] = useState(false);
 
   // Recent local registrations
   const [recentRegistrations, setRecentRegistrations] = useState<{ registrationId: string; leaderName: string; leaderRoll: string; leaderMobile: string }[]>([]);
@@ -104,12 +113,16 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
   }, [isOpen]);
 
   useEffect(() => {
-    if (initialRegId) {
-      setSearchId(initialRegId);
-    }
-  }, [initialRegId, isOpen]);
+    if (initialRegId) setSearchId(initialRegId);
+    if (initialRoll) setSearchRoll(initialRoll);
+    if (initialMobile) setSearchMobile(initialMobile);
+  }, [initialRegId, initialRoll, initialMobile, isOpen]);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (!isOpen) {
+      setHasAutoSearched(false);
+    }
+  }, [isOpen]);
 
   const DEFAULT_VERIFIED_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxFVWAVQApNuw2g_zvbSEK_QhXIcso8MoDhne75A4L0ryUUeh2G4GEclUkMn8GY21VT2Q/exec';
 
@@ -341,6 +354,13 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
     }
   };
 
+  useEffect(() => {
+    if (isOpen && autoSearch && !hasAutoSearched && (initialRegId || initialRoll)) {
+      setHasAutoSearched(true);
+      handleSearch(initialRegId, initialRoll, initialMobile);
+    }
+  }, [isOpen, autoSearch, hasAutoSearched, initialRegId, initialRoll, initialMobile]);
+
   const handleDownloadPdf = () => {
     if (!record) return;
     generateRegistrationPdf({
@@ -383,40 +403,30 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
     });
   };
 
-  const handlePhotoUpload = (
+  const handlePhotoUpload = async (
     role: 'leader' | 'member1' | 'member2',
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
-      alert('Please select a valid image file (JPG, PNG, WEBP).');
-      return;
-    }
-
-    if (file.size > 2 * 1024 * 1024) {
-      alert('Photo size exceeds 2MB limit. Please choose a smaller photo.');
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64 = event.target?.result as string;
+    try {
+      const result = await processAndCompressImage(file);
       if (editFormData) {
         setEditFormData({
           ...editFormData,
           [role]: {
             ...editFormData[role],
-            photoBase64: base64,
-            photoPreview: base64,
-            photoName: file.name,
-            photoSize: file.size
+            photoBase64: result.base64,
+            photoPreview: result.previewUrl,
+            photoName: result.fileName,
+            photoSize: result.sizeBytes
           }
         });
       }
-    };
-    reader.readAsDataURL(file);
+    } catch (err: any) {
+      alert(err.message || 'Failed to process photo. Please choose a photo up to 5MB.');
+    }
   };
 
   const handleSaveEdit = async () => {
@@ -640,6 +650,8 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
       setIsSaving(false);
     }
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/70 backdrop-blur-xs overflow-y-auto">
@@ -1379,10 +1391,10 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
                               )}
                               <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50 transition">
                                 <Upload className="w-3.5 h-3.5 text-[#16A34A]" />
-                                <span>{p.photoPreview ? 'Change Photo' : 'Upload Photo'}</span>
+                                <span>{p.photoPreview ? 'Change Photo' : 'Upload Photo'} (Max 5MB)</span>
                                 <input
                                   type="file"
-                                  accept="image/*"
+                                  accept="image/jpeg,image/png,image/jpg,image/webp"
                                   onChange={(e) => handlePhotoUpload(role, e)}
                                   className="hidden"
                                 />

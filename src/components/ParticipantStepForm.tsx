@@ -35,13 +35,11 @@ export const ParticipantStepForm: React.FC<ParticipantStepFormProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   const isLeader = Boolean(showEmail || roleBadge.toLowerCase().includes('leader'));
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const processSelectedFile = async (file: File) => {
     setPhotoError(null);
     setIsProcessingPhoto(true);
 
@@ -60,6 +58,34 @@ export const ParticipantStepForm: React.FC<ParticipantStepFormProps> = ({
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await processSelectedFile(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      await processSelectedFile(file);
     }
   };
 
@@ -324,7 +350,7 @@ export const ParticipantStepForm: React.FC<ParticipantStepFormProps> = ({
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/jpeg,image/png,image/jpg"
+            accept="image/jpeg,image/png,image/jpg,image/webp"
             onChange={handleFileChange}
             className="hidden"
           />
@@ -348,22 +374,34 @@ export const ParticipantStepForm: React.FC<ParticipantStepFormProps> = ({
                 </button>
               </div>
 
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full py-1.5 px-3 rounded-lg text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition"
-              >
-                Change Photo
-              </button>
+              <div className="space-y-1">
+                {participant.photoSize && (
+                  <p className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 py-0.5 px-2 rounded-md inline-block border border-emerald-200">
+                    Original Quality • {(participant.photoSize / (1024 * 1024)).toFixed(2)} MB
+                  </p>
+                )}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full py-1.5 px-3 rounded-lg text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition"
+                >
+                  Change Photo
+                </button>
+              </div>
             </div>
           ) : (
             /* Upload Box */
             <div
               onClick={() => fileInputRef.current?.click()}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
               className={`rounded-2xl border-2 border-dashed p-5 text-center cursor-pointer transition flex flex-col items-center justify-center min-h-[200px] flex-1 ${
-                errors.photo || photoError
-                  ? 'border-red-300 bg-red-50/40 hover:bg-red-50/70'
-                  : 'border-slate-300 bg-[#FAFBF9] hover:border-[#16A34A] hover:bg-[#22C55E]/5'
+                isDragging
+                  ? 'border-[#16A34A] bg-[#22C55E]/10 scale-[1.01]'
+                  : errors.photo || photoError
+                    ? 'border-red-300 bg-red-50/40 hover:bg-red-50/70'
+                    : 'border-slate-300 bg-[#FAFBF9] hover:border-[#16A34A] hover:bg-[#22C55E]/5'
               }`}
             >
               <div className="w-10 h-10 rounded-xl bg-white shadow-2xs border border-slate-200 flex items-center justify-center mb-2.5 text-slate-500">
@@ -375,10 +413,13 @@ export const ParticipantStepForm: React.FC<ParticipantStepFormProps> = ({
               </div>
 
               <p className="text-xs font-bold text-slate-700 mb-0.5">
-                {isProcessingPhoto ? 'Processing...' : 'Upload Photo'}
+                {isProcessingPhoto ? 'Loading Photo...' : isDragging ? 'Drop Photo Here' : 'Upload Photo'}
               </p>
-              <p className="text-[11px] text-slate-400">
-                Click or drag & drop (JPG, PNG)
+              <p className="text-[11px] text-slate-500 font-medium">
+                Click or drag & drop
+              </p>
+              <p className="text-[10px] text-slate-400 mt-0.5">
+                JPG, PNG, WEBP • Max 5MB • Same Quality
               </p>
             </div>
           )}

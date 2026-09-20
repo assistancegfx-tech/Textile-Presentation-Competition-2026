@@ -63,9 +63,9 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  // Middleware to support base64 participant images (up to 30mb)
-  app.use(express.json({ limit: '30mb' }));
-  app.use(express.urlencoded({ extended: true, limit: '30mb' }));
+  // Middleware to support base64 participant images (up to 50mb payload for high-quality photos)
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
   // API Routes
   app.get('/api/health', (req: Request, res: Response) => {
@@ -318,6 +318,11 @@ async function startServer() {
       }
       if (data?.member2) {
         data.member2.facebook = String(data.member2.facebook || '').trim() || 'Blank';
+      }
+
+      if (!data.websiteUrl) {
+        const originHeader = (req.headers['origin'] || req.headers['referer'] || '').toString();
+        data.websiteUrl = originHeader ? originHeader.replace(/\/+$/, '') : 'https://ais-pre-6zeawg7kx2bdfewoufqpj5-305877422476.asia-southeast1.run.app';
       }
 
       console.log(`[REGISTRATION] Validation result: PASSED (Team: "${teamName}", Leader: ${leaderRoll}, Member 1: ${m1Roll}, Member 2: ${m2Roll}, Trx: ${transactionId})`);
