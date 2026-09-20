@@ -322,6 +322,27 @@ async function startServer() {
 
       console.log(`[REGISTRATION] Validation result: PASSED (Team: "${teamName}", Leader: ${leaderRoll}, Member 1: ${m1Roll}, Member 2: ${m2Roll}, Trx: ${transactionId})`);
 
+      // Format last 2 digits of each participant roll for Registration ID: TPC-{last 2 digit of every student roll}-{serial from 01}
+      const getLast2Digits = (roll: any): string => {
+        const digits = String(roll || '').replace(/\D/g, '');
+        if (digits.length >= 2) return digits.slice(-2);
+        return (digits || String(roll || '').trim()).padStart(2, '0').slice(-2);
+      };
+      const rollsLast2 = `${getLast2Digits(leaderRoll)}${getLast2Digits(m1Roll)}${getLast2Digits(m2Roll)}`;
+
+      // Compute serial counter starting from 01
+      let maxRegisteredSeq = 0;
+      for (const r of registrationsStore) {
+        const match = String(r.registrationId || '').match(/-(\d+)$/);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          if (!isNaN(num) && num > maxRegisteredSeq) maxRegisteredSeq = num;
+        }
+      }
+      const nextSeqNumber = Math.max(idSequence++, maxRegisteredSeq + 1);
+      const seqStr = String(nextSeqNumber).padStart(2, '0');
+      const defaultRegId = `TPC-${rollsLast2}-${seqStr}`;
+
       // Check if Google Apps Script Web App URL is configured
       const customScriptUrl = req.headers['x-google-script-url'] as string | undefined;
       const targetScriptUrl = customScriptUrl || process.env.GOOGLE_SCRIPT_URL || process.env.VITE_GOOGLE_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbxFVWAVQApNuw2g_zvbSEK_QhXIcso8MoDhne75A4L0ryUUeh2G4GEclUkMn8GY21VT2Q/exec';
@@ -362,7 +383,7 @@ async function startServer() {
             console.warn('[REGISTRATION] Google Sheets sync notice:', errMsg);
             // Fall back to server memory registry so user registration is not lost
           } else {
-            const regId = scriptData.registrationId || `TEX2026-${String(idSequence++).padStart(3, '0')}`;
+            const regId = scriptData.registrationId || defaultRegId;
             const nowStr = scriptData.submissionDate || new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' });
 
             console.log(`[REGISTRATION] Google Sheets sync result: SUCCESS, Drive photos uploaded: ${Boolean(scriptData.photos)}`);
@@ -408,7 +429,7 @@ async function startServer() {
       }
 
       // Generate sequence Registration ID (Fallback if script not configured)
-      const regId = `TEX2026-${String(idSequence++).padStart(3, '0')}`;
+      const regId = defaultRegId;
       const now = new Date();
       const submissionDate = now.toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' });
 

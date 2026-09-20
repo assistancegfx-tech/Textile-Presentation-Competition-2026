@@ -114,15 +114,15 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
   const handleSearch = async (overrideId?: string, overrideRoll?: string, overrideMobile?: string) => {
     const rawTargetId = String(overrideId || searchId || '').trim();
     let targetId = rawTargetId.toUpperCase();
-    if (targetId && !targetId.startsWith('TEX') && /^\d+$/.test(targetId) && targetId.length <= 4) {
-      targetId = `TEX2026-${targetId.padStart(3, '0')}`;
+    if (targetId && !targetId.startsWith('TPC') && !targetId.startsWith('TEX') && /^\d+$/.test(targetId) && targetId.length <= 4) {
+      targetId = `TPC-${targetId.padStart(2, '0')}`;
     }
 
     const targetRoll = String(overrideRoll !== undefined ? overrideRoll : searchRoll || '').trim();
     const targetMobile = String(overrideMobile !== undefined ? overrideMobile : searchMobile || '').trim();
 
     if (!targetId && !targetRoll) {
-      setSearchError('Please enter your Registration Number (e.g. TEX2026-001) or Team Leader Roll.');
+      setSearchError('Please enter your Registration Number (e.g. TPC-010203-01) or Team Leader Roll.');
       return;
     }
 
@@ -693,7 +693,7 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
                     value={searchId}
                     onChange={(e) => setSearchId(e.target.value.toUpperCase())}
                     onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                    placeholder="e.g. TEX2026-001"
+                    placeholder="e.g. TPC-010203-01"
                     className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs font-extrabold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-[#22C55E]/30 focus:border-[#16A34A] tracking-wider uppercase placeholder:normal-case placeholder:font-normal"
                   />
                 </div>

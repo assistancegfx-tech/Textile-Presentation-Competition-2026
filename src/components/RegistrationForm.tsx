@@ -268,7 +268,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
       let pdfBase64 = '';
       try {
         pdfBase64 = getRegistrationPdfBase64({
-          registrationId: 'TEX2026-PENDING',
+          registrationId: 'TPC-PENDING',
           submissionDate: new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' }),
           paymentStatus: 'Pending',
           formData: normalizedFormData
@@ -344,9 +344,28 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
       }
 
       // If backend was not reached or returned static HTML, create reliable client response
+      const getLast2Digits = (roll: any): string => {
+        const digits = String(roll || '').replace(/\D/g, '');
+        if (digits.length >= 2) return digits.slice(-2);
+        return (digits || String(roll || '').trim()).padStart(2, '0').slice(-2);
+      };
+      const rollsLast2 = `${getLast2Digits(formData.leader.roll)}${getLast2Digits(formData.member1.roll)}${getLast2Digits(formData.member2.roll)}`;
+
+      let localSeq = 1;
+      try {
+        const existingList = JSON.parse(localStorage.getItem('tpc2026_saved_registrations') || '[]');
+        for (const item of existingList) {
+          const match = String(item.registrationId || '').match(/-(\d+)$/);
+          if (match) {
+            const num = parseInt(match[1], 10);
+            if (!isNaN(num) && num >= localSeq) localSeq = num + 1;
+          }
+        }
+      } catch (e) {}
+      const fallbackSeqStr = String(localSeq).padStart(2, '0');
+      const fallbackRegId = `TPC-${rollsLast2}-${fallbackSeqStr}`;
+
       if (!data) {
-        const generatedSequence = Math.floor(100 + Math.random() * 900);
-        const fallbackRegId = `TEX2026-${generatedSequence}`;
         const fallbackDate = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' });
 
         data = {
@@ -366,7 +385,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
       await new Promise((r) => setTimeout(r, 400));
 
       // Cache registration locally for view, search, edit & PDF download
-      const regId = data.registrationId || `TEX2026-${Date.now().toString().slice(-4)}`;
+      const regId = data.registrationId || fallbackRegId;
       const subDate = data.submissionDate || new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' });
 
       try {

@@ -15,7 +15,7 @@ export const PaymentStepForm: React.FC<PaymentStepFormProps> = ({
   errors
 }) => {
   const [copied, setCopied] = useState(false);
-  const officialBkashNumber = '01798246810';
+  const officialBkashNumber = '01305912237';
   const registrationFee = '149 BDT';
 
   const handleCopyNumber = () => {

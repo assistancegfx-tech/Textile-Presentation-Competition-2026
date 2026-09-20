@@ -19,7 +19,7 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
   onRegisterAnother
 }) => {
   const [copied, setCopied] = useState(false);
-  const regId = result.registrationId || 'TEX2026-001';
+  const regId = result.registrationId || 'TPC-010203-01';
   const displayTeamName = formData.teamName || result.teamName || '';
   const submissionDateStr = result.submissionDate || new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' });
   const paymentStatusStr = result.paymentStatus || 'Pending';

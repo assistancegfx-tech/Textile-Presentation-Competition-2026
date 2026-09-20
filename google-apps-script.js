@@ -197,7 +197,7 @@ function testNewSheet() {
 
   const res = doPost(fakeEvent);
   Logger.log("Test submission response: " + res.getContent());
-  return "Sample registration TEX2026-001 inserted successfully!";
+  return "Sample registration TPC-010203-01 inserted successfully!";
 }
 
 /**
@@ -800,13 +800,12 @@ function doPost(e) {
       if (!m2PhotoUrl && member2Obj.photoBase64) m2PhotoUrl = "Uploaded";
     }
 
-    // Compute Registration ID: Scan highest existing sequence number + 1
-    // (For brand new sheet, highest is 0 -> TEX2026-001)
+    // Compute Registration ID: TPC-{last 2 digit of every student roll}-{serial from 01}
     let highestSeq = 0;
     if (existingValues && existingValues.length > 1) {
       for (let i = 1; i < existingValues.length; i++) {
         const idStr = String(existingValues[i][0] || "").trim();
-        const match = idStr.match(/(\d+)$/);
+        const match = idStr.match(/-(\d+)$/);
         if (match) {
           const num = parseInt(match[1], 10);
           if (!isNaN(num) && num > highestSeq) {
@@ -817,7 +816,20 @@ function doPost(e) {
     }
 
     const regSequence = highestSeq + 1;
-    const regId = "TEX2026-" + ("000" + regSequence).slice(-3);
+    const seqStr = regSequence < 10 ? ("0" + regSequence) : String(regSequence);
+
+    const getLast2Digits = function(roll) {
+      var d = String(roll || "").replace(/\D/g, "");
+      if (d.length >= 2) return d.slice(-2);
+      return ("00" + (d || String(roll || "").trim())).slice(-2);
+    };
+
+    var rollLeaderLast2 = getLast2Digits(leaderRoll);
+    var rollM1Last2 = getLast2Digits(m1Roll);
+    var rollM2Last2 = getLast2Digits(m2Roll);
+    var rollsCombined = rollLeaderLast2 + rollM1Last2 + rollM2Last2;
+
+    const regId = "TPC-" + rollsCombined + "-" + seqStr;
 
     // Format local Bangladesh Time (BST)
     const now = new Date();
@@ -1335,7 +1347,7 @@ function testConfirmationEmail() {
 
   Logger.log("Sending test confirmation email to: " + userEmail);
   const result = sendRegistrationConfirmationEmail({
-    registrationId: "TEX2026-001",
+    registrationId: "TPC-010203-01",
     teamName: "TexGenius",
     leaderName: "Test Group Leader",
     leaderRoll: "12401",
