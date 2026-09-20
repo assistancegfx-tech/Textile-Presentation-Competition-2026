@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowUp, Code2, Heart } from 'lucide-react';
+import { ArrowUp, Code2 } from 'lucide-react';
 import { CareerClubLogo } from './Logos';
 import { PageId } from '../types';
 
@@ -72,13 +72,6 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenGoogleSheetMod
               Contact
             </button>
             <button
-              onClick={() => onOpenGoogleSheetModal?.()}
-              className="hover:text-[#22C55E] text-slate-300 transition"
-              title="Connect and manage Google Sheet sync"
-            >
-              Google Sheet Sync
-            </button>
-            <button
               type="button"
               onClick={scrollToTop}
               className="w-8 h-8 rounded-xl bg-slate-800 hover:bg-[#22C55E] hover:text-[#0A192F] flex items-center justify-center transition"
@@ -101,9 +94,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenGoogleSheetMod
           {/* IT Wing - CCB Credit Badge */}
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-800/80 border border-slate-700/80 text-[11px] text-slate-300 shadow-2xs">
             <Code2 className="w-3.5 h-3.5 text-[#22C55E]" />
-            <span>Developed & Maintained with</span>
-            <Heart className="w-3 h-3 text-red-400 fill-red-400 inline" />
-            <span>by</span>
+            <span>Developed & Maintained by</span>
             <span className="font-bold text-white tracking-wide bg-gradient-to-r from-[#22C55E] to-emerald-300 bg-clip-text text-transparent">
               IT Wing - CCB
             </span>

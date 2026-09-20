@@ -283,10 +283,10 @@ export const GuidelinesSection: React.FC<GuidelinesSectionProps> = ({ onNavigate
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => onNavigate('registration')}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-xs sm:text-sm font-extrabold text-[#0A192F] bg-white hover:bg-emerald-50 transition shadow-md cursor-pointer"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-xs sm:text-sm font-extrabold text-[#0A192F] bg-white hover:bg-[#16A34A] hover:text-white transition-all duration-200 shadow-md cursor-pointer group"
             >
               <span>Register 3-Member Team</span>
-              <ArrowRight className="w-4 h-4 text-[#16A34A]" />
+              <ArrowRight className="w-4 h-4 text-[#16A34A] group-hover:text-white group-hover:translate-x-1 transition-all" />
             </motion.button>
           </div>
         )}

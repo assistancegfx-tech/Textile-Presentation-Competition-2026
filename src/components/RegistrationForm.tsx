@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { User, Users, CreditCard, CheckCircle2, ChevronRight, ChevronLeft, AlertCircle, ShieldAlert, RotateCcw, Search, Sparkles, Database } from 'lucide-react';
+import { User, Users, CreditCard, CheckCircle2, ChevronRight, ChevronLeft, AlertCircle, ShieldAlert, RotateCcw, Search } from 'lucide-react';
 import { RegistrationFormData, SubmissionResponse, Participant, SubmissionProgressStage } from '../types';
 import { ParticipantStepForm } from './ParticipantStepForm';
 import { PaymentStepForm } from './PaymentStepForm';
 import { ReviewConfirmStep } from './ReviewConfirmStep';
 import { SuccessView } from './SuccessView';
-import { validateBangladeshPhone, validateTransactionId, validateEmail, getDemoFormData } from '../utils/formUtils';
+import { validateBangladeshPhone, validateTransactionId, validateEmail } from '../utils/formUtils';
+import { getRegistrationPdfBase64 } from '../utils/pdfGenerator';
 
 const initialParticipant = (): Participant => ({
   name: '',
@@ -51,8 +52,6 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
   const [submitProgressStage, setSubmitProgressStage] = useState<SubmissionProgressStage>('idle');
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submissionResult, setSubmissionResult] = useState<SubmissionResponse | null>(null);
-  const [demoLoadedBanner, setDemoLoadedBanner] = useState<boolean>(false);
-
   const isFormPartiallyFilled = Boolean(
     formData.teamName ||
     formData.leader.name ||
@@ -65,19 +64,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
     setFormData(initialFormData());
     setStepErrors({});
     setSubmitError(null);
-    setDemoLoadedBanner(false);
     setCurrentStep(0);
-  };
-
-  const handleFillDemoData = (goToReview: boolean = false) => {
-    const demoData = getDemoFormData();
-    setFormData(demoData);
-    setStepErrors({});
-    setSubmitError(null);
-    setDemoLoadedBanner(true);
-    if (goToReview) {
-      setCurrentStep(4); // Jump straight to Review & Confirm
-    }
   };
 
   const steps = [
@@ -257,6 +244,24 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
       // Stage 3: Submit to Google Sheets & Drive backend endpoint
       setSubmitProgressStage('saving_sheets');
 
+      // Pre-generate official registration voucher PDF base64 to send with confirmation email
+      let pdfBase64 = '';
+      try {
+        pdfBase64 = getRegistrationPdfBase64({
+          registrationId: 'TEX2026-PENDING',
+          submissionDate: new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' }),
+          paymentStatus: 'Pending',
+          formData
+        });
+      } catch (pdfErr) {
+        console.warn('PDF Base64 generation warning:', pdfErr);
+      }
+
+      const payloadToSend = {
+        ...formData,
+        pdfBase64
+      };
+
       let data: SubmissionResponse | null = null;
       const defaultScriptUrl = 'https://script.google.com/macros/s/AKfycbxFVWAVQApNuw2g_zvbSEK_QhXIcso8MoDhne75A4L0ryUUeh2G4GEclUkMn8GY21VT2Q/exec';
       const envScriptUrl = 
@@ -274,7 +279,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
         const res = await fetch('/api/register', {
           method: 'POST',
           headers,
-          body: JSON.stringify(formData)
+          body: JSON.stringify(payloadToSend)
         });
 
         const contentType = res.headers.get('content-type') || '';
@@ -301,7 +306,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
           const directScriptRes = await fetch(storedScriptUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify(formData)
+            body: JSON.stringify(payloadToSend)
           });
           const rawDirect = await directScriptRes.text();
           let scriptJson: any = null;
@@ -419,7 +424,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             Team Registration
           </h1>
           <p className="text-slate-600 text-xs sm:text-sm">
-            Complete your 3-member team profile (Leader + 2 Members) and submit the 300 BDT registration fee.
+            Complete your 3-member team profile (Leader + 2 Members) and submit the 149 BDT registration fee.
           </p>
 
           {/* Quick link to View/Edit Registration */}
@@ -427,9 +432,9 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             <button
               type="button"
               onClick={() => onOpenViewEditModal?.()}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold text-slate-800 bg-white border border-slate-300 hover:border-[#16A34A] hover:text-[#16A34A] shadow-2xs transition active:scale-98 group"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold text-slate-800 bg-white border border-slate-300 hover:border-[#16A34A] hover:bg-emerald-50 hover:text-[#16A34A] shadow-2xs transition active:scale-98 group cursor-pointer"
             >
-              <Search className="w-3.5 h-3.5 text-[#16A34A] group-hover:scale-110 transition" />
+              <Search className="w-3.5 h-3.5 text-[#16A34A] group-hover:scale-110 transition-transform" />
               <span>Already registered? View or Edit your team (up to 3 edits)</span>
             </button>
           </div>
@@ -445,64 +450,16 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
         ) : (
           /* Multi-step Registration Card */
           <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xl p-5 sm:p-8 md:p-10 relative">
-            {/* Action Bar: Demo Fillup & Reset */}
-            <div className="flex flex-wrap items-center justify-between gap-2.5 mb-6 pb-4 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleFillDemoData(false)}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-[#0A192F] bg-gradient-to-r from-emerald-50 to-teal-50 border border-[#22C55E]/40 hover:border-[#16A34A] hover:bg-emerald-100/60 shadow-2xs transition active:scale-95 group"
-                  title="Auto-fill the form with sample team data for instant testing"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-[#16A34A] group-hover:rotate-12 transition-transform" />
-                  <span>⚡ Demo Fillup</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleFillDemoData(true)}
-                  className="hidden sm:inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-[11px] font-semibold text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 transition"
-                  title="Fill demo data and jump straight to final review step"
-                >
-                  <span>Fill & Review ➔</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => onOpenGoogleSheetModal?.()}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-emerald-800 bg-emerald-50/80 hover:bg-emerald-100 border border-emerald-200 transition shadow-2xs"
-                  title="Connect and manage Google Sheet sync"
-                >
-                  <Database className="w-3.5 h-3.5 text-[#16A34A]" />
-                  <span>Google Sheet Sync</span>
-                </button>
-              </div>
-
-              {isFormPartiallyFilled && (
+            {/* Action Bar: Reset Form if filled */}
+            {isFormPartiallyFilled && (
+              <div className="flex items-center justify-end mb-6 pb-4 border-b border-slate-100">
                 <button
                   type="button"
                   onClick={handleClearForm}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-500 hover:text-red-600 hover:bg-red-50 border border-slate-200 transition active:scale-95"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-500 hover:text-white hover:bg-red-600 hover:border-red-600 border border-slate-200 transition active:scale-95 cursor-pointer"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
                   <span>Reset Form</span>
-                </button>
-              )}
-            </div>
-
-            {/* Demo loaded banner */}
-            {demoLoadedBanner && (
-              <div className="mb-6 p-3 rounded-2xl bg-emerald-50/90 border border-emerald-200/80 flex items-center justify-between gap-3 text-xs text-emerald-900 animate-in fade-in slide-in-from-top-2 duration-300">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-[#16A34A] shrink-0" />
-                  <span><strong>Demo data loaded!</strong> Leader (Tanvir), Member 1, Member 2, photos & bKash info filled. You can navigate steps or edit any field.</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setDemoLoadedBanner(false)}
-                  className="text-emerald-700 hover:text-emerald-900 font-bold px-2 py-0.5"
-                >
-                  ✕
                 </button>
               </div>
             )}
@@ -662,7 +619,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                   <button
                     type="button"
                     onClick={handlePrev}
-                    className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50 transition active:scale-98"
+                    className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 bg-white hover:bg-[#0A192F] hover:text-white hover:border-[#0A192F] transition active:scale-98 cursor-pointer shadow-2xs"
                   >
                     <ChevronLeft className="w-4 h-4" />
                     <span>Previous</span>
@@ -674,10 +631,10 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                 <button
                   type="button"
                   onClick={handleNext}
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-extrabold text-white bg-[#0A192F] hover:bg-[#122846] transition active:scale-98 shadow-md shadow-[#0A192F]/15"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-extrabold text-white bg-[#0A192F] hover:bg-[#16A34A] border border-[#0A192F] hover:border-[#16A34A] transition active:scale-98 shadow-md shadow-[#0A192F]/15 cursor-pointer group"
                 >
                   <span>Continue to {steps[currentStep + 1]?.label}</span>
-                  <ChevronRight className="w-4 h-4 text-[#22C55E]" />
+                  <ChevronRight className="w-4 h-4 text-[#22C55E] group-hover:text-white group-hover:translate-x-1 transition-all" />
                 </button>
               </div>
             )}

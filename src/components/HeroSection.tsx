@@ -207,63 +207,102 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onNavigate }) => {
           </motion.button>
         </motion.div>
 
-        {/* 3 Quick Navigation Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-6 max-w-3xl mx-auto text-left">
+        {/* 3 Quick Navigation Cards - Beautifully crafted & balanced */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-7 max-w-3xl mx-auto text-left">
+          {/* Card 1: Event Details */}
           <motion.button
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35, delay: 0.4 }}
             whileHover={{ y: -3, transition: { duration: 0.2 } }}
             onClick={() => onNavigate('event')}
-            className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-[#16A34A] transition shadow-2xs group cursor-pointer"
+            className="group relative p-4.5 rounded-2xl bg-white border border-slate-200/90 hover:border-emerald-500/50 hover:shadow-md hover:shadow-emerald-950/5 transition-all text-left flex flex-col justify-between overflow-hidden cursor-pointer"
           >
-            <div className="w-8 h-8 rounded-lg bg-[#22C55E]/10 text-[#16A34A] flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-              <Users className="w-4 h-4" />
+            <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-emerald-50/60 to-transparent rounded-bl-full pointer-events-none transition-opacity group-hover:opacity-100" />
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200/70 text-[#16A34A] flex items-center justify-center shadow-2xs group-hover:scale-105 group-hover:bg-[#16A34A] group-hover:text-white transition-all">
+                  <Users className="w-4 h-4" />
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-md border border-emerald-200/60">
+                  Event
+                </span>
+              </div>
+              <h3 className="text-xs sm:text-[13px] font-extrabold text-[#0A192F] group-hover:text-[#16A34A] transition-colors leading-snug">
+                Event Details & Schedule
+              </h3>
+              <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                3-member team format, dates, venue & prizes
+              </p>
             </div>
-            <h3 className="text-xs font-extrabold text-[#0A192F] group-hover:text-[#16A34A] transition-colors">
-              Event Details & Schedule
-            </h3>
-            <p className="text-[11px] text-slate-500 mt-0.5">
-              3-member team format, dates, venue & prizes
-            </p>
+            <div className="pt-3 mt-2 border-t border-slate-100 flex items-center justify-between text-[11px] font-bold text-[#16A34A]">
+              <span>Explore timeline</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+            </div>
           </motion.button>
 
+          {/* Card 2: Competition Guidelines */}
           <motion.button
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35, delay: 0.45 }}
             whileHover={{ y: -3, transition: { duration: 0.2 } }}
             onClick={() => onNavigate('guidelines')}
-            className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-[#16A34A] transition shadow-2xs group cursor-pointer"
+            className="group relative p-4.5 rounded-2xl bg-white border border-slate-200/90 hover:border-slate-400/60 hover:shadow-md hover:shadow-slate-900/5 transition-all text-left flex flex-col justify-between overflow-hidden cursor-pointer"
           >
-            <div className="w-8 h-8 rounded-lg bg-[#0A192F]/10 text-[#0A192F] flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-              <BookOpen className="w-4 h-4" />
+            <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-slate-100/60 to-transparent rounded-bl-full pointer-events-none transition-opacity group-hover:opacity-100" />
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-9 h-9 rounded-xl bg-slate-100 border border-slate-200 text-[#0A192F] flex items-center justify-center shadow-2xs group-hover:scale-105 group-hover:bg-[#0A192F] group-hover:text-white transition-all">
+                  <BookOpen className="w-4 h-4" />
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200/70">
+                  Rules
+                </span>
+              </div>
+              <h3 className="text-xs sm:text-[13px] font-extrabold text-[#0A192F] group-hover:text-[#0A192F] transition-colors leading-snug">
+                Competition Guidelines
+              </h3>
+              <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                Rules & segments for business presentation
+              </p>
             </div>
-            <h3 className="text-xs font-extrabold text-[#0A192F] group-hover:text-[#16A34A] transition-colors">
-              Competition Guidelines
-            </h3>
-            <p className="text-[11px] text-slate-500 mt-0.5">
-              Rules & segments for business presentation
-            </p>
+            <div className="pt-3 mt-2 border-t border-slate-100 flex items-center justify-between text-[11px] font-bold text-slate-700 group-hover:text-[#0A192F]">
+              <span>Read segments</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+            </div>
           </motion.button>
 
+          {/* Card 3: Contact & Support */}
           <motion.button
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35, delay: 0.5 }}
             whileHover={{ y: -3, transition: { duration: 0.2 } }}
             onClick={() => onNavigate('contact')}
-            className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-[#16A34A] transition shadow-2xs group cursor-pointer"
+            className="group relative p-4.5 rounded-2xl bg-white border border-slate-200/90 hover:border-teal-500/50 hover:shadow-md hover:shadow-teal-950/5 transition-all text-left flex flex-col justify-between overflow-hidden cursor-pointer"
           >
-            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-800 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-              <HelpCircle className="w-4 h-4" />
+            <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-teal-50/60 to-transparent rounded-bl-full pointer-events-none transition-opacity group-hover:opacity-100" />
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-9 h-9 rounded-xl bg-teal-50 border border-teal-200/70 text-teal-800 flex items-center justify-center shadow-2xs group-hover:scale-105 group-hover:bg-teal-700 group-hover:text-white transition-all">
+                  <HelpCircle className="w-4 h-4" />
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-teal-700 bg-teal-100/70 px-2 py-0.5 rounded-md border border-teal-200/60">
+                  Help
+                </span>
+              </div>
+              <h3 className="text-xs sm:text-[13px] font-extrabold text-[#0A192F] group-hover:text-teal-800 transition-colors leading-snug">
+                Contact & Support
+              </h3>
+              <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                WhatsApp, Facebook, Email & BTEC Auditorium
+              </p>
             </div>
-            <h3 className="text-xs font-extrabold text-[#0A192F] group-hover:text-[#16A34A] transition-colors">
-              Contact & Support
-            </h3>
-            <p className="text-[11px] text-slate-500 mt-0.5">
-              WhatsApp, Facebook, Email & BTEC Auditorium
-            </p>
+            <div className="pt-3 mt-2 border-t border-slate-100 flex items-center justify-between text-[11px] font-bold text-teal-700">
+              <span>Get in touch</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+            </div>
           </motion.button>
         </div>
       </div>

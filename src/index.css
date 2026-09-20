@@ -44,6 +44,85 @@
   }
 }
 
+/* Continuous Weaving Thread Underline Animations */
+@keyframes weaveYarnDash {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: -120;
+  }
+}
+
+@keyframes weaveYarnDashReverse {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: 120;
+  }
+}
+
+@keyframes weaveSway {
+  0%, 100% {
+    transform: translateY(0px) scaleY(1);
+  }
+  50% {
+    transform: translateY(-1.5px) scaleY(1.08);
+  }
+}
+
+@keyframes weaveGlowTravel {
+  0%, 100% {
+    opacity: 0.5;
+    filter: drop-shadow(0 0 3px rgba(34, 197, 94, 0.4));
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 8px rgba(34, 197, 94, 0.85));
+  }
+}
+
+@keyframes shuttleMove {
+  0% {
+    transform: translateX(-20px);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(190px);
+    opacity: 0;
+  }
+}
+
+.animate-weave-yarn-1 {
+  stroke-dasharray: 12 5;
+  animation: weaveYarnDash 2.4s linear infinite;
+}
+
+.animate-weave-yarn-2 {
+  stroke-dasharray: 10 4;
+  animation: weaveYarnDashReverse 3s linear infinite;
+}
+
+.animate-weave-sway {
+  animation: weaveSway 3s ease-in-out infinite;
+  transform-origin: center;
+}
+
+.animate-weave-glow {
+  animation: weaveGlowTravel 2.2s ease-in-out infinite;
+}
+
+.animate-shuttle-travel {
+  animation: shuttleMove 2.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
 @keyframes subtleBadgePulse {
   0%, 100% {
     box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4);
@@ -74,3 +153,11 @@
 .animate-badge-pulse {
   animation: subtleBadgePulse 2.5s infinite;
 }
+
+/* Global button & interactive option styling enhancements */
+button, a, input, select, textarea {
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 200ms;
+}
+

@@ -1011,7 +1011,7 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
                             <span>•</span>
                             <span>TrxID: {record.formData.payment.transactionId || '—'}</span>
                             <span>•</span>
-                            <span className="text-[#16A34A]">300 BDT Paid</span>
+                            <span className="text-[#E2136E] font-bold">149 BDT Paid</span>
                           </div>
                           {isPaid && (
                             <p className="text-[11px] text-emerald-700 font-semibold mt-1">

@@ -180,7 +180,7 @@ export const EventInfoSection: React.FC<EventInfoSectionProps> = ({ onNavigate }
           <div>
             <h4 className="text-base font-extrabold text-[#0A192F]">Ready to participate?</h4>
             <p className="text-xs text-slate-500">
-              Registration fee is 300 BDT per team. Secure your auditorium presentation slot.
+              Registration fee is 149 BDT per team. Secure your auditorium presentation slot.
             </p>
           </div>
 
@@ -188,10 +188,10 @@ export const EventInfoSection: React.FC<EventInfoSectionProps> = ({ onNavigate }
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => onNavigate('registration')}
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-extrabold text-white bg-[#0A192F] hover:bg-[#122846] transition shadow-xs whitespace-nowrap cursor-pointer"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-extrabold text-white bg-[#0A192F] hover:bg-[#16A34A] border border-[#0A192F] hover:border-[#16A34A] transition-all duration-200 shadow-md whitespace-nowrap cursor-pointer group"
           >
             <span>Go to Registration Form</span>
-            <ArrowRight className="w-4 h-4 text-[#22C55E]" />
+            <ArrowRight className="w-4 h-4 text-[#22C55E] group-hover:text-white group-hover:translate-x-1 transition-all" />
           </motion.button>
         </motion.div>
       )}

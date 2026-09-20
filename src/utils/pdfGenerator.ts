@@ -9,7 +9,7 @@ export interface RegistrationPdfData {
   formData: RegistrationFormData;
 }
 
-export function generateRegistrationPdf(data: RegistrationPdfData) {
+export function buildRegistrationPdfDoc(data: RegistrationPdfData): jsPDF {
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -283,10 +283,10 @@ export function generateRegistrationPdf(data: RegistrationPdfData) {
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.text('Amount Paid:', margin + 130, y + 8);
-  doc.setTextColor(22, 163, 74);
+  doc.setTextColor(226, 19, 110); // bKash Pink
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
-  doc.text('300 BDT', margin + 130, y + 16);
+  doc.text('149 BDT', margin + 130, y + 16);
 
   y += 28;
 
@@ -317,7 +317,23 @@ export function generateRegistrationPdf(data: RegistrationPdfData) {
   doc.text('© 2026 Career Club BTEC • Barishal Textile Engineering College • Officially Issued Registration Voucher', margin, pageHeight - 8);
   doc.text(`Doc Ref: ${data.registrationId}`, pageWidth - margin, pageHeight - 8, { align: 'right' });
 
-  // Save/Download PDF
+  return doc;
+}
+
+export function generateRegistrationPdf(data: RegistrationPdfData) {
+  const doc = buildRegistrationPdfDoc(data);
   const filename = `Registration_${data.registrationId}_Info.pdf`;
   doc.save(filename);
+}
+
+export function getRegistrationPdfBase64(data: RegistrationPdfData): string {
+  try {
+    const doc = buildRegistrationPdfDoc(data);
+    const dataUri = doc.output('datauristring');
+    const parts = dataUri.split(',');
+    return parts.length > 1 ? parts[1].replace(/\s+/g, '') : '';
+  } catch (err) {
+    console.error('Error generating PDF base64:', err);
+    return '';
+  }
 }

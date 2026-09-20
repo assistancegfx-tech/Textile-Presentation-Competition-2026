@@ -862,7 +862,7 @@ function doPost(e) {
     } catch (_) {}
 
     // =========================================================================
-    // 📧 SEND AUTOMATIC REGISTRATION CONFIRMATION EMAIL IMMEDIATELY
+    // 📧 SEND AUTOMATIC REGISTRATION CONFIRMATION EMAIL IMMEDIATELY (WITH ATTACHED PDF VOUCHER)
     // =========================================================================
     let emailSent = false;
     let emailStatusMessage = "No valid leader email provided";
@@ -878,10 +878,19 @@ function doPost(e) {
           leaderWhatsApp: leaderWhatsApp,
           paymentStatus: "Pending",
           submissionDate: submissionDate,
-          email: leaderEmail
+          email: leaderEmail,
+          pdfBase64: data.pdfBase64 || (data.formData && data.formData.pdfBase64) || null,
+          m1Name: m1Name,
+          m1Roll: m1Roll,
+          m1Dept: m1Dept,
+          m2Name: m2Name,
+          m2Roll: m2Roll,
+          m2Dept: m2Dept,
+          bkashNum: bkashNum,
+          transactionId: transactionId
         });
         emailStatusMessage = emailSent 
-          ? "Automatic confirmation email sent successfully to " + leaderEmail
+          ? "Automatic confirmation email with PDF voucher attached sent successfully to " + leaderEmail
           : "Could not send email (quota limit or permissions)";
       } catch (mailEx) {
         emailStatusMessage = "Email error: " + mailEx.toString();
@@ -1084,6 +1093,8 @@ function sendRegistrationConfirmationEmail(details) {
     "You may check and verify your registration information through our official website using:\n\n" +
     "Registration ID + Mobile No. + Roll No.\n\n" +
     "Please keep these details safe and readily available for future reference, verification, or any registration-related communication.\n\n" +
+    "Official Registration Voucher PDF is attached to this email. Please download and keep it safe for entry at BTEC Auditorium.\n\n" +
+    "Support & Inquiries: careerclubbtec@gmail.com | Helpline: +880 1798-246810\n\n" +
     "Thank you for your participation. We sincerely appreciate your interest in the Textile Presentation Competition 2026 and look forward to your participation.\n\n" +
     "Sincerely,\n" +
     "Organizing Committee\n" +
@@ -1101,6 +1112,14 @@ function sendRegistrationConfirmationEmail(details) {
         '<p style="font-size: 15px; margin: 0 0 16px 0; color: #0A192F;">Dear <strong>' + escapeHtml(leaderName) + '</strong>,</p>' +
         '<p style="font-size: 14px; margin: 0 0 24px 0; color: #334155; line-height: 1.6;">We are pleased to inform you that your registration for the <strong>Textile Presentation Competition 2026</strong> has been successfully received and recorded.</p>' +
         
+        '<div style="background-color: #ecfdf5; border: 1.5px solid #10b981; border-radius: 12px; padding: 14px 18px; margin-bottom: 24px;">' +
+          '<div style="display: flex; align-items: center; gap: 8px;">' +
+            '<span style="font-size: 18px;">📎</span>' +
+            '<span style="font-size: 13.5px; font-weight: 800; color: #065f46;">Official Registration Voucher Attached</span>' +
+          '</div>' +
+          '<p style="font-size: 12.5px; margin: 6px 0 0 0; color: #047857;">Your official Registration Voucher PDF (<strong>Registration_Voucher_' + escapeHtml(regId) + '.pdf</strong>) has been attached to this email. Please download, print or carry it on competition day for venue entry.</p>' +
+        '</div>' +
+
         '<div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 24px;">' +
           '<h2 style="font-size: 15px; font-weight: 800; margin: 0 0 14px 0; color: #0A192F; border-bottom: 1px solid #cbd5e1; padding-bottom: 8px;">Registration Details</h2>' +
           '<table style="width: 100%; border-collapse: collapse; font-size: 13.5px;">' +
@@ -1131,28 +1150,139 @@ function sendRegistrationConfirmationEmail(details) {
           '<p style="margin: 2px 0 0 0; font-weight: 800; color: #0A192F;">Organizing Committee</p>' +
           '<p style="margin: 2px 0 0 0; color: #16A34A; font-weight: 700;">Career Club BTEC</p>' +
           '<p style="margin: 2px 0 0 0; color: #64748b;">Barishal Textile Engineering College (BTEC)</p>' +
+          '<p style="margin: 6px 0 0 0; font-size: 12px; color: #94a3b8;">Email: <a href="mailto:careerclubbtec@gmail.com" style="color: #16A34A; text-decoration: none;">careerclubbtec@gmail.com</a> | Helpline: +880 1798-246810</p>' +
         '</div>' +
       '</div>' +
     '</div>';
 
+  // Prepare Registration PDF voucher attachment
+  let pdfAttachment = null;
+  const pdfFilename = "Registration_Voucher_" + regId + ".pdf";
+
+  // Method 1: If client or server supplied pre-generated base64 PDF
+  if (details.pdfBase64 && typeof details.pdfBase64 === "string" && details.pdfBase64.trim().length > 100) {
+    try {
+      let rawBase64 = String(details.pdfBase64).trim();
+      if (rawBase64.indexOf(",") !== -1) {
+        rawBase64 = rawBase64.split(",")[1];
+      }
+      rawBase64 = rawBase64.replace(/\s+/g, "");
+      const decodedBytes = Utilities.base64Decode(rawBase64);
+      if (decodedBytes && decodedBytes.length > 0) {
+        pdfAttachment = Utilities.newBlob(decodedBytes, "application/pdf", pdfFilename);
+        Logger.log("[PDF ATTACHMENT] Successfully decoded client base64 PDF (" + decodedBytes.length + " bytes)");
+      }
+    } catch (decodeErr) {
+      Logger.log("[PDF NOTICE] Could not decode client base64 PDF: " + decodeErr.toString());
+    }
+  }
+
+  // Method 2: Native Google Apps Script PDF Generation via HtmlService (100% reliable)
+  if (!pdfAttachment) {
+    try {
+      const voucherHtml =
+        '<!DOCTYPE html><html><head><meta charset="utf-8">' +
+        '<style>' +
+        'body { font-family: -apple-system, BlinkMacSystemFont, Arial, sans-serif; margin: 30px; color: #0A192F; }' +
+        '.card { border: 2px solid #0A192F; border-radius: 12px; overflow: hidden; }' +
+        '.hdr { background-color: #0A192F; color: #ffffff; padding: 22px 26px; border-bottom: 3px solid #16A34A; }' +
+        '.hdr h1 { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: 0.5px; }' +
+        '.hdr p { margin: 4px 0 0; color: #22C55E; font-size: 12px; font-weight: bold; }' +
+        '.bdy { padding: 24px 26px; }' +
+        '.info-box { background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 14px 18px; margin-bottom: 20px; }' +
+        'table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 13px; }' +
+        'th { background-color: #f1f5f9; color: #475569; font-weight: bold; padding: 8px 10px; text-align: left; border-bottom: 2px solid #cbd5e1; font-size: 11px; text-transform: uppercase; }' +
+        'td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-size: 12.5px; }' +
+        '.section-title { font-size: 14px; font-weight: bold; color: #0A192F; margin: 18px 0 8px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; }' +
+        '.note-box { background-color: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 12px 16px; color: #166534; font-size: 11.5px; line-height: 1.5; margin-top: 20px; }' +
+        '.footer { margin-top: 26px; text-align: center; font-size: 11px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 12px; }' +
+        '</style></head><body>' +
+        '<div class="card">' +
+          '<div class="hdr">' +
+            '<h1>CAREER CLUB BTEC</h1>' +
+            '<p>TEXTILE PRESENTATION COMPETITION 2026 • OFFICIAL ENTRY VOUCHER</p>' +
+          '</div>' +
+          '<div class="bdy">' +
+            '<div class="info-box">' +
+              '<table style="margin: 0; border: none;">' +
+                '<tr style="border: none;"><td style="border: none; padding: 3px 0;"><strong>Registration ID:</strong> <span style="color: #16A34A; font-family: monospace; font-size: 15px; font-weight: bold;">' + escapeHtml(regId) + '</span></td>' +
+                '<td style="border: none; padding: 3px 0; text-align: right;"><strong>Event Date:</strong> 04 Oct 2026 (9:00 AM BST)</td></tr>' +
+                '<tr style="border: none;"><td style="border: none; padding: 3px 0;"><strong>Team Name:</strong> <span style="font-weight: bold; color: #0A192F;">' + escapeHtml(teamName) + '</span></td>' +
+                '<td style="border: none; padding: 3px 0; text-align: right;"><strong>Venue:</strong> BTEC Auditorium</td></tr>' +
+              '</table>' +
+            '</div>' +
+            '<div class="section-title">Team Participants</div>' +
+            '<table>' +
+              '<tr><th>Role</th><th>Name</th><th>Roll</th><th>Department</th><th>Mobile / WhatsApp</th></tr>' +
+              '<tr><td><strong>Leader</strong></td><td>' + escapeHtml(leaderName) + '</td><td>' + escapeHtml(leaderRoll) + '</td><td>' + escapeHtml(leaderDept) + '</td><td>' + escapeHtml(leaderWhatsApp) + '</td></tr>' +
+              '<tr><td><strong>Member 1</strong></td><td>' + escapeHtml(details.m1Name || "—") + '</td><td>' + escapeHtml(details.m1Roll || "—") + '</td><td>' + escapeHtml(details.m1Dept || "—") + '</td><td>—</td></tr>' +
+              '<tr><td><strong>Member 2</strong></td><td>' + escapeHtml(details.m2Name || "—") + '</td><td>' + escapeHtml(details.m2Roll || "—") + '</td><td>' + escapeHtml(details.m2Dept || "—") + '</td><td>—</td></tr>' +
+            '</table>' +
+            '<div class="section-title">Payment Verification</div>' +
+            '<table>' +
+              '<tr><td><strong>Registration Fee:</strong></td><td style="color: #E2136E; font-weight: bold;">149 BDT (bKash)</td><td><strong>Sender bKash:</strong></td><td>' + escapeHtml(details.bkashNum || "—") + '</td></tr>' +
+              '<tr><td><strong>Transaction ID (TrxID):</strong></td><td style="font-family: monospace; font-weight: bold; color: #E2136E;">' + escapeHtml(details.transactionId || "—") + '</td><td><strong>Payment Status:</strong></td><td>' + escapeHtml(paymentStatus) + '</td></tr>' +
+              '<tr><td><strong>Submission Date:</strong></td><td colspan="3">' + escapeHtml(submissionDate) + '</td></tr>' +
+            '</table>' +
+            '<div class="note-box">' +
+              '<strong>IMPORTANT EVENT INSTRUCTIONS:</strong><br/>' +
+              '• Please print this voucher or carry this digital PDF along with your student ID on the event day.<br/>' +
+              '• Reporting time: 8:30 AM BST on 04 October 2026 at BTEC Auditorium.<br/>' +
+              '• Support Helpline: +880 1798-246810 | Email: careerclubbtec@gmail.com' +
+            '</div>' +
+            '<div class="footer">' +
+              '© 2026 Career Club BTEC • Barishal Textile Engineering College • Doc Ref: ' + escapeHtml(regId) +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '</body></html>';
+
+      const htmlOutput = HtmlService.createHtmlOutput(voucherHtml);
+      pdfAttachment = htmlOutput.getAs("application/pdf").setName(pdfFilename);
+      Logger.log("[PDF ATTACHMENT] Successfully created PDF via HtmlService for " + regId);
+    } catch (pdfErr) {
+      Logger.log("[PDF NOTICE] HtmlService generation notice: " + pdfErr.toString() + " - Trying DriveApp fallback...");
+      try {
+        const tempFile = DriveApp.createFile("temp_voucher_" + regId + ".html", voucherHtml, MimeType.HTML);
+        pdfAttachment = tempFile.getAs(MimeType.PDF).setName(pdfFilename);
+        tempFile.setTrashed(true);
+        Logger.log("[PDF ATTACHMENT] Successfully created PDF via DriveApp fallback for " + regId);
+      } catch (driveErr) {
+        Logger.log("[PDF ERROR] All PDF generation methods failed: " + driveErr.toString());
+      }
+    }
+  }
+
+  const mailOptions = {
+    to: details.email,
+    subject: subject,
+    body: plainBody,
+    htmlBody: htmlBody,
+    name: "Career Club BTEC"
+  };
+  if (pdfAttachment) {
+    mailOptions.attachments = [pdfAttachment];
+    Logger.log("[EMAIL] Attaching PDF voucher: " + pdfAttachment.getName());
+  } else {
+    Logger.log("[EMAIL WARNING] No PDF attachment could be created for: " + details.email);
+  }
+
   try {
-    MailApp.sendEmail({
-      to: details.email,
-      subject: subject,
-      body: plainBody,
-      htmlBody: htmlBody,
-      name: "Career Club BTEC"
-    });
-    Logger.log("[EMAIL SUCCESS] Confirmation email successfully sent via MailApp to: " + details.email);
+    MailApp.sendEmail(mailOptions);
+    Logger.log("[EMAIL SUCCESS] Confirmation email successfully sent via MailApp (with PDF voucher attachment) to: " + details.email);
     return true;
   } catch (mailErr) {
     Logger.log("[EMAIL NOTICE] MailApp notice: " + mailErr.toString() + " - Attempting GmailApp fallback...");
     try {
-      GmailApp.sendEmail(details.email, subject, plainBody, {
+      const gmailAdvanced = {
         htmlBody: htmlBody,
         name: "Career Club BTEC"
-      });
-      Logger.log("[EMAIL SUCCESS] Confirmation email successfully sent via GmailApp to: " + details.email);
+      };
+      if (pdfAttachment) {
+        gmailAdvanced.attachments = [pdfAttachment];
+      }
+      GmailApp.sendEmail(details.email, subject, plainBody, gmailAdvanced);
+      Logger.log("[EMAIL SUCCESS] Confirmation email successfully sent via GmailApp (with PDF voucher attachment) to: " + details.email);
       return true;
     } catch (gmailErr) {
       Logger.log("[EMAIL FAILURE] Failed to send confirmation email via GmailApp: " + gmailErr.toString());

@@ -15,8 +15,82 @@ export const TextileGridBackground: React.FC = () => (
 );
 
 export const WeaveDecorativeAccent: React.FC<{ className?: string }> = ({ className = '' }) => (
-  <svg viewBox="0 0 160 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={`h-5 w-auto ${className}`}>
-    <path d="M2 12C14 2 26 22 38 12C50 2 62 22 74 12C86 2 98 22 110 12C122 2 134 22 146 12C152 7 158 15 158 12" stroke="#22C55E" strokeWidth="3" strokeLinecap="round" />
-    <path d="M2 12C14 22 26 2 38 12C50 22 62 2 74 12C86 22 98 2 110 12C122 22 134 2 146 12" stroke="#84CC16" strokeWidth="2" strokeLinecap="round" opacity="0.75" />
-  </svg>
+  <div className={`relative inline-flex items-center justify-center overflow-visible ${className}`}>
+    <svg viewBox="0 0 240 28" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-7 w-60 sm:w-80 md:w-96 overflow-visible animate-weave-sway">
+      <defs>
+        <linearGradient id="weaveGradientGreen" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#16A34A" />
+          <stop offset="25%" stopColor="#22C55E" />
+          <stop offset="50%" stopColor="#0EA5E9" />
+          <stop offset="75%" stopColor="#22C55E" />
+          <stop offset="100%" stopColor="#15803D" />
+        </linearGradient>
+        <linearGradient id="weaveGradientGold" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#84CC16" />
+          <stop offset="35%" stopColor="#F59E0B" />
+          <stop offset="70%" stopColor="#10B981" />
+          <stop offset="100%" stopColor="#84CC16" />
+        </linearGradient>
+        <filter id="softWeaveGlow" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="2" result="blur" />
+          <feComposite in="SourceGraphic" in2="blur" operator="over" />
+        </filter>
+        <radialGradient id="shuttleGlow">
+          <stop offset="0%" stopColor="#FFFFFF" stopOpacity="1" />
+          <stop offset="40%" stopColor="#4ADE80" stopOpacity="0.8" />
+          <stop offset="100%" stopColor="#16A34A" stopOpacity="0" />
+        </radialGradient>
+      </defs>
+
+      {/* Static background warp guidelines */}
+      <path
+        d="M6 14C20 3 34 25 48 14C62 3 76 25 90 14C104 3 118 25 132 14C146 3 160 25 174 14C188 3 202 25 216 14C224 8 232 18 234 14"
+        stroke="#22C55E"
+        strokeWidth="3.5"
+        strokeLinecap="round"
+        opacity="0.18"
+      />
+      <path
+        d="M6 14C20 25 34 3 48 14C62 25 76 3 90 14C104 25 118 3 132 14C146 25 160 3 174 14C188 25 202 3 216 14C224 20 232 10 234 14"
+        stroke="#0EA5E9"
+        strokeWidth="3"
+        strokeLinecap="round"
+        opacity="0.16"
+      />
+
+      {/* Animated primary weaving yarn (forward traveling dash wave) */}
+      <path
+        d="M6 14C20 3 34 25 48 14C62 3 76 25 90 14C104 3 118 25 132 14C146 3 160 25 174 14C188 3 202 25 216 14C224 8 232 18 234 14"
+        stroke="url(#weaveGradientGreen)"
+        strokeWidth="3.2"
+        strokeLinecap="round"
+        filter="url(#softWeaveGlow)"
+        className="animate-weave-yarn-1"
+      />
+
+      {/* Animated counter-interlocking thread (reverse continuous loop) */}
+      <path
+        d="M6 14C20 25 34 3 48 14C62 25 76 3 90 14C104 25 118 3 132 14C146 25 160 3 174 14C188 25 202 3 216 14C224 20 232 10 234 14"
+        stroke="url(#weaveGradientGold)"
+        strokeWidth="2.8"
+        strokeLinecap="round"
+        className="animate-weave-yarn-2 opacity-95"
+      />
+
+      {/* Weft crossing nodes / fabric intersections */}
+      <circle cx="48" cy="14" r="2" fill="#22C55E" opacity="0.8" />
+      <circle cx="90" cy="14" r="2" fill="#0EA5E9" opacity="0.8" />
+      <circle cx="132" cy="14" r="2" fill="#22C55E" opacity="0.8" />
+      <circle cx="174" cy="14" r="2" fill="#F59E0B" opacity="0.8" />
+      <circle cx="216" cy="14" r="2" fill="#22C55E" opacity="0.8" />
+
+      {/* Continuous Loom Shuttle / Fiber Glint traveling across the weaving threads */}
+      <g className="animate-shuttle-travel">
+        <circle cx="0" cy="14" r="7" fill="url(#shuttleGlow)" />
+        <circle cx="0" cy="14" r="3.2" fill="#FFFFFF" />
+        <circle cx="-5" cy="14" r="1.5" fill="#4ADE80" opacity="0.7" />
+        <circle cx="-9" cy="14" r="1" fill="#22C55E" opacity="0.4" />
+      </g>
+    </svg>
+  </div>
 );

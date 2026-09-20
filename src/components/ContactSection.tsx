@@ -22,8 +22,8 @@ export const ContactSection: React.FC = () => {
     },
     {
       label: 'Official Email',
-      value: 'careerclub.btec@gmail.com',
-      href: 'mailto:careerclub.btec@gmail.com',
+      value: 'careerclubbtec@gmail.com',
+      href: 'mailto:careerclubbtec@gmail.com',
       description: 'Slide submissions and formal inquiries',
       icon: Mail,
       color: 'bg-emerald-50 text-emerald-800'

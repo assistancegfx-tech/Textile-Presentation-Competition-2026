@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle2, Copy, Check, Download, Calendar, MapPin, Building2, ShieldAlert, Award, QrCode, X, Trophy, Mail, ChevronDown, ChevronUp } from 'lucide-react';
+import { CheckCircle2, Copy, Check, Download, Calendar, MapPin, Building2, ShieldAlert, Award, QrCode, X, Trophy } from 'lucide-react';
 import { fireCelebrationConfetti } from '../utils/confetti';
 import { SubmissionResponse, RegistrationFormData } from '../types';
 import { BtecLogo, CareerClubLogo } from './Logos';
@@ -19,10 +19,8 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
   onRegisterAnother
 }) => {
   const [copied, setCopied] = useState(false);
-  const [showEmailPreview, setShowEmailPreview] = useState(false);
   const regId = result.registrationId || 'TEX2026-001';
   const displayTeamName = formData.teamName || result.teamName || '';
-  const recipientEmail = formData.leader.email || result.emailRecipient || '';
   const submissionDateStr = result.submissionDate || new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' });
   const paymentStatusStr = result.paymentStatus || 'Pending';
 
@@ -228,95 +226,6 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
           );
         })()}
 
-        {/* Automatic Registration Confirmation Email Notice */}
-        {recipientEmail && (
-          <div className="p-4 rounded-2xl bg-blue-50/70 border border-blue-200/90 text-xs text-blue-950 mb-6 transition">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                  <Mail className="w-4 h-4" />
-                </div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-extrabold text-blue-950 text-sm">
-                      Automatic Confirmation Email Dispatched
-                    </span>
-                    <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 text-[10px] font-bold">
-                      Sent
-                    </span>
-                  </div>
-                  <p className="text-blue-800 text-xs leading-relaxed">
-                    A confirmation email has been automatically sent to Group Leader: <strong className="text-blue-950 underline underline-offset-2">{recipientEmail}</strong>
-                  </p>
-                  <p className="text-[11px] text-blue-700 font-medium font-mono">
-                    Subject: Registration Confirmation – Textile Presentation Competition 2026 | {regId}
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setShowEmailPreview(!showEmailPreview)}
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-blue-800 border border-blue-200 hover:bg-blue-50 transition shadow-xs shrink-0"
-              >
-                <span>{showEmailPreview ? 'Hide Email' : 'View Email Copy'}</span>
-                {showEmailPreview ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-              </button>
-            </div>
-
-            {/* Dynamic Email Body Preview */}
-            {showEmailPreview && (
-              <div className="mt-4 pt-4 border-t border-blue-200/80 space-y-3">
-                <div className="p-4 rounded-xl bg-white border border-blue-100 text-slate-800 font-sans text-xs leading-relaxed shadow-xs space-y-3">
-                  <div className="border-b border-slate-200 pb-2.5 text-[11px] text-slate-600 space-y-0.5">
-                    <div><span className="font-bold text-slate-700">To:</span> {recipientEmail}</div>
-                    <div><span className="font-bold text-slate-700">Subject:</span> Registration Confirmation – Textile Presentation Competition 2026 | {regId}</div>
-                  </div>
-
-                  <p className="font-semibold text-slate-900">Dear {formData.leader.name},</p>
-                  <p className="text-slate-700">
-                    We are pleased to inform you that your registration for the Textile Presentation Competition 2026 has been successfully received and recorded.
-                  </p>
-                  
-                  <p className="font-extrabold text-slate-900">Registration Details</p>
-                  <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs font-mono space-y-1">
-                    <div>Registration ID: <span className="font-bold text-[#16A34A]">{regId}</span></div>
-                    <div>Team Name: <span className="font-bold text-slate-900">{displayTeamName || 'N/A'}</span></div>
-                    <div>Group Leader: <span className="font-bold text-slate-900">{formData.leader.name}</span></div>
-                    <div>Roll No.: <span className="font-bold text-slate-900">{formData.leader.roll}</span></div>
-                    <div>Department: <span className="font-bold text-slate-900">{formData.leader.department}</span></div>
-                    <div>Mobile No.: <span className="font-bold text-slate-900">{formData.leader.whatsapp}</span></div>
-                    <div>Payment Status: <span className="font-bold text-amber-700">{paymentStatusStr}</span></div>
-                    <div>Submission Date: <span className="font-bold text-slate-900">{submissionDateStr}</span></div>
-                  </div>
-
-                  <p className="font-extrabold text-slate-900">Registration Verification</p>
-                  <p className="text-slate-700">
-                    You may check and verify your registration information through our official website using:
-                  </p>
-                  <div className="bg-emerald-50 text-emerald-900 border border-emerald-200 p-2.5 rounded-lg text-center font-bold text-xs">
-                    Registration ID + Mobile No. + Roll No.
-                  </div>
-
-                  <p className="text-slate-600">
-                    Please keep these details safe and readily available for future reference, verification, or any registration-related communication.
-                  </p>
-                  <p className="text-slate-600">
-                    Thank you for your participation. We sincerely appreciate your interest in the Textile Presentation Competition 2026 and look forward to your participation.
-                  </p>
-
-                  <div className="border-t border-slate-100 pt-2 text-slate-700 font-medium">
-                    <p>Sincerely,</p>
-                    <p className="font-extrabold text-[#0A192F]">Organizing Committee</p>
-                    <p className="font-bold text-[#16A34A]">Career Club BTEC</p>
-                    <p className="text-slate-500">Barishal Textile Engineering College (BTEC)</p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
         {/* Team Members Summary */}
         <div className="border-t border-slate-200 pt-5">
           <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-700 mb-3">
@@ -357,7 +266,7 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
         <button
           type="button"
           onClick={handleDownloadPdf}
-          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl text-sm font-extrabold text-white bg-[#16A34A] hover:bg-[#15803D] active:scale-98 shadow-md shadow-[#16A34A]/20 transition"
+          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl text-sm font-extrabold text-white bg-[#16A34A] hover:bg-[#0A192F] active:scale-98 shadow-md shadow-[#16A34A]/20 transition-all duration-200 cursor-pointer"
         >
           <Download className="w-4 h-4" />
           <span>Download Registration Info PDF</span>
@@ -366,7 +275,7 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
         <button
           type="button"
           onClick={onClose}
-          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl text-sm font-bold text-slate-700 bg-white hover:bg-slate-100 border border-slate-300 shadow-xs active:scale-98 transition"
+          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl text-sm font-bold text-slate-700 bg-white hover:bg-[#16A34A] hover:text-white hover:border-[#16A34A] border border-slate-300 shadow-xs active:scale-98 transition-all duration-200 cursor-pointer"
         >
           <X className="w-4 h-4" />
           <span>Close</span>
