@@ -86,11 +86,36 @@ export default function App() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
+    const handleRegistrationUpdated = (e: any) => {
+      const updated = e.detail;
+      if (updated && updated.registrationId) {
+        setLatestRegistration(prev => {
+          if (!prev || prev.result?.registrationId?.toUpperCase() === updated.registrationId.toUpperCase()) {
+            return {
+              result: {
+                ...(prev?.result || {}),
+                success: true,
+                registrationId: updated.registrationId,
+                submissionDate: updated.submissionDate,
+                paymentStatus: updated.paymentStatus,
+                editCount: updated.editCount,
+                remainingEdits: updated.remainingEdits
+              },
+              formData: updated.formData
+            };
+          }
+          return prev;
+        });
+      }
+    };
+
     window.addEventListener('hashchange', handleUrlChange);
     window.addEventListener('popstate', handleUrlChange);
+    window.addEventListener('tpc2026_registration_updated', handleRegistrationUpdated);
     return () => {
       window.removeEventListener('hashchange', handleUrlChange);
       window.removeEventListener('popstate', handleUrlChange);
+      window.removeEventListener('tpc2026_registration_updated', handleRegistrationUpdated);
     };
   }, []);
 
@@ -212,6 +237,25 @@ export default function App() {
         isOpen={isViewEditModalOpen}
         onClose={() => setIsViewEditModalOpen(false)}
         initialRegId={viewEditRegId}
+        onUpdated={(updated) => {
+          setLatestRegistration(prev => {
+            if (!prev || prev.result?.registrationId?.toUpperCase() === updated.registrationId.toUpperCase()) {
+              return {
+                result: {
+                  ...(prev?.result || {}),
+                  success: true,
+                  registrationId: updated.registrationId,
+                  submissionDate: updated.submissionDate,
+                  paymentStatus: updated.paymentStatus,
+                  editCount: updated.editCount,
+                  remainingEdits: updated.remainingEdits
+                },
+                formData: updated.formData
+              };
+            }
+            return prev;
+          });
+        }}
       />
 
       {/* Google Sheet Live Sync Setup Modal (25 Columns) */}

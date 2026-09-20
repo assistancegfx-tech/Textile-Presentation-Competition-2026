@@ -33,6 +33,7 @@ interface ViewEditRegistrationModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialRegId?: string;
+  onUpdated?: (record: RegisteredTeamRecord) => void;
 }
 
 export const formatBdPhone = (phone: any): string => {
@@ -58,7 +59,8 @@ export const normalizePhoneForCheck = (phone: any): string => {
 export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps> = ({
   isOpen,
   onClose,
-  initialRegId = ''
+  initialRegId = '',
+  onUpdated
 }) => {
   const [searchId, setSearchId] = useState(initialRegId);
   const [searchRoll, setSearchRoll] = useState('');
@@ -301,8 +303,16 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
         const localSaved = localStorage.getItem('tpc2026_saved_registrations');
         let list: RegisteredTeamRecord[] = localSaved ? JSON.parse(localSaved) : [];
         if (!Array.isArray(list)) list = [];
-        const existingIdx = list.findIndex(r => r.registrationId === candidateRecord!.registrationId);
+        const existingIdx = list.findIndex(r => r.registrationId?.toUpperCase() === candidateRecord!.registrationId.toUpperCase());
         if (existingIdx >= 0) {
+          const localRecord = list[existingIdx];
+          // If local record has higher editCount or was edited locally, preserve the edited formData!
+          if ((localRecord.editCount ?? 0) > (candidateRecord.editCount ?? 0)) {
+            candidateRecord = {
+              ...localRecord,
+              paymentStatus: candidateRecord.paymentStatus || localRecord.paymentStatus
+            };
+          }
           list[existingIdx] = candidateRecord;
         } else {
           list.push(candidateRecord);
@@ -420,9 +430,16 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
         setSaveError(`${labels[r]} roll number is required.`);
         return;
       }
-      if (!p.whatsapp.trim() || !validateBangladeshPhone(p.whatsapp)) {
-        setSaveError(`${labels[r]} requires a valid 11-digit Bangladesh WhatsApp number (e.g. 017XXXXXXXX).`);
-        return;
+      if (r === 'leader') {
+        if (!p.whatsapp.trim() || !validateBangladeshPhone(p.whatsapp)) {
+          setSaveError(`${labels[r]} requires a valid 11-digit Bangladesh mobile number (e.g. 017XXXXXXXX).`);
+          return;
+        }
+      } else {
+        if (p.whatsapp.trim() && !validateBangladeshPhone(p.whatsapp)) {
+          setSaveError(`${labels[r]} mobile number must be a valid 11-digit Bangladesh number (e.g. 017XXXXXXXX).`);
+          return;
+        }
       }
     }
 
@@ -534,6 +551,35 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
         localStorage.setItem('tpc2026_saved_registrations', JSON.stringify(list));
       } catch {
         // ignore
+      }
+
+      // Also update latest submission in localStorage
+      try {
+        const latestStr = localStorage.getItem('tpc2026_latest_submission');
+        if (latestStr) {
+          const latestObj = JSON.parse(latestStr);
+          if (latestObj?.result?.registrationId?.toUpperCase() === record.registrationId.toUpperCase()) {
+            latestObj.formData = editFormData;
+            if (latestObj.result) {
+              latestObj.result.editCount = updatedRecord.editCount;
+              latestObj.result.remainingEdits = updatedRecord.remainingEdits;
+            }
+            localStorage.setItem('tpc2026_latest_submission', JSON.stringify(latestObj));
+          }
+        }
+      } catch {
+        // ignore
+      }
+
+      // Dispatch global window event for cross-component reactive updates
+      try {
+        window.dispatchEvent(new CustomEvent('tpc2026_registration_updated', { detail: updatedRecord }));
+      } catch {
+        // ignore
+      }
+
+      if (onUpdated) {
+        onUpdated(updatedRecord);
       }
     } catch (err: any) {
       setSaveError(err.message || 'Error while updating registration. Please retry.');
@@ -894,7 +940,7 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
                         <p className="text-xs font-semibold text-slate-700">{record.formData.leader.department || '—'}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-slate-500 font-medium">WhatsApp</p>
+                        <p className="text-xs text-slate-500 font-medium">Mobile Number</p>
                         <p className="text-xs font-bold text-slate-800">{record.formData.leader.whatsapp || '—'}</p>
                       </div>
                       {record.formData.leader.email && (
@@ -939,7 +985,7 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
                         <p className="text-xs font-semibold text-slate-700">{record.formData.member1.department || '—'}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-slate-500 font-medium">WhatsApp</p>
+                        <p className="text-xs text-slate-500 font-medium">Mobile Number</p>
                         <p className="text-xs font-bold text-slate-800">{record.formData.member1.whatsapp || '—'}</p>
                       </div>
                       <div>
@@ -978,7 +1024,7 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
                         <p className="text-xs font-semibold text-slate-700">{record.formData.member2.department || '—'}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-slate-500 font-medium">WhatsApp</p>
+                        <p className="text-xs text-slate-500 font-medium">Mobile Number</p>
                         <p className="text-xs font-bold text-slate-800">{record.formData.member2.whatsapp || '—'}</p>
                       </div>
                       <div>
@@ -1148,7 +1194,7 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
 
                             <div>
                               <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                                WhatsApp Number *
+                                Mobile Number *
                               </label>
                               <input
                                 type="text"

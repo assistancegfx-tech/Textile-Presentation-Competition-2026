@@ -697,6 +697,183 @@ function doPost(e) {
     }
 
     // =========================================================================
+    // ACTION: UPDATE REGISTRATION DETAILS (TEAM NAME, PARTICIPANTS, PHOTOS)
+    // =========================================================================
+    if (data.action === "updateRegistration" || data.action === "editRegistration" || data.action === "update") {
+      const targetId = String(data.registrationId || data.regId || "").trim().toUpperCase();
+      const updatedForm = data.formData || data;
+
+      if (!targetId) {
+        return createResponse({
+          success: false,
+          error: "Missing registration ID for update."
+        });
+      }
+
+      const rows = sheet.getDataRange().getValues();
+      if (!rows || rows.length < 2) {
+        return createResponse({
+          success: false,
+          error: "Sheet is empty or missing headers."
+        });
+      }
+
+      let foundRowIndex = -1;
+      for (let i = 1; i < rows.length; i++) {
+        if (String(rows[i][0] || "").trim().toUpperCase() === targetId) {
+          foundRowIndex = i + 1; // 1-based row index in Sheet
+          break;
+        }
+      }
+
+      if (foundRowIndex <= 0) {
+        return createResponse({
+          success: false,
+          error: "Registration ID " + targetId + " not found in sheet."
+        });
+      }
+
+      const headers = rows[0].map(h => String(h || "").trim().toLowerCase());
+      const findCol = (name) => headers.findIndex(h => h.includes(name.toLowerCase()));
+      const hasTeamCol = headers.some(h => h.includes("team"));
+
+      const leader = updatedForm.leader || {};
+      const m1 = updatedForm.member1 || {};
+      const m2 = updatedForm.member2 || {};
+
+      // Handle photos if new base64 image data is provided
+      let folder = null;
+      try {
+        folder = getOrCreateDriveFolder();
+      } catch (fErr) {
+        Logger.log("[PHOTO WARN] Drive folder issue: " + fErr.message);
+      }
+
+      let leaderPhotoUrl = "";
+      let m1PhotoUrl = "";
+      let m2PhotoUrl = "";
+
+      if (folder) {
+        if (leader.photoBase64 || (leader.photoPreview && String(leader.photoPreview).startsWith("data:"))) {
+          leaderPhotoUrl = saveBase64ImageToDrive(folder, leader.photoBase64 || leader.photoPreview, targetId, "leader", leader.name || "Leader");
+        }
+        if (m1.photoBase64 || (m1.photoPreview && String(m1.photoPreview).startsWith("data:"))) {
+          m1PhotoUrl = saveBase64ImageToDrive(folder, m1.photoBase64 || m1.photoPreview, targetId, "member1", m1.name || "Member1");
+        }
+        if (m2.photoBase64 || (m2.photoPreview && String(m2.photoPreview).startsWith("data:"))) {
+          m2PhotoUrl = saveBase64ImageToDrive(folder, m2.photoBase64 || m2.photoPreview, targetId, "member2", m2.name || "Member2");
+        }
+      }
+
+      // 1. Team Name
+      if (updatedForm.teamName) {
+        const colTeam = findCol("team");
+        const cIndex = colTeam >= 0 ? colTeam + 1 : (hasTeamCol ? 4 : 3);
+        sheet.getRange(foundRowIndex, cIndex).setValue(String(updatedForm.teamName).trim());
+      }
+
+      // 2. Leader
+      if (leader.name) {
+        const col = findCol("leader name");
+        sheet.getRange(foundRowIndex, col >= 0 ? col + 1 : (hasTeamCol ? 5 : 4)).setValue(String(leader.name).trim());
+      }
+      if (leader.roll) {
+        const col = findCol("leader roll");
+        const cell = sheet.getRange(foundRowIndex, col >= 0 ? col + 1 : (hasTeamCol ? 6 : 5));
+        cell.setNumberFormat("@");
+        cell.setValue(String(leader.roll).trim());
+      }
+      if (leader.department) {
+        const col = findCol("leader dep");
+        sheet.getRange(foundRowIndex, col >= 0 ? col + 1 : (hasTeamCol ? 7 : 6)).setValue(String(leader.department).trim());
+      }
+      if (leader.whatsapp || leader.mobile) {
+        const col = findCol("leader what") >= 0 ? findCol("leader what") : (findCol("leader mob") >= 0 ? findCol("leader mob") : findCol("leader pho"));
+        const cell = sheet.getRange(foundRowIndex, col >= 0 ? col + 1 : (hasTeamCol ? 8 : 7));
+        cell.setNumberFormat("@");
+        cell.setValue(String(leader.whatsapp || leader.mobile).trim());
+      }
+      if (leader.facebook) {
+        const col = findCol("leader face") >= 0 ? findCol("leader face") : findCol("leader fb");
+        sheet.getRange(foundRowIndex, col >= 0 ? col + 1 : (hasTeamCol ? 9 : 8)).setValue(String(leader.facebook).trim());
+      }
+      if (leader.email) {
+        const col = findCol("leader email") >= 0 ? findCol("leader email") : findCol("email");
+        sheet.getRange(foundRowIndex, col >= 0 ? col + 1 : (hasTeamCol ? 10 : 9)).setValue(String(leader.email).trim());
+      }
+      if (leaderPhotoUrl) {
+        const col = findCol("leader photo");
+        sheet.getRange(foundRowIndex, col >= 0 ? col + 1 : (hasTeamCol ? 11 : 10)).setValue(leaderPhotoUrl);
+      }
+
+      // 3. Member 1
+      if (m1.name) {
+        const col = findCol("member 1 name");
+        sheet.getRange(foundRowIndex, col >= 0 ? col + 1 : (hasTeamCol ? 12 : 11)).setValue(String(m1.name).trim());
+      }
+      if (m1.roll) {
+        const col = findCol("member 1 roll");
+        const cell = sheet.getRange(foundRowIndex, col >= 0 ? col + 1 : (hasTeamCol ? 13 : 12));
+        cell.setNumberFormat("@");
+        cell.setValue(String(m1.roll).trim());
+      }
+      if (m1.department) {
+        const col = findCol("member 1 dep");
+        sheet.getRange(foundRowIndex, col >= 0 ? col + 1 : (hasTeamCol ? 14 : 13)).setValue(String(m1.department).trim());
+      }
+      if (m1.whatsapp || m1.mobile) {
+        const col = findCol("member 1 what") >= 0 ? findCol("member 1 what") : (findCol("member 1 mob") >= 0 ? findCol("member 1 mob") : findCol("member 1 pho"));
+        const cell = sheet.getRange(foundRowIndex, col >= 0 ? col + 1 : (hasTeamCol ? 15 : 14));
+        cell.setNumberFormat("@");
+        cell.setValue(String(m1.whatsapp || m1.mobile).trim());
+      }
+      if (m1.facebook) {
+        const col = findCol("member 1 face") >= 0 ? findCol("member 1 face") : findCol("member 1 fb");
+        sheet.getRange(foundRowIndex, col >= 0 ? col + 1 : (hasTeamCol ? 16 : 15)).setValue(String(m1.facebook).trim());
+      }
+      if (m1PhotoUrl) {
+        const col = findCol("member 1 photo");
+        sheet.getRange(foundRowIndex, col >= 0 ? col + 1 : (hasTeamCol ? 17 : 16)).setValue(m1PhotoUrl);
+      }
+
+      // 4. Member 2
+      if (m2.name) {
+        const col = findCol("member 2 name");
+        sheet.getRange(foundRowIndex, col >= 0 ? col + 1 : (hasTeamCol ? 18 : 17)).setValue(String(m2.name).trim());
+      }
+      if (m2.roll) {
+        const col = findCol("member 2 roll");
+        const cell = sheet.getRange(foundRowIndex, col >= 0 ? col + 1 : (hasTeamCol ? 19 : 18));
+        cell.setNumberFormat("@");
+        cell.setValue(String(m2.roll).trim());
+      }
+      if (m2.department) {
+        const col = findCol("member 2 dep");
+        sheet.getRange(foundRowIndex, col >= 0 ? col + 1 : (hasTeamCol ? 20 : 19)).setValue(String(m2.department).trim());
+      }
+      if (m2.whatsapp || m2.mobile) {
+        const col = findCol("member 2 what") >= 0 ? findCol("member 2 what") : (findCol("member 2 mob") >= 0 ? findCol("member 2 mob") : findCol("member 2 pho"));
+        const cell = sheet.getRange(foundRowIndex, col >= 0 ? col + 1 : (hasTeamCol ? 21 : 20));
+        cell.setNumberFormat("@");
+        cell.setValue(String(m2.whatsapp || m2.mobile).trim());
+      }
+      if (m2.facebook) {
+        const col = findCol("member 2 face") >= 0 ? findCol("member 2 face") : findCol("member 2 fb");
+        sheet.getRange(foundRowIndex, col >= 0 ? col + 1 : (hasTeamCol ? 22 : 21)).setValue(String(m2.facebook).trim());
+      }
+      if (m2PhotoUrl) {
+        const col = findCol("member 2 photo");
+        sheet.getRange(foundRowIndex, col >= 0 ? col + 1 : (hasTeamCol ? 23 : 22)).setValue(m2PhotoUrl);
+      }
+
+      return createResponse({
+        success: true,
+        message: "Registration updated successfully in Google Sheet for " + targetId,
+        registrationId: targetId
+      });
+    }
+
+    // =========================================================================
     // ACTION 2: NEW REGISTRATION SUBMISSION (25 COLUMNS WITH TEAM NAME)
     // =========================================================================
     const existingValues = sheet.getDataRange().getValues();
@@ -883,9 +1060,11 @@ function doPost(e) {
           m1Name: m1Name,
           m1Roll: m1Roll,
           m1Dept: m1Dept,
+          m1Mobile: m1WhatsApp,
           m2Name: m2Name,
           m2Roll: m2Roll,
           m2Dept: m2Dept,
+          m2Mobile: m2WhatsApp,
           bkashNum: bkashNum,
           transactionId: transactionId
         });
@@ -1204,10 +1383,10 @@ function sendRegistrationConfirmationEmail(details) {
             '</div>' +
             '<div class="section-title">Team Participants</div>' +
             '<table>' +
-              '<tr><th>Role</th><th>Name</th><th>Roll</th><th>Department</th><th>Mobile / WhatsApp</th></tr>' +
+              '<tr><th>Role</th><th>Name</th><th>Roll</th><th>Department</th><th>Mobile No.</th></tr>' +
               '<tr><td><strong>Leader</strong></td><td>' + escapeHtml(leaderName) + '</td><td>' + escapeHtml(leaderRoll) + '</td><td>' + escapeHtml(leaderDept) + '</td><td>' + escapeHtml(leaderWhatsApp) + '</td></tr>' +
-              '<tr><td><strong>Member 1</strong></td><td>' + escapeHtml(details.m1Name || "—") + '</td><td>' + escapeHtml(details.m1Roll || "—") + '</td><td>' + escapeHtml(details.m1Dept || "—") + '</td><td>—</td></tr>' +
-              '<tr><td><strong>Member 2</strong></td><td>' + escapeHtml(details.m2Name || "—") + '</td><td>' + escapeHtml(details.m2Roll || "—") + '</td><td>' + escapeHtml(details.m2Dept || "—") + '</td><td>—</td></tr>' +
+              '<tr><td><strong>Member 1</strong></td><td>' + escapeHtml(details.m1Name || "—") + '</td><td>' + escapeHtml(details.m1Roll || "—") + '</td><td>' + escapeHtml(details.m1Dept || "—") + '</td><td>' + escapeHtml(details.m1Mobile || "—") + '</td></tr>' +
+              '<tr><td><strong>Member 2</strong></td><td>' + escapeHtml(details.m2Name || "—") + '</td><td>' + escapeHtml(details.m2Roll || "—") + '</td><td>' + escapeHtml(details.m2Dept || "—") + '</td><td>' + escapeHtml(details.m2Mobile || "—") + '</td></tr>' +
             '</table>' +
             '<div class="section-title">Payment Verification</div>' +
             '<table>' +

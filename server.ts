@@ -254,9 +254,10 @@ async function startServer() {
       });
 
       // 2. Validation
-      if (!leader?.name || !leader?.roll || !leader?.whatsapp ||
-          !member1?.name || !member1?.roll || !member1?.whatsapp ||
-          !member2?.name || !member2?.roll || !member2?.whatsapp ||
+      const leaderPhone = String(leader?.whatsapp || leader?.mobile || '').trim();
+      if (!leader?.name || !leader?.roll || !leaderPhone ||
+          !member1?.name || !member1?.roll ||
+          !member2?.name || !member2?.roll ||
           !payment?.transactionId || !payment?.bkashNumber) {
         console.warn('[REGISTRATION] Validation result: FAILED (Missing required participant or payment fields)');
         return res.status(400).json({
@@ -509,16 +510,21 @@ async function startServer() {
             };
 
             if (reg) {
-              // Overwrite with live Google Sheets data
-              reg.registrationId = gData.registrationId || reg.registrationId;
-              reg.submissionDate = gData.submissionDate || reg.submissionDate;
+              // Update live payment status from Google Sheets
               reg.paymentStatus = liveStatus;
-              reg.teamName = String(gData.teamName || reg.teamName || '').trim();
-              reg.leaderRoll = String(gData.leaderRoll || reg.leaderRoll).trim();
-              reg.m1Roll = String(gData.member1Roll || reg.m1Roll).trim();
-              reg.m2Roll = String(gData.member2Roll || reg.m2Roll).trim();
-              reg.transactionId = String(gData.transactionId || reg.transactionId).trim().toUpperCase();
-              reg.payload = sheetPayload;
+              
+              // Only overwrite registration details from Google Sheets IF the record hasn't been edited locally (editCount === 0).
+              // If the user made edits (reg.editCount > 0), preserve reg.payload so previous edits are not lost!
+              if ((reg.editCount || 0) === 0) {
+                reg.registrationId = gData.registrationId || reg.registrationId;
+                reg.submissionDate = gData.submissionDate || reg.submissionDate;
+                reg.teamName = String(gData.teamName || reg.teamName || '').trim();
+                reg.leaderRoll = String(gData.leaderRoll || reg.leaderRoll).trim();
+                reg.m1Roll = String(gData.member1Roll || reg.m1Roll).trim();
+                reg.m2Roll = String(gData.member2Roll || reg.m2Roll).trim();
+                reg.transactionId = String(gData.transactionId || reg.transactionId).trim().toUpperCase();
+                reg.payload = sheetPayload;
+              }
             } else {
               // Create registration record directly from Google Sheets
               reg = {
@@ -743,10 +749,11 @@ async function startServer() {
       const leader = updatedData.leader;
       const member1 = updatedData.member1;
       const member2 = updatedData.member2;
-      if (!leader?.name || !leader?.roll || !leader?.whatsapp ||
-          !member1?.name || !member1?.roll || !member1?.whatsapp ||
-          !member2?.name || !member2?.roll || !member2?.whatsapp) {
-        return res.status(400).json({ success: false, error: 'Please provide all required participant fields.' });
+      const leaderPhone = String(leader?.whatsapp || leader?.mobile || '').trim();
+      if (!leader?.name || !leader?.roll || !leaderPhone ||
+          !member1?.name || !member1?.roll ||
+          !member2?.name || !member2?.roll) {
+        return res.status(400).json({ success: false, error: 'Please provide all required participant fields (Names, Rolls, and Leader Mobile Number).' });
       }
 
       const newLeaderRoll = String(leader.roll).trim();

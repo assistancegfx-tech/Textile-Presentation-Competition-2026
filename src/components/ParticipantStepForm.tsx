@@ -214,13 +214,13 @@ export const ParticipantStepForm: React.FC<ParticipantStepFormProps> = ({
             </div>
           </div>
 
-          {/* WhatsApp & Facebook Row */}
+          {/* Mobile & Facebook Row */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* WhatsApp */}
+            {/* Mobile Number */}
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1.5">
                 <Phone className="w-3.5 h-3.5 text-[#16A34A]" />
-                <span>WhatsApp Number</span>
+                <span>Mobile Number</span>
                 <span className="text-red-500">*</span>
               </label>
               <input

@@ -86,9 +86,9 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
     }
     if (!p.department) errs.department = 'Department must be selected.';
     if (!p.whatsapp.trim()) {
-      errs.whatsapp = 'WhatsApp number is required.';
+      errs.whatsapp = 'Mobile number is required.';
     } else if (!validateBangladeshPhone(p.whatsapp)) {
-      errs.whatsapp = 'Please enter a valid Bangladesh phone number (e.g. 017XXXXXXXX).';
+      errs.whatsapp = 'Please enter a valid Bangladesh mobile number (e.g. 017XXXXXXXX).';
     }
     if (!p.facebook.trim()) errs.facebook = 'Facebook profile link or ID is required.';
     

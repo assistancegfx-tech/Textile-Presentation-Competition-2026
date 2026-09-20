@@ -189,11 +189,11 @@ export function buildRegistrationPdfDoc(data: RegistrationPdfData): jsPDF {
     doc.setFontSize(8.5);
     doc.text(participant.department || '—', col3X, boxY + 18);
 
-    // Line 2: WhatsApp, Email (if present) / Facebook
+    // Line 2: Mobile, Email (if present) / Facebook
     doc.setTextColor(100, 116, 139);
     doc.setFontSize(7.5);
     doc.setFont('helvetica', 'normal');
-    doc.text('WhatsApp Number:', col1X, boxY + 25);
+    doc.text('Mobile Number:', col1X, boxY + 25);
     doc.setTextColor(15, 23, 42);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8.5);
