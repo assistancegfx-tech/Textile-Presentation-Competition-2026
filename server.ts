@@ -268,15 +268,17 @@ async function startServer() {
 
       // 2. Validation
       const leaderPhone = String(leader?.whatsapp || leader?.mobile || '').trim();
+      const leaderFb = String(leader?.facebook || '').trim();
       if (!leader?.name || !leader?.roll || !leaderPhone ||
+          !leaderFb || leaderFb.toLowerCase() === 'blank' ||
           !member1?.name || !member1?.roll ||
           !member2?.name || !member2?.roll ||
           !payment?.transactionId || !payment?.bkashNumber) {
-        console.warn('[REGISTRATION] Validation result: FAILED (Missing required participant or payment fields)');
+        console.warn('[REGISTRATION] Validation result: FAILED (Missing required participant, leader facebook or payment fields)');
         return res.status(400).json({
           success: false,
           error: 'Unable to submit registration',
-          details: 'Missing required participant or payment fields.'
+          details: 'Missing required participant fields. Team Leader Facebook profile link is mandatory.'
         });
       }
 
@@ -306,6 +308,17 @@ async function startServer() {
       }
 
       const teamName = String(data?.teamName || '').trim();
+
+      // Ensure Facebook fields default to "Blank" if empty
+      if (data?.leader) {
+        data.leader.facebook = String(data.leader.facebook || '').trim() || 'Blank';
+      }
+      if (data?.member1) {
+        data.member1.facebook = String(data.member1.facebook || '').trim() || 'Blank';
+      }
+      if (data?.member2) {
+        data.member2.facebook = String(data.member2.facebook || '').trim() || 'Blank';
+      }
 
       console.log(`[REGISTRATION] Validation result: PASSED (Team: "${teamName}", Leader: ${leaderRoll}, Member 1: ${m1Roll}, Member 2: ${m2Roll}, Trx: ${transactionId})`);
 
@@ -502,7 +515,7 @@ async function startServer() {
                 roll: String(gData.leaderRoll || ''),
                 department: String(gData.leaderDepartment || 'Textile Engineering'),
                 whatsapp: formatBdPhone(gData.leaderWhatsApp),
-                facebook: String(gData.leaderFacebook || ''),
+                facebook: String(gData.leaderFacebook || '').trim() || 'Blank',
                 email: String(gData.leaderEmail || gData.email || ''),
                 photoUrl: String(gData.leaderPhotoUrl || ''),
                 photoPreview: String(gData.leaderPhotoUrl || '')
@@ -512,7 +525,7 @@ async function startServer() {
                 roll: String(gData.member1Roll || ''),
                 department: String(gData.member1Department || 'Textile Engineering'),
                 whatsapp: formatBdPhone(gData.member1WhatsApp),
-                facebook: String(gData.member1Facebook || ''),
+                facebook: String(gData.member1Facebook || '').trim() || 'Blank',
                 email: String(gData.member1Email || ''),
                 photoUrl: String(gData.member1PhotoUrl || ''),
                 photoPreview: String(gData.member1PhotoUrl || '')
@@ -522,7 +535,7 @@ async function startServer() {
                 roll: String(gData.member2Roll || ''),
                 department: String(gData.member2Department || 'Textile Engineering'),
                 whatsapp: formatBdPhone(gData.member2WhatsApp),
-                facebook: String(gData.member2Facebook || ''),
+                facebook: String(gData.member2Facebook || '').trim() || 'Blank',
                 email: String(gData.member2Email || ''),
                 photoUrl: String(gData.member2PhotoUrl || ''),
                 photoPreview: String(gData.member2PhotoUrl || '')
@@ -797,6 +810,25 @@ async function startServer() {
             error: 'One or more of the updated student roll numbers are already registered with another team.'
           });
         }
+      }
+
+      // Validate Team Leader Facebook profile URL
+      const updatedLeaderFb = String(updatedData?.leader?.facebook || '').trim();
+      if (!updatedLeaderFb || updatedLeaderFb.toLowerCase() === 'blank') {
+        return res.status(400).json({
+          success: false,
+          error: 'Team Leader Facebook profile link is required.'
+        });
+      }
+      if (updatedData?.leader) {
+        updatedData.leader.facebook = updatedLeaderFb;
+      }
+      // Members' Facebook fields are optional; default empty to "Blank"
+      if (updatedData?.member1) {
+        updatedData.member1.facebook = String(updatedData.member1.facebook || '').trim() || 'Blank';
+      }
+      if (updatedData?.member2) {
+        updatedData.member2.facebook = String(updatedData.member2.facebook || '').trim() || 'Blank';
       }
 
       // Apply updates and increment editCount

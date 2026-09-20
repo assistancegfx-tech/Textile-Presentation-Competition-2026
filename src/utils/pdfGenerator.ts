@@ -38,7 +38,7 @@ export function buildRegistrationPdfDoc(data: RegistrationPdfData): jsPDF {
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(203, 213, 225); // Slate 300
-  doc.text('Barishal Textile Engineering College • Established 2020', margin, 19);
+  doc.text('Barishal Textile Engineering College | Established 2020', margin, 19);
 
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
@@ -187,7 +187,7 @@ export function buildRegistrationPdfDoc(data: RegistrationPdfData): jsPDF {
     doc.setTextColor(15, 23, 42);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
-    doc.text(participant.name || '—', col1X, boxY + 18);
+    doc.text(participant.name || '-', col1X, boxY + 18);
 
     doc.setTextColor(100, 116, 139);
     doc.setFontSize(7.5);
@@ -196,7 +196,7 @@ export function buildRegistrationPdfDoc(data: RegistrationPdfData): jsPDF {
     doc.setTextColor(15, 23, 42);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
-    doc.text(participant.roll || '—', col2X, boxY + 18);
+    doc.text(participant.roll || '-', col2X, boxY + 18);
 
     doc.setTextColor(100, 116, 139);
     doc.setFontSize(7.5);
@@ -205,7 +205,7 @@ export function buildRegistrationPdfDoc(data: RegistrationPdfData): jsPDF {
     doc.setTextColor(15, 23, 42);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8.5);
-    doc.text(participant.department || '—', col3X, boxY + 18);
+    doc.text(participant.department || '-', col3X, boxY + 18);
 
     // Line 2: Mobile, Email (if present) / Facebook
     doc.setTextColor(100, 116, 139);
@@ -215,7 +215,7 @@ export function buildRegistrationPdfDoc(data: RegistrationPdfData): jsPDF {
     doc.setTextColor(15, 23, 42);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8.5);
-    doc.text(participant.whatsapp || '—', col1X, boxY + 30);
+    doc.text(participant.whatsapp || '-', col1X, boxY + 30);
 
     if (participant.email) {
       doc.setTextColor(100, 116, 139);
@@ -233,9 +233,12 @@ export function buildRegistrationPdfDoc(data: RegistrationPdfData): jsPDF {
       doc.setFont('helvetica', 'normal');
       doc.text('Facebook Profile:', col3X, boxY + 25);
       doc.setTextColor(15, 23, 42);
-      doc.setFont('helvetica', 'normal');
+      const rawFb = String(participant.facebook || '').trim();
+      const isBlank = !rawFb || rawFb.toLowerCase() === 'blank' || rawFb === '-';
+      const fbText = isBlank ? 'Blank' : rawFb.replace(/^https?:\/\/(www\.)?/, '');
+      doc.setFont('helvetica', isBlank ? 'italic' : 'normal');
       doc.setFontSize(8);
-      const fbText = participant.facebook ? participant.facebook.replace(/^https?:\/\/(www\.)?/, '') : '—';
+      if (isBlank) doc.setTextColor(148, 163, 184); // Muted slate 400 for Blank
       doc.text(fbText.length > 25 ? fbText.substring(0, 22) + '...' : fbText, col3X, boxY + 30);
     } else {
       doc.setTextColor(100, 116, 139);
@@ -243,9 +246,12 @@ export function buildRegistrationPdfDoc(data: RegistrationPdfData): jsPDF {
       doc.setFont('helvetica', 'normal');
       doc.text('Facebook Profile:', col2X, boxY + 25);
       doc.setTextColor(15, 23, 42);
-      doc.setFont('helvetica', 'normal');
+      const rawFb = String(participant.facebook || '').trim();
+      const isBlank = !rawFb || rawFb.toLowerCase() === 'blank' || rawFb === '-';
+      const fbText = isBlank ? 'Blank' : rawFb.replace(/^https?:\/\/(www\.)?/, '');
+      doc.setFont('helvetica', isBlank ? 'italic' : 'normal');
       doc.setFontSize(8);
-      const fbText = participant.facebook ? participant.facebook.replace(/^https?:\/\/(www\.)?/, '') : '—';
+      if (isBlank) doc.setTextColor(148, 163, 184); // Muted slate 400 for Blank
       doc.text(fbText.length > 45 ? fbText.substring(0, 42) + '...' : fbText, col2X, boxY + 30);
     }
   };
@@ -286,7 +292,7 @@ export function buildRegistrationPdfDoc(data: RegistrationPdfData): jsPDF {
   doc.setTextColor(15, 23, 42);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9.5);
-  doc.text(data.formData.payment.bkashNumber || '—', margin + 6, y + 13.5);
+  doc.text(data.formData.payment.bkashNumber || '-', margin + 6, y + 13.5);
 
   doc.setTextColor(100, 116, 139);
   doc.setFontSize(7.5);
@@ -295,7 +301,7 @@ export function buildRegistrationPdfDoc(data: RegistrationPdfData): jsPDF {
   doc.setTextColor(15, 23, 42);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9.5);
-  doc.text(data.formData.payment.transactionId || '—', margin + 65, y + 13.5);
+  doc.text(data.formData.payment.transactionId || '-', margin + 65, y + 13.5);
 
   doc.setTextColor(100, 116, 139);
   doc.setFontSize(7.5);
@@ -315,10 +321,18 @@ export function buildRegistrationPdfDoc(data: RegistrationPdfData): jsPDF {
     doc.setLineWidth(0.4);
     doc.roundedRect(margin, y, contentWidth, 12, 1.5, 1.5, 'FD');
 
-    doc.setTextColor(21, 128, 61); // Emerald 700
-    doc.setFontSize(8.5);
+    // Vector badge: "APPROVED"
+    doc.setFillColor(22, 163, 74); // Green 600
+    doc.roundedRect(margin + 4, y + 2.5, 18, 4.5, 1, 1, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(6.5);
     doc.setFont('helvetica', 'bold');
-    doc.text('✓ ENTRY PASS VALIDATED: PAYMENT APPROVED', margin + 4, y + 5);
+    doc.text('APPROVED', margin + 13, y + 5.7, { align: 'center' });
+
+    doc.setTextColor(21, 128, 61); // Emerald 700
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    doc.text('ENTRY PASS VALIDATED: PAYMENT APPROVED', margin + 25, y + 5.7);
 
     doc.setFontSize(7.5);
     doc.setFont('helvetica', 'normal');
@@ -330,15 +344,23 @@ export function buildRegistrationPdfDoc(data: RegistrationPdfData): jsPDF {
     doc.setLineWidth(0.5);
     doc.roundedRect(margin, y, contentWidth, 13, 1.5, 1.5, 'FD');
 
-    doc.setTextColor(185, 28, 28); // Red 700
-    doc.setFontSize(8.5);
+    // Vector badge: "ATTENTION"
+    doc.setFillColor(220, 38, 38); // Red 600
+    doc.roundedRect(margin + 4, y + 2.5, 20, 4.5, 1, 1, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(6.5);
     doc.setFont('helvetica', 'bold');
-    doc.text('⚠️ MANDATORY RULE: PAYMENT APPROVED PDF REQUIRED FOR EVENT ENTRY', margin + 4, y + 5);
+    doc.text('ATTENTION', margin + 14, y + 5.7, { align: 'center' });
+
+    doc.setTextColor(185, 28, 28); // Red 700
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    doc.text('MANDATORY RULE: PAYMENT APPROVED PDF REQUIRED FOR EVENT ENTRY', margin + 27, y + 5.7);
 
     doc.setFontSize(7.5);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(220, 38, 38);
-    doc.text('A Payment Approved PDF is MANDATORY in the event. NO PENDING PDF WILL BE ACCEPTED at the venue.', margin + 4, y + 10);
+    doc.text('A Payment Approved PDF is MANDATORY in the event. NO PENDING PDF WILL BE ACCEPTED at the venue.', margin + 4, y + 10.2);
   }
 
   y += isPaidStatus ? 16 : 17;
@@ -372,7 +394,7 @@ export function buildRegistrationPdfDoc(data: RegistrationPdfData): jsPDF {
   doc.setTextColor(148, 163, 184);
   doc.setFontSize(7);
   doc.setFont('helvetica', 'normal');
-  doc.text('© 2026 Career Club BTEC • Barishal Textile Engineering College • Officially Issued Registration Voucher', margin, pageHeight - 8);
+  doc.text('Career Club BTEC | Barishal Textile Engineering College | Officially Issued Registration Voucher', margin, pageHeight - 8);
   doc.text(`Doc Ref: ${data.registrationId}`, pageWidth - margin, pageHeight - 8, { align: 'right' });
 
   return doc;

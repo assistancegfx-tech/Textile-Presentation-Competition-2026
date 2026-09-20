@@ -36,6 +36,8 @@ export const ParticipantStepForm: React.FC<ParticipantStepFormProps> = ({
   const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
 
+  const isLeader = Boolean(showEmail || roleBadge.toLowerCase().includes('leader'));
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -244,16 +246,27 @@ export const ParticipantStepForm: React.FC<ParticipantStepFormProps> = ({
 
             {/* Facebook Profile / ID */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1.5">
-                <Share2 className="w-3.5 h-3.5 text-[#16A34A]" />
-                <span>Facebook ID / Link</span>
-                <span className="text-red-500">*</span>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <Share2 className="w-3.5 h-3.5 text-[#16A34A]" />
+                  <span>Facebook ID / Link</span>
+                  {isLeader && <span className="text-red-500">*</span>}
+                </span>
+                {!isLeader ? (
+                  <span className="text-slate-400 font-normal normal-case text-[11px]">
+                    (Optional - leave blank if none)
+                  </span>
+                ) : (
+                  <span className="text-emerald-700 font-bold normal-case text-[11px]">
+                    Required
+                  </span>
+                )}
               </label>
               <input
                 type="text"
                 value={participant.facebook}
                 onChange={(e) => onChange({ facebook: e.target.value })}
-                placeholder="facebook.com/username"
+                placeholder={isLeader ? "facebook.com/leader.username" : "facebook.com/username (or leave blank)"}
                 className={`w-full px-3.5 py-2.5 rounded-xl border text-sm text-slate-800 placeholder-slate-400 bg-white transition focus:outline-none focus:ring-2 ${
                   errors.facebook
                     ? 'border-red-400 focus:ring-red-200'

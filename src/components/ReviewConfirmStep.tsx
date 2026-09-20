@@ -183,7 +183,9 @@ export const ReviewConfirmStep: React.FC<ReviewConfirmStepProps> = ({
             )}
             <div className="flex items-center gap-1.5 text-slate-600 truncate">
               <Share2 className="w-3 h-3 text-[#16A34A] shrink-0" />
-              <span className="truncate">{p.facebook || '—'}</span>
+              <span className={`truncate ${!p.facebook?.trim() || p.facebook.trim() === 'Blank' ? 'text-slate-400 italic' : ''}`}>
+                {p.facebook?.trim() || 'Blank'}
+              </span>
             </div>
           </div>
         </div>

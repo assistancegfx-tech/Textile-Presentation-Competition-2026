@@ -444,6 +444,10 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
           setSaveError(`${labels[r]} requires a valid 11-digit Bangladesh mobile number (e.g. 017XXXXXXXX).`);
           return;
         }
+        if (!p.facebook?.trim() || p.facebook.trim().toLowerCase() === 'blank') {
+          setSaveError('Team Leader Facebook profile link or ID is required.');
+          return;
+        }
       } else {
         if (p.whatsapp.trim() && !validateBangladeshPhone(p.whatsapp)) {
           setSaveError(`${labels[r]} mobile number must be a valid 11-digit Bangladesh number (e.g. 017XXXXXXXX).`);
@@ -466,6 +470,23 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
     setIsSaving(true);
     setSaveError(null);
 
+    // Normalize empty Facebook fields to "Blank"
+    const normalizedEditFormData: RegistrationFormData = {
+      ...editFormData,
+      leader: {
+        ...editFormData.leader,
+        facebook: editFormData.leader.facebook?.trim() || 'Blank'
+      },
+      member1: {
+        ...editFormData.member1,
+        facebook: editFormData.member1.facebook?.trim() || 'Blank'
+      },
+      member2: {
+        ...editFormData.member2,
+        facebook: editFormData.member2.facebook?.trim() || 'Blank'
+      }
+    };
+
     const scriptUrl = localStorage.getItem('tpc2026_google_script_url') || 'https://script.google.com/macros/s/AKfycbxFVWAVQApNuw2g_zvbSEK_QhXIcso8MoDhne75A4L0ryUUeh2G4GEclUkMn8GY21VT2Q/exec';
 
     try {
@@ -481,7 +502,7 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
             'x-google-script-url': scriptUrl
           },
           body: JSON.stringify({
-            formData: editFormData,
+            formData: normalizedEditFormData,
             backupRegistration: record
           })
         });
@@ -510,7 +531,7 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
           const updatePayload = JSON.stringify({
             action: 'updateRegistration',
             registrationId: record.registrationId,
-            formData: editFormData
+            formData: normalizedEditFormData
           });
 
           // A) Try text/plain POST (bypasses browser CORS preflight check)
@@ -1014,7 +1035,9 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
                       )}
                       <div>
                         <p className="text-xs text-slate-500 font-medium">Facebook</p>
-                        <p className="text-xs text-slate-600 truncate">{record.formData.leader.facebook || '—'}</p>
+                        <p className={`text-xs truncate ${!record.formData.leader.facebook?.trim() || record.formData.leader.facebook.trim() === 'Blank' ? 'text-slate-400 italic' : 'text-slate-600'}`}>
+                          {record.formData.leader.facebook?.trim() || 'Blank'}
+                        </p>
                       </div>
                     </div>
 
@@ -1053,7 +1076,9 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
                       </div>
                       <div>
                         <p className="text-xs text-slate-500 font-medium">Facebook</p>
-                        <p className="text-xs text-slate-600 truncate">{record.formData.member1.facebook || '—'}</p>
+                        <p className={`text-xs truncate ${!record.formData.member1.facebook?.trim() || record.formData.member1.facebook.trim() === 'Blank' ? 'text-slate-400 italic' : 'text-slate-600'}`}>
+                          {record.formData.member1.facebook?.trim() || 'Blank'}
+                        </p>
                       </div>
                     </div>
 
@@ -1092,7 +1117,9 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
                       </div>
                       <div>
                         <p className="text-xs text-slate-500 font-medium">Facebook</p>
-                        <p className="text-xs text-slate-600 truncate">{record.formData.member2.facebook || '—'}</p>
+                        <p className={`text-xs truncate ${!record.formData.member2.facebook?.trim() || record.formData.member2.facebook.trim() === 'Blank' ? 'text-slate-400 italic' : 'text-slate-600'}`}>
+                          {record.formData.member2.facebook?.trim() || 'Blank'}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -1284,13 +1311,22 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
                             )}
 
                             <div className="sm:col-span-2">
-                              <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                                Facebook Profile URL
+                              <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center justify-between">
+                                <span className="flex items-center gap-1">
+                                  <span>Facebook Profile URL</span>
+                                  {role === 'leader' && <span className="text-red-500">*</span>}
+                                </span>
+                                {role !== 'leader' ? (
+                                  <span className="text-slate-400 font-normal text-[10px]">(Optional - leave blank if none)</span>
+                                ) : (
+                                  <span className="text-emerald-700 font-bold text-[10px]">Required</span>
+                                )}
                               </label>
                               <input
                                 type="text"
                                 value={p.facebook}
                                 onChange={(e) => handleParticipantChange(role, 'facebook', e.target.value)}
+                                placeholder={role === 'leader' ? "facebook.com/leader.username" : "facebook.com/username (or leave blank)"}
                                 className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#22C55E]/30"
                               />
                             </div>

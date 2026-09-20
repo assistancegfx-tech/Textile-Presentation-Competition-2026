@@ -827,18 +827,18 @@ function doPost(e) {
     const leaderName = String(leaderObj.name || data["leader[name]"] || "").trim();
     const leaderDept = String(leaderObj.department || data["leader[department]"] || "").trim();
     const leaderWhatsApp = String(leaderObj.whatsapp || data["leader[whatsapp]"] || "").trim();
-    const leaderFacebook = String(leaderObj.facebook || data["leader[facebook]"] || "").trim();
+    const leaderFacebook = String(leaderObj.facebook || data["leader[facebook]"] || "").trim() || "Blank";
     const leaderEmail = String(leaderObj.email || data["leader[email]"] || data.email || data.leaderEmail || "").trim();
 
     const m1Name = String(member1Obj.name || data["member1[name]"] || "").trim();
     const m1Dept = String(member1Obj.department || data["member1[department]"] || "").trim();
     const m1WhatsApp = String(member1Obj.whatsapp || data["member1[whatsapp]"] || "").trim();
-    const m1Facebook = String(member1Obj.facebook || data["member1[facebook]"] || "").trim();
+    const m1Facebook = String(member1Obj.facebook || data["member1[facebook]"] || "").trim() || "Blank";
 
     const m2Name = String(member2Obj.name || data["member2[name]"] || "").trim();
     const m2Dept = String(member2Obj.department || data["member2[department]"] || "").trim();
     const m2WhatsApp = String(member2Obj.whatsapp || data["member2[whatsapp]"] || "").trim();
-    const m2Facebook = String(member2Obj.facebook || data["member2[facebook]"] || "").trim();
+    const m2Facebook = String(member2Obj.facebook || data["member2[facebook]"] || "").trim() || "Blank";
 
     const bkashNum = String(paymentObj.bkashNumber || data["payment[bkashNumber]"] || "").trim();
 
@@ -1478,7 +1478,7 @@ function handleUpdateRegistration(sheet, data) {
     c.setNumberFormat("@");
     c.setValue(String(leader.whatsapp || leader.mobile).trim());
   }
-  if (leader.facebook !== undefined) sheet.getRange(foundRowIndex, colLeaderFb).setValue(String(leader.facebook || "").trim());
+  if (leader.facebook !== undefined) sheet.getRange(foundRowIndex, colLeaderFb).setValue(String(leader.facebook || "").trim() || "Blank");
   if (leader.email !== undefined) sheet.getRange(foundRowIndex, colLeaderEmail).setValue(String(leader.email || "").trim());
   if (leaderPhotoUrl) sheet.getRange(foundRowIndex, colLeaderPhoto).setValue(leaderPhotoUrl);
 
@@ -1495,7 +1495,7 @@ function handleUpdateRegistration(sheet, data) {
     c.setNumberFormat("@");
     c.setValue(String(m1.whatsapp || m1.mobile || "").trim());
   }
-  if (m1.facebook !== undefined) sheet.getRange(foundRowIndex, colM1Fb).setValue(String(m1.facebook || "").trim());
+  if (m1.facebook !== undefined) sheet.getRange(foundRowIndex, colM1Fb).setValue(String(m1.facebook || "").trim() || "Blank");
   if (m1PhotoUrl) sheet.getRange(foundRowIndex, colM1Photo).setValue(m1PhotoUrl);
 
   // 4. Member 2
@@ -1511,7 +1511,7 @@ function handleUpdateRegistration(sheet, data) {
     c.setNumberFormat("@");
     c.setValue(String(m2.whatsapp || m2.mobile || "").trim());
   }
-  if (m2.facebook !== undefined) sheet.getRange(foundRowIndex, colM2Fb).setValue(String(m2.facebook || "").trim());
+  if (m2.facebook !== undefined) sheet.getRange(foundRowIndex, colM2Fb).setValue(String(m2.facebook || "").trim() || "Blank");
   if (m2PhotoUrl) sheet.getRange(foundRowIndex, colM2Photo).setValue(m2PhotoUrl);
 
   SpreadsheetApp.flush(); // Force write to Google Sheets immediately

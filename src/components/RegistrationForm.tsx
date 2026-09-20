@@ -90,16 +90,19 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
     } else if (!validateBangladeshPhone(p.whatsapp)) {
       errs.whatsapp = 'Please enter a valid Bangladesh mobile number (e.g. 017XXXXXXXX).';
     }
-    if (!p.facebook.trim()) errs.facebook = 'Facebook profile link or ID is required.';
-    
+
     // Leader specific validation
     if (isLeader) {
+      if (!p.facebook.trim() || p.facebook.trim().toLowerCase() === 'blank') {
+        errs.facebook = 'Team Leader Facebook profile link or ID is required.';
+      }
       if (!p.email || !p.email.trim()) {
         errs.email = 'Leader email address is required for official confirmation.';
       } else if (!validateEmail(p.email)) {
         errs.email = 'Please enter a valid email address (e.g. leader@gmail.com).';
       }
     }
+    // Team members (Member 1 & 2): Facebook is optional; if left empty it defaults to "Blank"
 
     if (!p.photoPreview) errs.photo = 'Participant photo upload is required.';
 
@@ -244,6 +247,23 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
       // Stage 3: Submit to Google Sheets & Drive backend endpoint
       setSubmitProgressStage('saving_sheets');
 
+      // Ensure empty Facebook fields default to "Blank" for Google Sheets, PDF, and database
+      const normalizedFormData: RegistrationFormData = {
+        ...formData,
+        leader: {
+          ...formData.leader,
+          facebook: formData.leader.facebook?.trim() || 'Blank'
+        },
+        member1: {
+          ...formData.member1,
+          facebook: formData.member1.facebook?.trim() || 'Blank'
+        },
+        member2: {
+          ...formData.member2,
+          facebook: formData.member2.facebook?.trim() || 'Blank'
+        }
+      };
+
       // Pre-generate official registration voucher PDF base64 to send with confirmation email
       let pdfBase64 = '';
       try {
@@ -251,14 +271,14 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
           registrationId: 'TEX2026-PENDING',
           submissionDate: new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' }),
           paymentStatus: 'Pending',
-          formData
+          formData: normalizedFormData
         });
       } catch (pdfErr) {
         console.warn('PDF Base64 generation warning:', pdfErr);
       }
 
       const payloadToSend = {
-        ...formData,
+        ...normalizedFormData,
         pdfBase64
       };
 
@@ -358,7 +378,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
           maxEdits: 3,
           remainingEdits: 3,
           canEdit: true,
-          formData
+          formData: normalizedFormData
         };
         const existingStr = localStorage.getItem('tpc2026_saved_registrations');
         const list = existingStr ? JSON.parse(existingStr) : [];
@@ -370,7 +390,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
         }
         localStorage.setItem('tpc2026_saved_registrations', JSON.stringify(list));
         localStorage.setItem('tpc2026_last_reg_id', regId);
-        localStorage.setItem('tpc2026_latest_submission', JSON.stringify({ result: data, formData }));
+        localStorage.setItem('tpc2026_latest_submission', JSON.stringify({ result: data, formData: normalizedFormData }));
 
         // Attempt background sync with server if available
         fetch('/api/registration/sync', {
@@ -392,7 +412,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
       } catch (_) {}
 
       if (onRegistrationSuccess) {
-        onRegistrationSuccess(data, formData);
+        onRegistrationSuccess(data, normalizedFormData);
       }
 
     } catch (err: any) {
