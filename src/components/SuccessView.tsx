@@ -263,41 +263,6 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
         </div>
       </div>
 
-      {/* Official WhatsApp Participant Group Invitation Card */}
-      <div className="bg-gradient-to-br from-[#25D366]/15 via-emerald-50 to-white rounded-3xl border-2 border-[#25D366]/60 p-6 sm:p-7 shadow-lg shadow-[#25D366]/10 print:hidden relative overflow-hidden">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-5 text-center md:text-left">
-          <div className="flex flex-col sm:flex-row items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-[#25D366] text-white flex items-center justify-center shadow-md shadow-[#25D366]/30 shrink-0">
-              <MessageCircle className="w-8 h-8 fill-white" />
-            </div>
-            <div className="space-y-1">
-              <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-[#25D366]/20 text-[#128C7E] text-[11px] font-black uppercase tracking-wider">
-                <span>Action Required</span>
-                <span>•</span>
-                <span>Official WhatsApp Community</span>
-              </div>
-              <h3 className="text-lg sm:text-xl font-black text-[#0A192F] font-['Outfit']">
-                Join the Competition WhatsApp Group
-              </h3>
-              <p className="text-xs sm:text-sm text-slate-600 max-w-lg leading-relaxed">
-                All team members (Leader & Members) must join the official WhatsApp group for presentation topic distributions, guidelines, mentor sessions, and schedule notifications.
-              </p>
-            </div>
-          </div>
-
-          <a
-            href={OFFICIAL_WHATSAPP_GROUP_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full md:w-auto inline-flex items-center justify-center gap-2.5 px-7 py-3.5 rounded-2xl text-sm font-extrabold text-white bg-[#25D366] hover:bg-[#128C7E] active:scale-98 shadow-md shadow-[#25D366]/30 transition-all duration-200 shrink-0 whitespace-nowrap cursor-pointer group"
-          >
-            <MessageCircle className="w-5 h-5 fill-white" />
-            <span>Join WhatsApp Group</span>
-            <ExternalLink className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
-          </a>
-        </div>
-      </div>
-
       {/* Mandatory Event Admission Notice */}
       <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-300/80 text-amber-900 text-xs sm:text-sm print:hidden flex items-start gap-3">
         <span className="text-lg shrink-0">⚠️</span>
