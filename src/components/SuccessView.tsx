@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { CheckCircle2, Copy, Check, Download, Calendar, MapPin, Building2, ShieldAlert, Award, QrCode, X, Trophy, MessageCircle, ExternalLink } from 'lucide-react';
+import { CheckCircle2, Copy, Check, Download, Calendar, MapPin, Building2, ShieldAlert, Award, QrCode, X, Trophy, MessageCircle, ExternalLink, Lock } from 'lucide-react';
 import { fireCelebrationConfetti } from '../utils/confetti';
 import { SubmissionResponse, RegistrationFormData } from '../types';
 import { BtecLogo, CareerClubLogo } from './Logos';
@@ -193,22 +193,22 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
           </div>
         </div>
 
-        {/* Payment Verification Status Banner */}
+        {/* Payment Verification Status Banner & Security Notice */}
         {(() => {
           const statusStr = (result.paymentStatus || 'Pending').trim();
           const isPaid = /^(paid|verified|approved|received|completed|success)/i.test(statusStr);
 
           if (isPaid) {
             return (
-              <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex items-start gap-3 text-xs text-emerald-900 mb-6">
+              <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex items-start gap-3 text-xs text-emerald-900 mb-6 shadow-2xs">
                 <CheckCircle2 className="w-4 h-4 text-[#16A34A] shrink-0 mt-0.5" />
-                <div className="space-y-0.5">
-                  <p className="font-bold text-emerald-950">
-                    Status: Payment Verified (Paid)
+                <div className="space-y-1">
+                  <p className="font-bold text-emerald-950 text-sm">
+                    ✅ Payment Verified & Approved (Paid)
                   </p>
                   <p className="text-emerald-800 leading-relaxed">
-                    bKash Transaction ID <strong>{formData.payment.transactionId}</strong> has been verified and approved.
-                    Your slot for Textile Presentation Competition 2026 is confirmed!
+                    bKash Transaction ID <strong>{formData.payment.transactionId}</strong> has been verified by the organizers.
+                    Your slot for Textile Presentation Competition 2026 is officially confirmed!
                   </p>
                 </div>
               </div>
@@ -216,16 +216,29 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
           }
 
           return (
-            <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-3 text-xs text-amber-900 mb-6">
-              <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-              <div className="space-y-0.5">
-                <p className="font-bold">
-                  Status: Payment Verification Pending
-                </p>
-                <p className="text-amber-800 leading-relaxed">
-                  bKash Transaction ID <strong>{formData.payment.transactionId}</strong> has been logged.
-                  Career Club BTEC organizers will review the ledger and confirm your slot via WhatsApp / SMS.
-                </p>
+            <div className="space-y-3 mb-6">
+              <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-3 text-xs text-amber-900 shadow-2xs">
+                <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="font-bold text-amber-950 text-sm">
+                    Status: Payment Verification Pending
+                  </p>
+                  <p className="text-amber-800 leading-relaxed">
+                    bKash Transaction ID <strong>{formData.payment.transactionId}</strong> has been recorded.
+                    Career Club BTEC organizers will verify your transaction against the payment ledger.
+                  </p>
+                </div>
+              </div>
+
+              {/* WhatsApp Protection Security Notice */}
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-start gap-2.5 text-xs text-slate-700">
+                <Lock className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold text-slate-900 block mb-0.5">🔒 WhatsApp Community Protection</span>
+                  <p className="text-slate-600 text-[11.5px] leading-relaxed">
+                    To prevent unauthorized access and protect genuine teams, the official WhatsApp group link will be <strong>unlocked automatically</strong> on your <span className="font-semibold text-slate-800">"View Your Registration"</span> portal and sent to your email <strong>immediately after your payment is approved</strong>.
+                  </p>
+                </div>
               </div>
             </div>
           );
@@ -260,43 +273,52 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
           </div>
         </div>
 
-        {/* Action Buttons: Join WhatsApp, Download Registration Info PDF, and Close */}
-        <div className="pt-6 mt-3 border-t border-slate-200/80 flex flex-col sm:flex-row flex-wrap items-center justify-center gap-3.5 print:hidden">
-          <motion.a
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            href={OFFICIAL_WHATSAPP_GROUP_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-extrabold text-white bg-[#25D366] hover:bg-[#128C7E] shadow-md shadow-[#25D366]/25 transition-all duration-200 cursor-pointer"
-          >
-            <MessageCircle className="w-4 h-4 fill-white" />
-            <span>Join WhatsApp Group</span>
-            <ExternalLink className="w-3.5 h-3.5" />
-          </motion.a>
+        {/* Action Buttons: (Join WhatsApp ONLY IF PAID), Download Registration Info PDF, and Close */}
+        {(() => {
+          const statusStr = (result.paymentStatus || 'Pending').trim();
+          const isPaid = /^(paid|verified|approved|received|completed|success)/i.test(statusStr);
 
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            type="button"
-            onClick={handleDownloadPdf}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-extrabold text-white bg-[#16A34A] hover:bg-[#0A192F] shadow-md shadow-[#16A34A]/20 transition-all duration-200 cursor-pointer"
-          >
-            <Download className="w-4 h-4" />
-            <span>Download Registration Info PDF</span>
-          </motion.button>
+          return (
+            <div className="pt-6 mt-3 border-t border-slate-200/80 flex flex-col sm:flex-row flex-wrap items-center justify-center gap-3.5 print:hidden">
+              {isPaid && (
+                <motion.a
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  href={OFFICIAL_WHATSAPP_GROUP_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-extrabold text-white bg-[#25D366] hover:bg-[#128C7E] shadow-md shadow-[#25D366]/25 transition-all duration-200 cursor-pointer"
+                >
+                  <MessageCircle className="w-4 h-4 fill-white" />
+                  <span>Join WhatsApp Group</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </motion.a>
+              )}
 
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            type="button"
-            onClick={onClose}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-slate-700 bg-white hover:bg-[#16A34A] hover:text-white hover:border-[#16A34A] border border-slate-300 shadow-xs transition-all duration-200 cursor-pointer"
-          >
-            <X className="w-4 h-4" />
-            <span>Close</span>
-          </motion.button>
-        </div>
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                type="button"
+                onClick={handleDownloadPdf}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-extrabold text-white bg-[#16A34A] hover:bg-[#0A192F] shadow-md shadow-[#16A34A]/20 transition-all duration-200 cursor-pointer"
+              >
+                <Download className="w-4 h-4" />
+                <span>Download Registration Info PDF</span>
+              </motion.button>
+
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                type="button"
+                onClick={onClose}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-slate-700 bg-white hover:bg-[#16A34A] hover:text-white hover:border-[#16A34A] border border-slate-300 shadow-xs transition-all duration-200 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+                <span>Close</span>
+              </motion.button>
+            </div>
+          );
+        })()}
 
         {/* Footer print note */}
         <div className="hidden print:block pt-6 border-t border-slate-300 text-[10px] text-slate-500 text-center">

@@ -1071,19 +1071,29 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
                         </motion.button>
                       </div>
 
-                      <motion.a
-                        href="https://chat.whatsapp.com/Fnta8tls8Gh4UKlVDQT7h0?s=cl&p=a&mlu=4&ilr=4"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        whileHover={{ scale: 1.03, y: -1 }}
-                        whileTap={{ scale: 0.97 }}
-                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#25D366] hover:bg-[#128C7E] shadow-sm shadow-[#25D366]/20 transition"
-                        title="Join Official WhatsApp Group"
-                      >
-                        <MessageCircle className="w-3.5 h-3.5 fill-white" />
-                        <span>WhatsApp Group</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </motion.a>
+                      {/^(paid|verified|approved|received|completed|success)/i.test((record.paymentStatus || '').trim()) ? (
+                        <motion.a
+                          href="https://chat.whatsapp.com/Fnta8tls8Gh4UKlVDQT7h0?s=cl&p=a&mlu=4&ilr=4"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          whileHover={{ scale: 1.03, y: -1 }}
+                          whileTap={{ scale: 0.97 }}
+                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-extrabold text-white bg-[#25D366] hover:bg-[#128C7E] shadow-sm shadow-[#25D366]/20 transition cursor-pointer"
+                          title="Join Official WhatsApp Group (Approved Participants)"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5 fill-white" />
+                          <span>Join WhatsApp Group</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </motion.a>
+                      ) : (
+                        <div
+                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-semibold text-slate-500 bg-slate-100 border border-slate-200 cursor-not-allowed"
+                          title="WhatsApp Group link is locked until payment is verified"
+                        >
+                          <Lock className="w-3 h-3 text-slate-400" />
+                          <span>WhatsApp: Unlocks upon Payment Approval</span>
+                        </div>
+                      )}
                     </div>
                   </div>
 

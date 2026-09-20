@@ -335,6 +335,361 @@ function applyPaymentConditionalFormatting(sheet, maxRows) {
 }
 
 /**
+ * ============================================================================
+ * 🔔 AUTOMATIC ON-EDIT TRIGGER: INSTANT PAYMENT APPROVAL & UPDATED PDF EMAIL
+ * ============================================================================
+ * Whenever an admin/organizer edits the "Payment Status" column (Col C / 3)
+ * in Google Sheets to "Paid" or "Approved":
+ * 1. Checks if an approval email was already sent (prevents duplicate spam).
+ * 2. Generates the updated official PDF voucher reflecting the "Paid" status.
+ * 3. Sends a verified confirmation email to the group leader with the attached updated PDF voucher.
+ * 4. Includes direct 1-click links to the website and participant WhatsApp group.
+ * 5. Marks Column Z ("Email Sent") as "YES" with timestamp.
+ */
+function onEdit(e) {
+  try {
+    if (!e || !e.range) return;
+    
+    const sheet = e.range.getSheet();
+    if (sheet.getName() !== SHEET_NAME && sheet.getName() !== "Sheet1") return;
+
+    const editedRow = e.range.getRow();
+    const editedCol = e.range.getColumn();
+    const newValue = String(e.value || "").trim();
+
+    // Skip header row
+    if (editedRow <= 1) return;
+
+    // Check if edited column is Payment Status (Column 3 / C)
+    if (editedCol === 3) {
+      const isApprovedOrPaid = newValue.toLowerCase() === "paid" || newValue.toLowerCase() === "approved";
+      
+      if (isApprovedOrPaid) {
+        handlePaymentApprovalNotification(sheet, editedRow, newValue);
+      }
+    }
+  } catch (err) {
+    Logger.log("[ONEDIT ERROR] " + err.toString());
+  }
+}
+
+/**
+ * Core handler to dispatch the approval notification and updated PDF voucher
+ */
+function handlePaymentApprovalNotification(sheet, rowNum, newStatus) {
+  try {
+    const rowValues = sheet.getRange(rowNum, 1, 1, Math.max(sheet.getLastColumn(), 26)).getValues()[0];
+    
+    // Column mappings based on standard 25-column structure
+    const regId = String(rowValues[0] || "").trim();
+    const submissionDate = String(rowValues[1] || "").trim();
+    const currentStatus = String(newStatus || rowValues[2] || "Paid").trim();
+    const teamName = String(rowValues[3] || "").trim();
+    const leaderName = String(rowValues[4] || "").trim();
+    const leaderRoll = String(rowValues[5] || "").trim();
+    const leaderDept = String(rowValues[6] || "").trim();
+    const leaderWhatsApp = String(rowValues[7] || "").trim();
+    const leaderFb = String(rowValues[8] || "").trim();
+    const leaderEmail = String(rowValues[9] || "").trim();
+    const leaderPhotoUrl = String(rowValues[10] || "").trim();
+
+    const m1Name = String(rowValues[11] || "").trim();
+    const m1Roll = String(rowValues[12] || "").trim();
+    const m1Dept = String(rowValues[13] || "").trim();
+    const m1WhatsApp = String(rowValues[14] || "").trim();
+
+    const m2Name = String(rowValues[17] || "").trim();
+    const m2Roll = String(rowValues[18] || "").trim();
+    const m2Dept = String(rowValues[19] || "").trim();
+    const m2WhatsApp = String(rowValues[20] || "").trim();
+
+    const bkashNumber = String(rowValues[23] || "").trim();
+    const transactionId = String(rowValues[24] || "").trim();
+
+    // Check Col 26 (Z) for Email Sent tracking to prevent sending multiple times
+    const emailSentCol = 26;
+    const emailSentVal = String(rowValues[25] || "").trim().toUpperCase();
+
+    if (emailSentVal === "YES" || emailSentVal.indexOf("SENT") !== -1) {
+      Logger.log("[APPROVAL NOTICE] Approval email already dispatched previously for " + regId);
+      return;
+    }
+
+    if (!leaderEmail || leaderEmail.indexOf("@") === -1) {
+      Logger.log("[APPROVAL WARNING] No valid email found for " + regId + " (Row " + rowNum + ")");
+      return;
+    }
+
+    Logger.log("[APPROVAL EMAIL TRIGGERED] Sending verified approval email with updated PDF to: " + leaderEmail + " for " + regId);
+
+    const emailSent = sendPaymentApprovedEmail({
+      registrationId: regId,
+      teamName: teamName || "N/A",
+      leaderName: leaderName,
+      leaderRoll: leaderRoll,
+      leaderDept: leaderDept,
+      leaderWhatsApp: leaderWhatsApp,
+      email: leaderEmail,
+      paymentStatus: currentStatus,
+      submissionDate: submissionDate,
+      m1Name: m1Name,
+      m1Roll: m1Roll,
+      m1Dept: m1Dept,
+      m1Mobile: m1WhatsApp,
+      m2Name: m2Name,
+      m2Roll: m2Roll,
+      m2Dept: m2Dept,
+      m2Mobile: m2WhatsApp,
+      bkashNum: bkashNumber,
+      transactionId: transactionId
+    });
+
+    if (emailSent) {
+      // Ensure header for Column 26 exists
+      const headerVal = sheet.getRange(1, emailSentCol).getValue();
+      if (!headerVal) {
+        sheet.getRange(1, emailSentCol).setValue("Email Sent");
+        sheet.getRange(1, emailSentCol).setBackground("#0A192F").setFontColor("#FFFFFF").setFontWeight("bold");
+      }
+      sheet.getRange(rowNum, emailSentCol).setValue("YES (" + Utilities.formatDate(new Date(), "Asia/Dhaka", "dd MMM HH:mm") + ")");
+      Logger.log("[APPROVAL SUCCESS] Approval confirmation & updated PDF email sent to " + leaderEmail);
+    }
+
+  } catch (ex) {
+    Logger.log("[APPROVAL ERROR] Failed to send approval email: " + ex.toString());
+  }
+}
+
+/**
+ * Specialized email generator for Payment Approved with UPDATED PDF Voucher attachment
+ * Strictly follows clean, professional formatting without unnecessary decorative symbols.
+ */
+function sendPaymentApprovedEmail(details) {
+  if (!details || !details.email || details.email.indexOf("@") === -1) return false;
+
+  const regId = String(details.registrationId || "").trim();
+  const teamName = String(details.teamName || "N/A").trim();
+  const leaderName = String(details.leaderName || "").trim();
+  const leaderRoll = String(details.leaderRoll || "").trim();
+  const leaderDept = String(details.leaderDept || "").trim();
+  const leaderWhatsApp = String(details.leaderWhatsApp || "").trim();
+  const leaderEmail = String(details.email || "").trim();
+  const institution = "Barishal Textile Engineering College (BTEC)";
+
+  // Format team members list
+  const memberList = [];
+  if (leaderName) {
+    memberList.push(leaderName + (leaderRoll ? " (Roll: " + leaderRoll + ")" : "") + " [Leader]");
+  }
+  if (details.m1Name) {
+    memberList.push(details.m1Name + (details.m1Roll ? " (Roll: " + details.m1Roll + ")" : ""));
+  }
+  if (details.m2Name) {
+    memberList.push(details.m2Name + (details.m2Roll ? " (Roll: " + details.m2Roll + ")" : ""));
+  }
+  const teamMembersStr = memberList.join(", ");
+
+  const baseUrl = String(details.websiteUrl || "https://ais-pre-6zeawg7kx2bdfewoufqpj5-305877422476.asia-southeast1.run.app").trim().replace(/\/+$/, "");
+  const viewParams = [
+    "action=view-registration",
+    "regId=" + encodeURIComponent(regId),
+    "roll=" + encodeURIComponent(leaderRoll),
+    "mobile=" + encodeURIComponent(leaderWhatsApp)
+  ].join("&");
+  const viewRegistrationUrl = baseUrl + "/?" + viewParams;
+  const whatsappUrl = "https://chat.whatsapp.com/Fnta8tls8Gh4UKlVDQT7h0?s=cl&p=a&mlu=4&ilr=4";
+
+  const subject = "Payment Approved & Registration Confirmed – Textile Presentation Competition | " + regId;
+
+  const plainBody = 
+    "Dear Participant,\n\n" +
+    "We are pleased to inform you that your payment has been successfully verified and your registration for the Textile Presentation Competition has been approved.\n\n" +
+    "Your registration is now confirmed.\n\n" +
+    "Registration Details:\n\n" +
+    "* Registration No.: " + regId + "\n" +
+    "* Name: " + leaderName + "\n" +
+    "* Institution: " + institution + "\n" +
+    "* Team Name: " + teamName + "\n" +
+    "* Team Members: " + teamMembersStr + "\n" +
+    "* Mobile No.: " + leaderWhatsApp + "\n" +
+    "* Email: " + leaderEmail + "\n" +
+    "* Payment Status: Approved\n\n" +
+    "Participant Actions:\n\n" +
+    "1. Join Official WhatsApp Group:\n" +
+    whatsappUrl + "\n\n" +
+    "2. Download Your Official Entry Voucher:\n" +
+    viewRegistrationUrl + "\n\n" +
+    "Please keep this email for future reference. You may use your Registration No., Mobile No., or Roll No. to check your registration status and download your voucher on the official registration website.\n\n" +
+    "Thank you for registering with us.\n\n" +
+    "Sincerely,\n" +
+    "Organizing Committee\n" +
+    "Career Club BTEC\n" +
+    "Barishal Textile Engineering College (BTEC)";
+
+  const htmlBody = 
+    '<div style="font-family: Arial, Helvetica, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 26px 28px; color: #1e293b; line-height: 1.6; font-size: 14px; border: 1px solid #e2e8f0; border-radius: 12px;">' +
+      '<p style="margin: 0 0 16px 0;">Dear Participant,</p>' +
+      '<p style="margin: 0 0 16px 0;">We are pleased to inform you that your payment has been successfully verified and your registration for the <strong>Textile Presentation Competition</strong> has been approved.</p>' +
+      '<p style="margin: 0 0 20px 0;">Your registration is now confirmed.</p>' +
+
+      '<p style="margin: 0 0 12px 0; font-weight: bold; font-size: 15px; color: #0A192F;">Registration Details:</p>' +
+      '<ul style="margin: 0 0 24px 0; padding-left: 20px; line-height: 1.8;">' +
+        '<li><strong>Registration No.:</strong> ' + escapeHtml(regId) + '</li>' +
+        '<li><strong>Name:</strong> ' + escapeHtml(leaderName) + '</li>' +
+        '<li><strong>Institution:</strong> ' + escapeHtml(institution) + '</li>' +
+        '<li><strong>Team Name:</strong> ' + escapeHtml(teamName) + '</li>' +
+        '<li><strong>Team Members:</strong> ' + escapeHtml(teamMembersStr) + '</li>' +
+        '<li><strong>Mobile No.:</strong> ' + escapeHtml(leaderWhatsApp) + '</li>' +
+        '<li><strong>Email:</strong> ' + escapeHtml(leaderEmail) + '</li>' +
+        '<li><strong>Payment Status:</strong> <span style="color: #16A34A; font-weight: bold;">Approved</span></li>' +
+      '</ul>' +
+
+      '<!-- Action Buttons Block -->' +
+      '<div style="margin: 26px 0 24px 0; padding: 20px; background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; text-align: center;">' +
+        '<p style="margin: 0 0 14px 0; font-weight: bold; font-size: 14px; color: #0A192F;">Important Next Steps for Approved Teams:</p>' +
+        '<div style="display: block; margin-bottom: 12px;">' +
+          '<a href="' + escapeHtml(whatsappUrl) + '" target="_blank" style="display: inline-block; width: 85%; max-width: 320px; background-color: #25D366; color: #ffffff; text-decoration: none; font-weight: bold; font-size: 14px; padding: 12px 18px; border-radius: 8px; box-shadow: 0 2px 4px rgba(37,211,102,0.25); text-align: center;">' +
+            '💬 Join WhatsApp Group' +
+          '</a>' +
+        '</div>' +
+        '<div style="display: block;">' +
+          '<a href="' + escapeHtml(viewRegistrationUrl) + '" target="_blank" style="display: inline-block; width: 85%; max-width: 320px; background-color: #0A192F; color: #ffffff; text-decoration: none; font-weight: bold; font-size: 14px; padding: 12px 18px; border-radius: 8px; box-shadow: 0 2px 4px rgba(10,25,47,0.2); text-align: center;">' +
+            '📥 Download Your Entry Voucher' +
+          '</a>' +
+        '</div>' +
+      '</div>' +
+
+      '<p style="margin: 0 0 16px 0;">Please keep this email for future reference. You may use your <strong>Registration No., Mobile No., or Roll No.</strong> to check your registration status and download your voucher on the official registration website.</p>' +
+
+      '<p style="margin: 0 0 24px 0;">Thank you for registering with us.</p>' +
+
+      '<div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0; line-height: 1.5;">' +
+        '<p style="margin: 0 0 4px 0;">Sincerely,</p>' +
+        '<p style="margin: 0; font-weight: bold; color: #0A192F;">Organizing Committee</p>' +
+        '<p style="margin: 0; font-weight: bold; color: #16A34A;">Career Club BTEC</p>' +
+        '<p style="margin: 0; color: #475569;">Barishal Textile Engineering College (BTEC)</p>' +
+      '</div>' +
+    '</div>';
+
+  // Generate the UPDATED PDF Voucher with "Approved" status
+  let pdfAttachment = null;
+  const pdfFilename = "Updated_Voucher_PAID_" + regId + ".pdf";
+
+  try {
+    const updatedVoucherHtml =
+      '<!DOCTYPE html><html><head><meta charset="utf-8">' +
+      '<style>' +
+      'body { font-family: -apple-system, BlinkMacSystemFont, Arial, sans-serif; margin: 25px; color: #0A192F; background-color: #ffffff; }' +
+      '.card { border: 2px solid #0A192F; border-radius: 10px; overflow: hidden; }' +
+      '.hdr { background-color: #0A192F; color: #ffffff; padding: 20px 24px; border-bottom: 3px solid #16A34A; }' +
+      '.hdr h1 { margin: 0; font-size: 18px; font-weight: bold; letter-spacing: 0.5px; }' +
+      '.hdr p { margin: 4px 0 0; color: #22C55E; font-size: 11px; font-weight: bold; }' +
+      '.bdy { padding: 20px 24px; }' +
+      '.info-box { background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px 16px; margin-bottom: 16px; }' +
+      'table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 12px; }' +
+      'th { background-color: #f1f5f9; color: #475569; font-weight: bold; padding: 7px 9px; text-align: left; border-bottom: 2px solid #cbd5e1; font-size: 10.5px; text-transform: uppercase; }' +
+      'td { padding: 7px 9px; border-bottom: 1px solid #e2e8f0; font-size: 11.5px; }' +
+      '.section-title { font-size: 13px; font-weight: bold; color: #0A192F; margin: 14px 0 6px; border-bottom: 1px solid #cbd5e1; padding-bottom: 3px; }' +
+      '.paid-badge { background-color: #16A34A; color: #ffffff; font-weight: bold; padding: 3px 8px; border-radius: 4px; font-size: 11px; }' +
+      '.note-box { background-color: #f0fdf4; border: 1px solid #86efac; border-radius: 6px; padding: 10px 14px; color: #166534; font-size: 11px; line-height: 1.5; margin-top: 16px; }' +
+      '.footer { margin-top: 20px; text-align: center; font-size: 10px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 10px; }' +
+      '</style></head><body>' +
+      '<div class="card">' +
+        '<div class="hdr">' +
+          '<h1>CAREER CLUB BTEC</h1>' +
+          '<p>TEXTILE PRESENTATION COMPETITION 2026 • OFFICIAL ENTRY VOUCHER (VERIFIED & PAID)</p>' +
+        '</div>' +
+        '<div class="bdy">' +
+          '<div class="info-box">' +
+            '<table style="margin: 0; border: none;">' +
+              '<tr style="border: none;"><td style="border: none; padding: 2px 0;"><strong>Registration ID:</strong> <span style="color: #16A34A; font-family: monospace; font-size: 14px; font-weight: bold;">' + escapeHtml(regId) + '</span></td>' +
+              '<td style="border: none; padding: 2px 0; text-align: right;"><strong>Event Date:</strong> 04 Oct 2026 (9:00 AM BST)</td></tr>' +
+              '<tr style="border: none;"><td style="border: none; padding: 2px 0;"><strong>Team Name:</strong> <span style="font-weight: bold; color: #0A192F;">' + escapeHtml(teamName) + '</span></td>' +
+              '<td style="border: none; padding: 2px 0; text-align: right;"><strong>Venue:</strong> BTEC Auditorium</td></tr>' +
+            '</table>' +
+          '</div>' +
+          '<div class="section-title">Team Participants</div>' +
+          '<table>' +
+            '<tr><th>Role</th><th>Name</th><th>Roll</th><th>Department</th><th>Mobile No.</th></tr>' +
+            '<tr><td><strong>Leader</strong></td><td>' + escapeHtml(leaderName) + '</td><td>' + escapeHtml(leaderRoll) + '</td><td>' + escapeHtml(leaderDept) + '</td><td>' + escapeHtml(leaderWhatsApp) + '</td></tr>' +
+            '<tr><td><strong>Member 1</strong></td><td>' + escapeHtml(details.m1Name || "—") + '</td><td>' + escapeHtml(details.m1Roll || "—") + '</td><td>' + escapeHtml(details.m1Dept || "—") + '</td><td>' + escapeHtml(details.m1Mobile || "—") + '</td></tr>' +
+            '<tr><td><strong>Member 2</strong></td><td>' + escapeHtml(details.m2Name || "—") + '</td><td>' + escapeHtml(details.m2Roll || "—") + '</td><td>' + escapeHtml(details.m2Dept || "—") + '</td><td>' + escapeHtml(details.m2Mobile || "—") + '</td></tr>' +
+          '</table>' +
+          '<div class="section-title">Payment Verification (Verified by Admin)</div>' +
+          '<table>' +
+            '<tr><td><strong>Registration Fee:</strong></td><td style="color: #16A34A; font-weight: bold;">149 BDT (Paid)</td><td><strong>Sender bKash:</strong></td><td>' + escapeHtml(details.bkashNum || "—") + '</td></tr>' +
+            '<tr><td><strong>Transaction ID (TrxID):</strong></td><td style="font-family: monospace; font-weight: bold; color: #0A192F;">' + escapeHtml(details.transactionId || "—") + '</td><td><strong>Payment Status:</strong></td><td><span class="paid-badge">VERIFIED & APPROVED</span></td></tr>' +
+            '<tr><td><strong>Submission Date:</strong></td><td colspan="3">' + escapeHtml(submissionDate) + '</td></tr>' +
+          '</table>' +
+          '<div class="note-box">' +
+            '<strong>✅ PAYMENT VERIFIED & ENTRY CONFIRMED:</strong><br/>' +
+            '• Your registration is officially approved. Please carry this updated voucher (digital or print) on the event day.<br/>' +
+            '• Reporting time: 8:30 AM BST on 04 October 2026 at BTEC Auditorium.<br/>' +
+            '• Helpline: +880 1305-912237 | Email: careerclubbtec@gmail.com' +
+          '</div>' +
+          '<div class="footer">' +
+            '© 2026 Career Club BTEC • Barishal Textile Engineering College • Doc Ref: ' + escapeHtml(regId) + ' (APPROVED)' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '</body></html>';
+
+    // Primary method: Utilities.newBlob
+    try {
+      const htmlBlob = Utilities.newBlob(updatedVoucherHtml, "text/html", "voucher.html");
+      pdfAttachment = htmlBlob.getAs("application/pdf").setName(pdfFilename);
+      Logger.log("[PDF SUCCESS] Created PDF voucher via Utilities.newBlob for " + regId);
+    } catch (bErr) {
+      Logger.log("[PDF BLOB RETRY] Trying DriveApp fallback: " + bErr.toString());
+      try {
+        const tempFile = DriveApp.createFile("temp_voucher_" + regId + ".html", updatedVoucherHtml, "text/html");
+        pdfAttachment = tempFile.getAs("application/pdf").setName(pdfFilename);
+        tempFile.setTrashed(true);
+        Logger.log("[PDF SUCCESS] Created PDF voucher via DriveApp fallback for " + regId);
+      } catch (dErr) {
+        Logger.log("[PDF BLOB RETRY] Trying HtmlService fallback: " + dErr.toString());
+        const htmlOutput = HtmlService.createHtmlOutput(updatedVoucherHtml);
+        pdfAttachment = htmlOutput.getAs("application/pdf").setName(pdfFilename);
+      }
+    }
+  } catch (pdfErr) {
+    Logger.log("[PDF FATAL ERROR] Error generating approved voucher PDF: " + pdfErr.toString());
+  }
+
+  const mailOptions = {
+    to: details.email,
+    subject: subject,
+    body: plainBody,
+    htmlBody: htmlBody,
+    name: "Career Club BTEC"
+  };
+
+  if (pdfAttachment) {
+    mailOptions.attachments = [pdfAttachment];
+  }
+
+  try {
+    MailApp.sendEmail(mailOptions);
+    Logger.log("[EMAIL SUCCESS] Approved email & updated PDF successfully sent to: " + details.email);
+    return true;
+  } catch (err1) {
+    try {
+      const gmailAdvanced = {
+        htmlBody: htmlBody,
+        name: "Career Club BTEC"
+      };
+      if (pdfAttachment) gmailAdvanced.attachments = [pdfAttachment];
+      GmailApp.sendEmail(details.email, subject, plainBody, gmailAdvanced);
+      Logger.log("[EMAIL SUCCESS] Approved email sent via GmailApp to: " + details.email);
+      return true;
+    } catch (err2) {
+      Logger.log("[EMAIL ERROR] Could not send approval email: " + err2.toString());
+      return false;
+    }
+  }
+}
+
+/**
  * 🛠️ AUTO-FIX & REALIGN FUNCTION
  * If you ever have shifted columns from older tests, this realigns everything.
  */
@@ -1149,16 +1504,15 @@ function sendRegistrationConfirmationEmail(details) {
     "Roll No.: " + leaderRoll + "\n" +
     "Department: " + leaderDept + "\n" +
     "Mobile No.: " + leaderWhatsApp + "\n" +
-    "Payment Status: " + paymentStatus + "\n" +
+    "Payment Status: " + paymentStatus + " (Under Verification)\n" +
     "Submission Date: " + submissionDate + "\n\n" +
-    "Official WhatsApp Community:\n\n" +
-    "All registered participants (Leader and Members) must join the official WhatsApp group for presentation topics, guidelines, mentor sessions, and event day schedules:\n" +
-    "https://chat.whatsapp.com/Fnta8tls8Gh4UKlVDQT7h0?s=cl&p=a&mlu=4&ilr=4\n\n" +
-    "View & Manage Your Registration:\n\n" +
-    "Click the link below to automatically view your registration details, track verified payment status, and download your official PDF voucher:\n" +
+    "Payment Verification & WhatsApp Access:\n\n" +
+    "Your bKash transaction is currently being verified by the organizing committee. To protect registered teams from unauthorized entry, the official participant WhatsApp group link will be sent to your email and unlocked on your 'View Your Registration' page immediately after your payment is approved.\n\n" +
+    "View & Track Your Registration:\n\n" +
+    "Click the link below to track your live verification status, download your voucher, or update team info:\n" +
     viewRegistrationUrl + "\n\n" +
     "Support & Inquiries: careerclubbtec@gmail.com | Helpline: +880 1305-912237\n\n" +
-    "Thank you for your participation. We sincerely appreciate your interest in the Textile Presentation Competition 2026 and look forward to your participation.\n\n" +
+    "Thank you for registering. We look forward to your participation.\n\n" +
     "Sincerely,\n" +
     "Organizing Committee\n" +
     "Career Club BTEC\n" +
@@ -1173,7 +1527,7 @@ function sendRegistrationConfirmationEmail(details) {
       '</div>' +
       '<div style="padding: 28px 30px 24px 30px;">' +
         '<p style="font-size: 15px; margin: 0 0 16px 0; color: #0A192F;">Dear <strong>' + escapeHtml(leaderName) + '</strong>,</p>' +
-        '<p style="font-size: 14px; margin: 0 0 24px 0; color: #334155; line-height: 1.6;">We are pleased to inform you that your registration for the <strong>Textile Presentation Competition 2026</strong> has been successfully received and recorded.</p>' +
+        '<p style="font-size: 14px; margin: 0 0 24px 0; color: #334155; line-height: 1.6;">We have successfully received and recorded your registration for the <strong>Textile Presentation Competition 2026</strong>.</p>' +
 
         '<div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 24px;">' +
           '<h2 style="font-size: 15px; font-weight: 800; margin: 0 0 14px 0; color: #0A192F; border-bottom: 1px solid #cbd5e1; padding-bottom: 8px;">Registration Details</h2>' +
@@ -1184,21 +1538,18 @@ function sendRegistrationConfirmationEmail(details) {
             '<tr><td style="padding: 6px 0; color: #64748b; font-weight: 600;">Roll No.:</td><td style="padding: 6px 0; color: #0A192F; font-weight: 600;">' + escapeHtml(leaderRoll) + '</td></tr>' +
             '<tr><td style="padding: 6px 0; color: #64748b; font-weight: 600;">Department:</td><td style="padding: 6px 0; color: #0A192F; font-weight: 600;">' + escapeHtml(leaderDept) + '</td></tr>' +
             '<tr><td style="padding: 6px 0; color: #64748b; font-weight: 600;">Mobile No.:</td><td style="padding: 6px 0; color: #0A192F; font-weight: 600;">' + escapeHtml(leaderWhatsApp) + '</td></tr>' +
-            '<tr><td style="padding: 6px 0; color: #64748b; font-weight: 600;">Payment Status:</td><td style="padding: 6px 0;"><span style="background-color: #fef3c7; color: #92400e; padding: 3px 10px; border-radius: 6px; font-weight: 700; font-size: 12px; display: inline-block;">' + escapeHtml(paymentStatus) + '</span></td></tr>' +
+            '<tr><td style="padding: 6px 0; color: #64748b; font-weight: 600;">Payment Status:</td><td style="padding: 6px 0;"><span style="background-color: #fef3c7; color: #92400e; padding: 3px 10px; border-radius: 6px; font-weight: 700; font-size: 12px; display: inline-block;">' + escapeHtml(paymentStatus) + ' (Pending Verification)</span></td></tr>' +
             '<tr><td style="padding: 6px 0; color: #64748b; font-weight: 600;">Submission Date:</td><td style="padding: 6px 0; color: #0A192F; font-weight: 600;">' + escapeHtml(submissionDate) + '</td></tr>' +
           '</table>' +
         '</div>' +
 
-        '<div style="background-color: #f0fdf4; border: 2px solid #22c55e; border-radius: 12px; padding: 20px; margin-bottom: 24px; text-align: center;">' +
-          '<h3 style="font-size: 15px; font-weight: 800; margin: 0 0 6px 0; color: #166534;">Official Participant WhatsApp Group</h3>' +
-          '<p style="font-size: 13px; margin: 0 0 16px 0; color: #15803d; line-height: 1.5;">Please ensure all 3 team members join the competition WhatsApp group for presentation topics, guidelines, and schedules.</p>' +
-          '<a href="https://chat.whatsapp.com/Fnta8tls8Gh4UKlVDQT7h0?s=cl&p=a&mlu=4&ilr=4" target="_blank" style="display: inline-block; background-color: #25D366; color: #ffffff; text-decoration: none; font-weight: 800; font-size: 14px; padding: 12px 24px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">' +
-            'Join WhatsApp Group' +
-          '</a>' +
+        '<div style="background-color: #fefce8; border: 1.5px solid #fef08a; border-radius: 12px; padding: 18px 20px; margin-bottom: 24px;">' +
+          '<h3 style="font-size: 14px; font-weight: 800; margin: 0 0 6px 0; color: #854d0e;">🔒 WhatsApp Group Access (Protected)</h3>' +
+          '<p style="font-size: 12.5px; margin: 0; color: #a16207; line-height: 1.5;">To prevent unauthorized entries, the official WhatsApp community link is locked until payment verification. As soon as the organizing committee verifies and approves your bKash payment, you will automatically receive an updated email with the WhatsApp group link and your verified PDF voucher.</p>' +
         '</div>' +
 
         '<div style="background-color: #f8fafc; border: 2px solid #0A192F; border-radius: 14px; padding: 22px 20px; margin-bottom: 24px; text-align: center;">' +
-          '<h3 style="font-size: 16px; font-weight: 800; margin: 0 0 6px 0; color: #0A192F;">View & Manage Your Registration</h3>' +
+          '<h3 style="font-size: 16px; font-weight: 800; margin: 0 0 6px 0; color: #0A192F;">View & Track Your Registration</h3>' +
           '<p style="font-size: 13px; margin: 0 0 16px 0; color: #475569; line-height: 1.5;">Click below to automatically view your verified details, track payment status, download your voucher, or update team info without typing:</p>' +
           '<a href="' + escapeHtml(viewRegistrationUrl) + '" target="_blank" style="display: inline-block; background-color: #0A192F; color: #ffffff; text-decoration: none; font-weight: 800; font-size: 14px; padding: 13px 30px; border-radius: 10px; box-shadow: 0 3px 6px rgba(10,25,47,0.25); letter-spacing: 0.2px;">' +
             '🔍 View Your Registration' +

@@ -214,7 +214,13 @@ export const GoogleSheetSettingsModal: React.FC<GoogleSheetSettingsModalProps> =
               <li>
                 In the top toolbar dropdown (next to "Debug"), select <strong>setup</strong> and click <strong>▶ Run</strong>.
                 <span className="block mt-1 text-[11px] text-emerald-800 font-medium pl-5">
-                  ✨ <em>This automatically formats your 25 columns, dark navy headers, dropdowns, plain text formatting for student rolls & WhatsApp numbers, creates the Google Drive photo folder, and authorizes the automatic confirmation email engine!</em>
+                  ✨ <em>Formats 25 columns, dark navy headers, dropdowns, plain text for rolls/phones, creates the Google Drive photo folder, and activates the automatic confirmation email engine!</em>
+                </span>
+              </li>
+              <li className="bg-emerald-100/60 -mx-1.5 p-2 rounded-lg border border-emerald-300/80">
+                <strong>🔔 Auto-Send Updated PDF when Payment is Approved:</strong>
+                <span className="block mt-0.5 text-[11px] text-emerald-900 leading-normal">
+                  In Apps Script left sidebar, click <strong>Triggers (⏰) &gt; + Add Trigger</strong> &rarr; Select <code>onEdit</code> function &rarr; Event type: <strong>On edit</strong> &rarr; <strong>Save</strong>. Whenever you change any team's Payment Status to <strong>"Paid"</strong> or <strong>"Approved"</strong> in the Sheet, an updated verified PDF voucher is automatically generated and emailed to the team leader!
                 </span>
               </li>
               <li>
