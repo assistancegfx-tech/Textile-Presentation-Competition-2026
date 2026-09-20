@@ -109,12 +109,7 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
 
   if (!isOpen) return null;
 
-  const normalizePhoneForCheck = (phone: any) => {
-    const cleaned = String(phone || '').trim().replace(/[\s\-()]/g, '');
-    if (cleaned.startsWith('+88')) return cleaned.slice(3);
-    if (cleaned.startsWith('88')) return cleaned.slice(2);
-    return cleaned;
-  };
+  const DEFAULT_VERIFIED_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxFVWAVQApNuw2g_zvbSEK_QhXIcso8MoDhne75A4L0ryUUeh2G4GEclUkMn8GY21VT2Q/exec';
 
   const handleSearch = async (overrideId?: string, overrideRoll?: string, overrideMobile?: string) => {
     const rawTargetId = String(overrideId || searchId || '').trim();
@@ -136,7 +131,11 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
     setSaveSuccessMsg(null);
     setIsEditing(false);
 
-    const scriptUrl = localStorage.getItem('tpc2026_google_script_url') || 'https://script.google.com/macros/s/AKfycbxFVWAVQApNuw2g_zvbSEK_QhXIcso8MoDhne75A4L0ryUUeh2G4GEclUkMn8GY21VT2Q/exec';
+    let scriptUrl = localStorage.getItem('tpc2026_google_script_url') || DEFAULT_VERIFIED_SCRIPT_URL;
+    if (!scriptUrl || scriptUrl.includes('AKfycbzPpm6fVvOmXE1FTq') || scriptUrl.includes('AKfycbzVPB_lyf20Tx7qNxgb') || !scriptUrl.startsWith('http')) {
+      scriptUrl = DEFAULT_VERIFIED_SCRIPT_URL;
+      localStorage.setItem('tpc2026_google_script_url', DEFAULT_VERIFIED_SCRIPT_URL);
+    }
 
     try {
       const queryParams = new URLSearchParams();
@@ -163,67 +162,77 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
 
         if (res.ok && data.success && data.registration) {
           candidateRecord = data.registration;
+        } else if (!res.ok && res.status === 401 && data.error) {
+          setSearchError(data.error);
+          setRecord(null);
+          setIsLoading(false);
+          return;
         }
       } catch (backendErr) {
         console.warn('Backend API lookup notice, trying direct Google Sheets fallback:', backendErr);
       }
 
       // 2. Direct Google Apps Script Client-Side Fallback if backend didn't return record
-      if (!candidateRecord && scriptUrl) {
-        try {
-          const directUrl = `${scriptUrl}${scriptUrl.includes('?') ? '&' : '?'}action=get&regId=${encodeURIComponent(targetId || targetRoll)}`;
-          const gRes = await fetch(directUrl, { redirect: 'follow' });
-          if (gRes.ok) {
-            const gData = await gRes.json();
-            if (gData && (gData.success || gData.found) && gData.registrationId) {
-              candidateRecord = {
-                registrationId: String(gData.registrationId || ''),
-                submissionDate: String(gData.submissionDate || new Date().toISOString()),
-                paymentStatus: String(gData.paymentStatus || 'Pending') as any,
-                teamName: String(gData.teamName || ''),
-                editCount: 0,
-                maxEdits: 3,
-                remainingEdits: 3,
-                canEdit: true,
-                formData: {
+      if (!candidateRecord) {
+        const urlsToTry = Array.from(new Set([scriptUrl, DEFAULT_VERIFIED_SCRIPT_URL]));
+        for (const testUrl of urlsToTry) {
+          if (!testUrl || !testUrl.startsWith('http')) continue;
+          try {
+            const directUrl = `${testUrl}${testUrl.includes('?') ? '&' : '?'}action=get&regId=${encodeURIComponent(targetId || targetRoll)}`;
+            const gRes = await fetch(directUrl, { redirect: 'follow' });
+            if (gRes.ok) {
+              const gData = await gRes.json();
+              if (gData && (gData.success || gData.found) && gData.registrationId) {
+                candidateRecord = {
+                  registrationId: String(gData.registrationId || ''),
+                  submissionDate: String(gData.submissionDate || new Date().toISOString()),
+                  paymentStatus: String(gData.paymentStatus || 'Pending') as any,
                   teamName: String(gData.teamName || ''),
-                  leader: {
-                    name: String(gData.leaderName || ''),
-                    roll: String(gData.leaderRoll || ''),
-                    department: String(gData.leaderDepartment || 'Textile Engineering'),
-                    whatsapp: formatBdPhone(gData.leaderWhatsApp),
-                    facebook: String(gData.leaderFacebook || ''),
-                    email: String(gData.leaderEmail || gData.email || ''),
-                    photoPreview: gData.leaderPhotoUrl || undefined
-                  },
-                  member1: {
-                    name: String(gData.member1Name || ''),
-                    roll: String(gData.member1Roll || ''),
-                    department: String(gData.member1Department || 'Textile Engineering'),
-                    whatsapp: formatBdPhone(gData.member1WhatsApp),
-                    facebook: String(gData.member1Facebook || ''),
-                    email: String(gData.member1Email || ''),
-                    photoPreview: gData.member1PhotoUrl || undefined
-                  },
-                  member2: {
-                    name: String(gData.member2Name || ''),
-                    roll: String(gData.member2Roll || ''),
-                    department: String(gData.member2Department || 'Textile Engineering'),
-                    whatsapp: formatBdPhone(gData.member2WhatsApp),
-                    facebook: String(gData.member2Facebook || ''),
-                    email: String(gData.member2Email || ''),
-                    photoPreview: gData.member2PhotoUrl || undefined
-                  },
-                  payment: {
-                    bkashNumber: formatBdPhone(gData.bkashNumber),
-                    transactionId: String(gData.transactionId || '')
+                  editCount: 0,
+                  maxEdits: 3,
+                  remainingEdits: 3,
+                  canEdit: true,
+                  formData: {
+                    teamName: String(gData.teamName || ''),
+                    leader: {
+                      name: String(gData.leaderName || ''),
+                      roll: String(gData.leaderRoll || ''),
+                      department: String(gData.leaderDepartment || 'Textile Engineering'),
+                      whatsapp: formatBdPhone(gData.leaderWhatsApp),
+                      facebook: String(gData.leaderFacebook || ''),
+                      email: String(gData.leaderEmail || gData.email || ''),
+                      photoPreview: gData.leaderPhotoUrl || undefined
+                    },
+                    member1: {
+                      name: String(gData.member1Name || ''),
+                      roll: String(gData.member1Roll || ''),
+                      department: String(gData.member1Department || 'Textile Engineering'),
+                      whatsapp: formatBdPhone(gData.member1WhatsApp),
+                      facebook: String(gData.member1Facebook || ''),
+                      email: String(gData.member1Email || ''),
+                      photoPreview: gData.member1PhotoUrl || undefined
+                    },
+                    member2: {
+                      name: String(gData.member2Name || ''),
+                      roll: String(gData.member2Roll || ''),
+                      department: String(gData.member2Department || 'Textile Engineering'),
+                      whatsapp: formatBdPhone(gData.member2WhatsApp),
+                      facebook: String(gData.member2Facebook || ''),
+                      email: String(gData.member2Email || ''),
+                      photoPreview: gData.member2PhotoUrl || undefined
+                    },
+                    payment: {
+                      bkashNumber: formatBdPhone(gData.bkashNumber),
+                      transactionId: String(gData.transactionId || '')
+                    }
                   }
-                }
-              };
+                };
+                break;
+              }
             }
+          } catch (scriptFetchErr) {
+            console.warn('Direct Google Apps Script fetch notice:', scriptFetchErr);
           }
-        } catch (scriptFetchErr) {
-          console.warn('Direct Google Apps Script fetch notice:', scriptFetchErr);
         }
       }
 
@@ -495,22 +504,43 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
         console.warn('API PUT warning, trying direct Google Sheet update:', fetchErr);
       }
 
-      // 2. Direct Google Apps Script update (if backend didn't update sheet or as fallback)
-      if (!sheetUpdateSuccess && scriptUrl) {
+      // 2. Direct Google Apps Script update (ensures immediate write to Google Sheets)
+      if (scriptUrl) {
         try {
-          const scriptRes = await fetch(scriptUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              action: 'updateRegistration',
-              registrationId: record.registrationId,
-              formData: editFormData
-            }),
-            redirect: 'follow'
+          const updatePayload = JSON.stringify({
+            action: 'updateRegistration',
+            registrationId: record.registrationId,
+            formData: editFormData
           });
-          const sJson = await scriptRes.json();
-          if (sJson && sJson.success) {
-            sheetUpdateSuccess = true;
+
+          // A) Try text/plain POST (bypasses browser CORS preflight check)
+          let scriptSuccess = false;
+          try {
+            const scriptRes = await fetch(scriptUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+              body: updatePayload,
+              redirect: 'follow'
+            });
+            const sJson = await scriptRes.json();
+            if (sJson && sJson.success) {
+              scriptSuccess = true;
+              sheetUpdateSuccess = true;
+            }
+          } catch (_) {
+            // Browser CORS or redirect handling - continue to GET fallback
+          }
+
+          // B) Try GET fallback (100% compatible with Google Apps Script Web App redirects in browsers)
+          if (!scriptSuccess) {
+            try {
+              const getUrl = `${scriptUrl}?action=updateRegistration&data=${encodeURIComponent(updatePayload)}`;
+              const getRes = await fetch(getUrl, { method: 'GET', redirect: 'follow' });
+              const gJson = await getRes.json();
+              if (gJson && gJson.success) {
+                sheetUpdateSuccess = true;
+              }
+            } catch (_) {}
           }
         } catch (sErr) {
           console.warn('Direct Google Sheet update notice:', sErr);

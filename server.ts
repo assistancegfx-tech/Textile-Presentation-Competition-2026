@@ -24,6 +24,18 @@ let idSequence = 1;
 
 const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxFVWAVQApNuw2g_zvbSEK_QhXIcso8MoDhne75A4L0ryUUeh2G4GEclUkMn8GY21VT2Q/exec';
 
+// Detect and replace outdated or dead deployment hashes
+const sanitizeScriptUrl = (url?: string): string => {
+  if (!url || typeof url !== 'string') return DEFAULT_SCRIPT_URL;
+  const trimmed = url.trim();
+  if (!trimmed.startsWith('http')) return DEFAULT_SCRIPT_URL;
+  // If URL points to outdated deployment hashes that don't have the active sheet handler
+  if (trimmed.includes('AKfycbzPpm6fVvOmXE1FTq') || trimmed.includes('AKfycbzVPB_lyf20Tx7qNxgb')) {
+    return DEFAULT_SCRIPT_URL;
+  }
+  return trimmed;
+};
+
 function loadEnvFile() {
   try {
     const envPath = path.join(process.cwd(), '.env');
@@ -79,12 +91,13 @@ async function startServer() {
     }
   });
 
-  let configuredGoogleScriptUrl = process.env.GOOGLE_SCRIPT_URL || process.env.VITE_GOOGLE_SCRIPT_URL || DEFAULT_SCRIPT_URL;
+  let configuredGoogleScriptUrl = sanitizeScriptUrl(process.env.GOOGLE_SCRIPT_URL || process.env.VITE_GOOGLE_SCRIPT_URL || DEFAULT_SCRIPT_URL);
 
   const getActiveScriptUrl = (req?: Request): string => {
     const customHeader = req?.headers['x-google-script-url'] as string | undefined;
     const customQuery = req?.query?.scriptUrl as string | undefined;
-    return customHeader || customQuery || configuredGoogleScriptUrl;
+    const raw = customHeader || customQuery || configuredGoogleScriptUrl;
+    return sanitizeScriptUrl(raw);
   };
 
   app.get('/api/config', (req: Request, res: Response) => {
@@ -440,14 +453,25 @@ async function startServer() {
     let reg = registrationsStore.find(r => r.registrationId.trim().toUpperCase() === requestedId);
 
     // If Google Apps Script is configured, fetch live status from Google Sheets
-    const customScriptUrl = req.headers['x-google-script-url'] as string | undefined;
-    const targetScriptUrl = customScriptUrl || req.query.scriptUrl as string || process.env.GOOGLE_SCRIPT_URL || process.env.VITE_GOOGLE_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbxFVWAVQApNuw2g_zvbSEK_QhXIcso8MoDhne75A4L0ryUUeh2G4GEclUkMn8GY21VT2Q/exec';
+    const candidateUrls: string[] = Array.from(new Set([
+      req.headers['x-google-script-url'] as string,
+      req.query.scriptUrl as string,
+      DEFAULT_SCRIPT_URL,
+      configuredGoogleScriptUrl,
+      process.env.GOOGLE_SCRIPT_URL,
+      process.env.VITE_GOOGLE_SCRIPT_URL
+    ].filter(u => u && typeof u === 'string' && u.startsWith('http'))))
+    .map(u => sanitizeScriptUrl(u));
 
-    if (targetScriptUrl && targetScriptUrl.startsWith('http')) {
+    for (const targetScriptUrl of candidateUrls) {
+      if (reg && reg.editCount && reg.editCount > 0) {
+        // If we already have a locally edited copy, we only need to sync if needed
+        break;
+      }
       try {
         const queryUrl = `${targetScriptUrl}${targetScriptUrl.includes('?') ? '&' : '?'}action=get&regId=${encodeURIComponent(requestedId)}`;
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        const timeoutId = setTimeout(() => controller.abort(), 7000);
         
         const gRes = await fetch(queryUrl, { signal: controller.signal, redirect: 'follow' });
         clearTimeout(timeoutId);
@@ -513,8 +537,6 @@ async function startServer() {
               // Update live payment status from Google Sheets
               reg.paymentStatus = liveStatus;
               
-              // Only overwrite registration details from Google Sheets IF the record hasn't been edited locally (editCount === 0).
-              // If the user made edits (reg.editCount > 0), preserve reg.payload so previous edits are not lost!
               if ((reg.editCount || 0) === 0) {
                 reg.registrationId = gData.registrationId || reg.registrationId;
                 reg.submissionDate = gData.submissionDate || reg.submissionDate;
@@ -542,10 +564,11 @@ async function startServer() {
               };
               registrationsStore.push(reg);
             }
+            break; // Found and successfully loaded from Google Sheets!
           }
         }
       } catch (gErr: any) {
-        console.warn('[REGISTRATION] Google Sheets live status check notice:', gErr.message);
+        console.warn('[REGISTRATION] Google Sheets lookup notice for', targetScriptUrl, gErr.message);
       }
     }
 
@@ -561,10 +584,15 @@ async function startServer() {
 
     if (reqRoll) {
       const storedRoll = String(reg.leaderRoll || reg.payload?.leader?.roll || '').trim();
-      if (storedRoll && storedRoll.toLowerCase() !== reqRoll.toLowerCase()) {
+      const m1Roll = String(reg.m1Roll || reg.payload?.member1?.roll || '').trim();
+      const m2Roll = String(reg.m2Roll || reg.payload?.member2?.roll || '').trim();
+      const rollMatches = (storedRoll && storedRoll.toLowerCase() === reqRoll.toLowerCase()) ||
+                          (m1Roll && m1Roll.toLowerCase() === reqRoll.toLowerCase()) ||
+                          (m2Roll && m2Roll.toLowerCase() === reqRoll.toLowerCase());
+      if (!rollMatches) {
         return res.status(401).json({
           success: false,
-          error: 'Security verification failed: Leader Roll number does not match this registration.'
+          error: 'Security verification failed: Roll number does not match this registration.'
         });
       }
     }
@@ -795,20 +823,45 @@ async function startServer() {
       let sheetUpdated = false;
       if (activeScriptUrl && activeScriptUrl.startsWith('http')) {
         try {
+          const payload = JSON.stringify({
+            action: 'updateRegistration',
+            registrationId: requestedId,
+            formData: reg.payload
+          });
+
           const scriptRes = await fetch(activeScriptUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              action: 'updateRegistration',
-              registrationId: requestedId,
-              formData: reg.payload
-            }),
+            body: payload,
             redirect: 'follow'
           });
-          const scriptJson: any = await scriptRes.json();
+
+          const rawText = await scriptRes.text();
+          let scriptJson: any = null;
+          try {
+            scriptJson = JSON.parse(rawText);
+          } catch (_) {}
+
           if (scriptJson && scriptJson.success) {
             sheetUpdated = true;
             console.log(`[EDIT] Google Sheet row updated successfully for ${requestedId}`);
+          } else {
+            // Fallback via GET parameter (resolves redirect quirks in some Google Apps Script deployments)
+            try {
+              const getUrl = `${activeScriptUrl}?action=updateRegistration&data=${encodeURIComponent(payload)}`;
+              const getRes = await fetch(getUrl, { method: 'GET', redirect: 'follow' });
+              const getText = await getRes.text();
+              let getJson: any = null;
+              try { getJson = JSON.parse(getText); } catch (_) {}
+              if (getJson && getJson.success) {
+                sheetUpdated = true;
+                console.log(`[EDIT-GET] Google Sheet row updated successfully for ${requestedId}`);
+              } else {
+                console.warn('[EDIT] Google Apps Script responses:', rawText.slice(0, 150), getText.slice(0, 150));
+              }
+            } catch (fallbackErr: any) {
+              console.warn('[EDIT-GET] Fallback query notice:', fallbackErr.message);
+            }
           }
         } catch (sheetErr: any) {
           console.warn('[EDIT] Google Sheets sync error during update:', sheetErr.message);
