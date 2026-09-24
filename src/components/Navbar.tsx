@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Menu, X, ArrowRight, Search, Database } from 'lucide-react';
+import { Menu, X, ArrowRight, Search, Database, Lock } from 'lucide-react';
 import { BrandHeaderCombo } from './Logos';
 import { PageId } from '../types';
+import { isRegistrationClosed } from '../utils/deadline';
 
 interface NavbarProps {
   currentPage: PageId;
@@ -19,6 +20,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const isClosed = isRegistrationClosed();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -105,10 +107,23 @@ export const Navbar: React.FC<NavbarProps> = ({
                 whileTap={{ scale: 0.97 }}
                 type="button"
                 onClick={() => handleNavClick('registration')}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold text-white bg-[#0A192F] hover:bg-[#122846] transition shadow-xs border border-[#0A192F] cursor-pointer"
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition shadow-xs border cursor-pointer ${
+                  isClosed
+                    ? 'text-slate-700 bg-slate-100 hover:bg-slate-200 border-slate-300'
+                    : 'text-white bg-[#0A192F] hover:bg-[#122846] border-[#0A192F]'
+                }`}
               >
-                <span>Register Now</span>
-                <ArrowRight className="w-3.5 h-3.5 text-[#22C55E]" />
+                {isClosed ? (
+                  <>
+                    <Lock className="w-3.5 h-3.5 text-rose-600" />
+                    <span>Registration Closed</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Register Now</span>
+                    <ArrowRight className="w-3.5 h-3.5 text-[#22C55E]" />
+                  </>
+                )}
               </motion.button>
             )}
           </div>
@@ -120,9 +135,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                 whileTap={{ scale: 0.95 }}
                 type="button"
                 onClick={() => handleNavClick('registration')}
-                className="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-[#0A192F]"
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
+                  isClosed ? 'text-slate-700 bg-slate-200' : 'text-white bg-[#0A192F]'
+                }`}
               >
-                Register
+                {isClosed ? 'Closed' : 'Register'}
               </motion.button>
             )}
             <motion.button

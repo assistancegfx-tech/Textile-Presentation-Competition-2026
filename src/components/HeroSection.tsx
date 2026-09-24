@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Calendar, MapPin, ArrowRight, BookOpen, Users, HelpCircle, Sparkles, Search } from 'lucide-react';
+import { Calendar, MapPin, ArrowRight, Clock, Users, Search, Lock, ShieldCheck, BookOpen, HelpCircle } from 'lucide-react';
 import { WeaveDecorativeAccent } from './TextileMotifs';
 import { PageId } from '../types';
-
-interface TimeLeft {
-  days: number;
-  hours: number;
-  minutes: number;
-  seconds: number;
-}
+import {
+  getTimeUntilRegistrationDeadline,
+  isRegistrationClosed,
+  REGISTRATION_DEADLINE_LABEL,
+  CountdownTimeLeft,
+  EVENT_DATE_SHORT,
+  EVENT_VENUE
+} from '../utils/deadline';
 
 interface HeroSectionProps {
   onNavigate: (page: PageId) => void;
@@ -17,38 +18,19 @@ interface HeroSectionProps {
 }
 
 export const HeroSection: React.FC<HeroSectionProps> = ({ onNavigate, onOpenViewEditModal }) => {
-  const [timeLeft, setTimeLeft] = useState<TimeLeft>({
-    days: 0,
-    hours: 0,
-    minutes: 0,
-    seconds: 0
-  });
+  const [countdown, setCountdown] = useState<CountdownTimeLeft>(getTimeUntilRegistrationDeadline());
 
   useEffect(() => {
-    // Target: 4 October 2026, 09:00 AM (Bangladesh Time UTC+6)
-    const targetDate = new Date('2026-10-04T09:00:00+06:00').getTime();
-
-    const calculateTime = () => {
-      const now = new Date().getTime();
-      const diff = targetDate - now;
-
-      if (diff <= 0) {
-        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-        return;
-      }
-
-      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
-      setTimeLeft({ days, hours, minutes, seconds });
+    const updateCountdown = () => {
+      setCountdown(getTimeUntilRegistrationDeadline());
     };
 
-    calculateTime();
-    const interval = setInterval(calculateTime, 1000);
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  const isClosed = countdown.isExpired || isRegistrationClosed();
 
   return (
     <motion.div
@@ -131,17 +113,17 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onNavigate, onOpenView
           >
             <div className="flex items-center gap-1.5 text-slate-800">
               <Calendar className="w-4 h-4 text-[#16A34A]" />
-              <span>4 October 2026</span>
+              <span>Event: {EVENT_DATE_SHORT}</span>
             </div>
             <span className="hidden sm:inline text-slate-300">•</span>
             <div className="flex items-center gap-1.5 text-slate-800">
               <MapPin className="w-4 h-4 text-[#16A34A]" />
-              <span>BTEC Auditorium</span>
+              <span>{EVENT_VENUE}</span>
             </div>
           </motion.div>
         </div>
 
-        {/* Compact Countdown Timer */}
+        {/* Compact Countdown Timer Box */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -149,35 +131,71 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onNavigate, onOpenView
           className="pt-2 max-w-lg mx-auto"
         >
           <div className="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 shadow-xs hover:shadow-md transition-shadow">
+            {/* Header label for countdown */}
+            <div className="flex items-center justify-between gap-2 mb-3 pb-2.5 border-b border-slate-100">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+                {isClosed ? (
+                  <>
+                    <Lock className="w-3.5 h-3.5 text-rose-600" />
+                    <span className="text-rose-700">Registration Status:</span>
+                  </>
+                ) : (
+                  <>
+                    <Clock className="w-3.5 h-3.5 text-[#16A34A] animate-spin-slow" />
+                    <span>Registration Closes In:</span>
+                  </>
+                )}
+              </div>
+              <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
+                isClosed
+                  ? 'bg-rose-100 text-rose-700 border border-rose-200'
+                  : 'bg-amber-100 text-amber-800 border border-amber-200'
+              }`}>
+                {isClosed ? 'Locked / Closed' : 'Deadline: 30 Sept (11:59 PM)'}
+              </span>
+            </div>
+
+            {/* Timer Counter Grid */}
             <div className="grid grid-cols-4 gap-2.5 sm:gap-3">
               <div className="bg-[#FAFBF9] rounded-xl p-2.5 border border-slate-200/70">
                 <span className="block text-2xl sm:text-3xl font-black text-[#0A192F] font-['Space_Grotesk']">
-                  {String(timeLeft.days).padStart(2, '0')}
+                  {String(countdown.days).padStart(2, '0')}
                 </span>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Days</span>
               </div>
 
               <div className="bg-[#FAFBF9] rounded-xl p-2.5 border border-slate-200/70">
                 <span className="block text-2xl sm:text-3xl font-black text-[#0A192F] font-['Space_Grotesk']">
-                  {String(timeLeft.hours).padStart(2, '0')}
+                  {String(countdown.hours).padStart(2, '0')}
                 </span>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Hours</span>
               </div>
 
               <div className="bg-[#FAFBF9] rounded-xl p-2.5 border border-slate-200/70">
                 <span className="block text-2xl sm:text-3xl font-black text-[#0A192F] font-['Space_Grotesk']">
-                  {String(timeLeft.minutes).padStart(2, '0')}
+                  {String(countdown.minutes).padStart(2, '0')}
                 </span>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Mins</span>
               </div>
 
               <div className="bg-[#FAFBF9] rounded-xl p-2.5 border border-slate-200/70">
-                <span className="block text-2xl sm:text-3xl font-black text-[#16A34A] font-['Space_Grotesk']">
-                  {String(timeLeft.seconds).padStart(2, '0')}
+                <span className={`block text-2xl sm:text-3xl font-black font-['Space_Grotesk'] ${
+                  isClosed ? 'text-slate-400' : 'text-[#16A34A]'
+                }`}>
+                  {String(countdown.seconds).padStart(2, '0')}
                 </span>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#16A34A]">Secs</span>
+                <span className={`text-[10px] font-bold uppercase tracking-wider ${
+                  isClosed ? 'text-slate-400' : 'text-[#16A34A]'
+                }`}>Secs</span>
               </div>
             </div>
+
+            {/* Deadline Sub-caption */}
+            <p className="text-[11px] text-slate-500 font-medium mt-2.5 text-center">
+              {isClosed
+                ? 'Registration closed on 30 September 2026 at 11:59 PM BST.'
+                : `Final Registration Deadline: ${REGISTRATION_DEADLINE_LABEL}`}
+            </p>
           </div>
         </motion.div>
 
@@ -188,27 +206,45 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onNavigate, onOpenView
           transition={{ duration: 0.45, delay: 0.35 }}
           className="pt-2 flex flex-col items-center justify-center gap-3 w-full max-w-lg mx-auto"
         >
-          {/* Primary Action Button */}
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => onNavigate('registration')}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-9 py-3.5 rounded-2xl text-sm sm:text-base font-extrabold text-white bg-[#0A192F] hover:bg-[#122846] transition-all shadow-lg shadow-[#0A192F]/20 group cursor-pointer border border-[#0A192F]"
-          >
-            <span>Register Your Team</span>
-            <ArrowRight className="w-4 h-4 text-[#22C55E] group-hover:translate-x-1 transition-transform" />
-          </motion.button>
+          {/* Primary Action Button - Locked when deadline passed */}
+          {isClosed ? (
+            <div className="w-full flex flex-col items-center gap-2">
+              <div className="w-full inline-flex items-center justify-center gap-2.5 px-9 py-3.5 rounded-2xl text-sm sm:text-base font-extrabold text-slate-400 bg-slate-100 border border-slate-300 cursor-not-allowed select-none">
+                <Lock className="w-4 h-4 text-slate-400" />
+                <span>Registration Closed (Locked)</span>
+              </div>
+              <p className="text-[11.5px] text-rose-700 bg-rose-50 px-3 py-1 rounded-lg border border-rose-200/70 font-semibold">
+                🔒 Deadline has passed. Registered teams can search and download vouchers below.
+              </p>
+            </div>
+          ) : (
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => onNavigate('registration')}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-9 py-3.5 rounded-2xl text-sm sm:text-base font-extrabold text-white bg-[#0A192F] hover:bg-[#122846] transition-all shadow-lg shadow-[#0A192F]/20 group cursor-pointer border border-[#0A192F]"
+            >
+              <span>Register Your Team</span>
+              <ArrowRight className="w-4 h-4 text-[#22C55E] group-hover:translate-x-1 transition-transform" />
+            </motion.button>
+          )}
 
-          {/* Prominently Set Below "Register Your Team" Button */}
+          {/* Prominently Set Below Action Buttons */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 w-full">
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => onOpenViewEditModal?.()}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-[#0A192F] bg-white hover:bg-emerald-50/80 border-2 border-[#16A34A]/70 hover:border-[#16A34A] transition-all shadow-xs cursor-pointer group"
+              className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all shadow-xs cursor-pointer group ${
+                isClosed
+                  ? 'text-white bg-[#0A192F] hover:bg-[#122846] border-2 border-[#0A192F]'
+                  : 'text-[#0A192F] bg-white hover:bg-emerald-50/80 border-2 border-[#16A34A]/70 hover:border-[#16A34A]'
+              }`}
             >
-              <Search className="w-4 h-4 text-[#16A34A] group-hover:scale-110 transition-transform" />
-              <span>View Your Registration</span>
+              <Search className={`w-4 h-4 transition-transform group-hover:scale-110 ${
+                isClosed ? 'text-[#22C55E]' : 'text-[#16A34A]'
+              }`} />
+              <span>View Your Registration & Voucher</span>
             </motion.button>
 
             <motion.button

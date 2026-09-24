@@ -1104,6 +1104,16 @@ function doPost(e) {
     // =========================================================================
     // ACTION 2: NEW REGISTRATION SUBMISSION (25 COLUMNS WITH TEAM NAME)
     // =========================================================================
+    // Check registration deadline: 30 September 2026, 11:59:59 PM BST (UTC+6)
+    const DEADLINE_TIMESTAMP = new Date("2026-09-30T23:59:59+06:00").getTime();
+    if (new Date().getTime() > DEADLINE_TIMESTAMP) {
+      return createResponse({
+        success: false,
+        status: "error",
+        error: "Registration is officially closed. The deadline was 30 September 2026, 11:59 PM BST."
+      });
+    }
+
     const existingValues = sheet.getDataRange().getValues();
 
     const teamName = String(data.teamName || data.formData?.teamName || data["teamName"] || "").trim();

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { User, Users, CreditCard, CheckCircle2, ChevronRight, ChevronLeft, AlertCircle, ShieldAlert, RotateCcw, Search } from 'lucide-react';
+import { User, Users, CreditCard, CheckCircle2, ChevronRight, ChevronLeft, AlertCircle, ShieldAlert, RotateCcw, Search, Lock, Calendar, MessageCircle } from 'lucide-react';
 import { RegistrationFormData, SubmissionResponse, Participant, SubmissionProgressStage } from '../types';
 import { ParticipantStepForm } from './ParticipantStepForm';
 import { PaymentStepForm } from './PaymentStepForm';
@@ -8,6 +8,7 @@ import { ReviewConfirmStep } from './ReviewConfirmStep';
 import { SuccessView } from './SuccessView';
 import { validateBangladeshPhone, validateTransactionId, validateEmail } from '../utils/formUtils';
 import { getRegistrationPdfBase64 } from '../utils/pdfGenerator';
+import { isRegistrationClosed, REGISTRATION_DEADLINE_LABEL, EVENT_DATE_SHORT, EVENT_VENUE } from '../utils/deadline';
 
 const initialParticipant = (): Participant => ({
   name: '',
@@ -172,8 +173,15 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
     setCurrentStep((prev) => Math.max(prev - 1, 0));
   };
 
+  const isClosed = isRegistrationClosed();
+
   // Final confirmation & submit
   const handleFinalSubmit = async () => {
+    if (isClosed) {
+      setSubmitError('Registration is officially closed. The deadline was 30 September 2026, 11:59 PM BST.');
+      return;
+    }
+
     setIsSubmitting(true);
     setSubmitProgressStage('validating');
     setSubmitError(null);
@@ -488,9 +496,72 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             formData={formData}
             onClose={handleRegisterAnother}
           />
+        ) : isClosed ? (
+          /* Registration Locked & Closed Card */
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-3xl border border-slate-200/90 shadow-xl p-6 sm:p-10 md:p-12 text-center max-w-2xl mx-auto space-y-6 relative overflow-hidden"
+          >
+            <div className="w-16 h-16 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center mx-auto shadow-xs">
+              <Lock className="w-8 h-8" />
+            </div>
+
+            <div className="space-y-2">
+              <span className="text-[11px] font-black uppercase tracking-wider text-rose-700 bg-rose-100 px-3 py-1 rounded-full border border-rose-200">
+                Registration Closed
+              </span>
+              <h2 className="text-2xl sm:text-3xl font-black text-[#0A192F] font-['Outfit'] tracking-tight">
+                Online Registration Has Closed
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-600 max-w-lg mx-auto leading-relaxed">
+                The registration deadline for the <strong>Textile Presentation Competition 2026</strong> was <strong>{REGISTRATION_DEADLINE_LABEL}</strong>. New team submissions are now automatically locked.
+              </p>
+            </div>
+
+            {/* Quick Actions for Already Registered Teams */}
+            <div className="bg-[#FAFBF9] border border-slate-200/80 rounded-2xl p-5 text-left space-y-3.5">
+              <div className="flex items-center gap-2 text-xs font-bold text-[#0A192F]">
+                <Calendar className="w-4 h-4 text-[#16A34A]" />
+                <span>Next steps for already registered teams:</span>
+              </div>
+              <ul className="text-xs text-slate-600 space-y-2 list-disc list-inside">
+                <li>Check your payment approval status and official registration record.</li>
+                <li>Download or print your updated official entry voucher (PDF).</li>
+                <li>Join the official WhatsApp group once payment is verified.</li>
+                <li>Attend the presentation event at <strong>{EVENT_VENUE}</strong> on <strong>{EVENT_DATE_SHORT}</strong>.</li>
+              </ul>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => onOpenViewEditModal?.()}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-xs sm:text-sm font-extrabold text-white bg-[#0A192F] hover:bg-[#16A34A] transition shadow-md cursor-pointer"
+              >
+                <Search className="w-4 h-4 text-[#22C55E]" />
+                <span>View Registration & Download Voucher</span>
+              </motion.button>
+            </div>
+          </motion.div>
         ) : (
           /* Multi-step Registration Card */
           <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xl p-5 sm:p-8 md:p-10 relative">
+            {/* Active Deadline Banner */}
+            <div className="mb-6 bg-emerald-50/80 border border-emerald-200/80 rounded-2xl p-3 sm:p-3.5 flex items-center justify-between gap-3 text-left">
+              <div className="flex items-center gap-2.5">
+                <Calendar className="w-4 h-4 text-[#16A34A] shrink-0" />
+                <div className="text-xs text-slate-700">
+                  <span className="font-bold text-[#0A192F]">Registration Closes: </span>
+                  <span className="font-semibold text-emerald-800">30 September 2026, 11:59 PM BST</span>
+                </div>
+              </div>
+              <span className="hidden sm:inline-block text-[10px] font-black uppercase tracking-wider text-[#16A34A] bg-white px-2.5 py-0.5 rounded-md border border-emerald-200">
+                149 BDT / Team
+              </span>
+            </div>
+
             {/* Action Bar: Reset Form if filled */}
             {isFormPartiallyFilled && (
               <div className="flex items-center justify-end mb-6 pb-4 border-b border-slate-100">

@@ -1,25 +1,34 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Calendar, MapPin, Building2, Presentation, Users, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Calendar, MapPin, Building2, Presentation, Users, ArrowRight, CheckCircle2, Clock, Lock } from 'lucide-react';
 import { PageId } from '../types';
+import {
+  isRegistrationClosed,
+  REGISTRATION_DEADLINE_SHORT,
+  REGISTRATION_DEADLINE_LABEL,
+  EVENT_DATE_SHORT,
+  EVENT_VENUE
+} from '../utils/deadline';
 
 interface EventInfoSectionProps {
   onNavigate?: (page: PageId) => void;
 }
 
 export const EventInfoSection: React.FC<EventInfoSectionProps> = ({ onNavigate }) => {
+  const isClosed = isRegistrationClosed();
+
   const cards = [
     {
-      label: 'Event Name',
-      value: 'Textile Presentation Competition 2026',
-      subtext: 'Flagship academic engineering presentation event',
-      icon: Presentation,
-      iconColor: 'text-[#22C55E]',
-      iconBg: 'bg-[#0A192F]'
+      label: 'Registration Deadline',
+      value: REGISTRATION_DEADLINE_SHORT,
+      subtext: 'Wednesday • Closes at 11:59 PM BST',
+      icon: Clock,
+      iconColor: isClosed ? 'text-rose-600' : 'text-amber-600',
+      iconBg: isClosed ? 'bg-rose-100' : 'bg-amber-100'
     },
     {
       label: 'Event Date',
-      value: '4 October 2026',
+      value: EVENT_DATE_SHORT,
       subtext: 'Sunday • Commencing at 9:00 AM BST',
       icon: Calendar,
       iconColor: 'text-[#16A34A]',
@@ -27,7 +36,7 @@ export const EventInfoSection: React.FC<EventInfoSectionProps> = ({ onNavigate }
     },
     {
       label: 'Venue',
-      value: 'BTEC Auditorium',
+      value: EVENT_VENUE,
       subtext: 'Barishal Textile Engineering College Campus',
       icon: MapPin,
       iconColor: 'text-[#0A192F]',
@@ -139,9 +148,13 @@ export const EventInfoSection: React.FC<EventInfoSectionProps> = ({ onNavigate }
           className="bg-[#FAFBF9] rounded-2xl border border-slate-200/90 p-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left shadow-2xs"
         >
           <div>
-            <h4 className="text-base font-extrabold text-[#0A192F]">Ready to participate?</h4>
+            <h4 className="text-base font-extrabold text-[#0A192F]">
+              {isClosed ? 'Registration has ended' : 'Ready to participate?'}
+            </h4>
             <p className="text-xs text-slate-500">
-              Registration fee is 149 BDT per team. Secure your auditorium presentation slot.
+              {isClosed
+                ? `Registration deadline closed on ${REGISTRATION_DEADLINE_LABEL}. Registered teams can view status and vouchers.`
+                : 'Registration fee is 149 BDT per team. Secure your auditorium presentation slot before 30 September.'}
             </p>
           </div>
 
@@ -149,10 +162,23 @@ export const EventInfoSection: React.FC<EventInfoSectionProps> = ({ onNavigate }
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => onNavigate('registration')}
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-extrabold text-white bg-[#0A192F] hover:bg-[#16A34A] border border-[#0A192F] hover:border-[#16A34A] transition-all duration-200 shadow-md whitespace-nowrap cursor-pointer group"
+            className={`inline-flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-extrabold transition-all duration-200 shadow-md whitespace-nowrap cursor-pointer group ${
+              isClosed
+                ? 'text-slate-800 bg-white hover:bg-slate-50 border border-slate-300'
+                : 'text-white bg-[#0A192F] hover:bg-[#16A34A] border border-[#0A192F] hover:border-[#16A34A]'
+            }`}
           >
-            <span>Go to Registration Form</span>
-            <ArrowRight className="w-4 h-4 text-[#22C55E] group-hover:text-white group-hover:translate-x-1 transition-all" />
+            {isClosed ? (
+              <>
+                <Lock className="w-4 h-4 text-rose-600" />
+                <span>View Registration Portal</span>
+              </>
+            ) : (
+              <>
+                <span>Go to Registration Form</span>
+                <ArrowRight className="w-4 h-4 text-[#22C55E] group-hover:text-white group-hover:translate-x-1 transition-all" />
+              </>
+            )}
           </motion.button>
         </motion.div>
       )}
