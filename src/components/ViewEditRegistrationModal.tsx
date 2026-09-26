@@ -1131,7 +1131,7 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
                           <ShieldCheck className="w-4 h-4" />
                         </div>
                         <span className="font-semibold">
-                          Official Entry Pass Validated — Print or carry your Registration PDF to the BTEC Auditorium on 04 October 2026.
+                          Official Entry Pass Validated — Print or carry your Registration PDF to the BTEC Auditorium on 10 October 2026.
                         </span>
                       </div>
                       <button

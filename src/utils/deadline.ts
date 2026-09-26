@@ -2,16 +2,16 @@
  * Centralized Date & Deadline Configuration for Textile Presentation Competition 2026
  */
 
-// Registration closes on 30 September 2026 at 11:59:59 PM (Bangladesh Time, UTC+6)
-export const REGISTRATION_DEADLINE_ISO = '2026-09-30T23:59:59+06:00';
+// Registration closes on 5 October 2026 at 11:59:59 PM (Bangladesh Time, UTC+6)
+export const REGISTRATION_DEADLINE_ISO = '2026-10-05T23:59:59+06:00';
 export const REGISTRATION_DEADLINE_TIMESTAMP = new Date(REGISTRATION_DEADLINE_ISO).getTime();
-export const REGISTRATION_DEADLINE_LABEL = '30 September 2026, 11:59 PM BST';
-export const REGISTRATION_DEADLINE_SHORT = '30 September 2026';
+export const REGISTRATION_DEADLINE_LABEL = '5 October 2026, 11:59 PM BST';
+export const REGISTRATION_DEADLINE_SHORT = '5 October 2026';
 
-// Main Event Date: 04 October 2026 at 09:00 AM BST
-export const EVENT_DATE_ISO = '2026-10-04T09:00:00+06:00';
-export const EVENT_DATE_LABEL = '4 October 2026, 9:00 AM BST';
-export const EVENT_DATE_SHORT = '4 October 2026';
+// Main Event Date: 10 October 2026 at 09:00 AM BST
+export const EVENT_DATE_ISO = '2026-10-10T09:00:00+06:00';
+export const EVENT_DATE_LABEL = '10 October 2026, 9:00 AM BST';
+export const EVENT_DATE_SHORT = '10 October 2026';
 export const EVENT_VENUE = 'BTEC Auditorium';
 
 /**

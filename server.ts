@@ -19,7 +19,7 @@ interface StoredRegistration {
   payload: any;
 }
 
-const REGISTRATION_DEADLINE_TIMESTAMP = new Date('2026-09-30T23:59:59+06:00').getTime();
+const REGISTRATION_DEADLINE_TIMESTAMP = new Date('2026-10-05T23:59:59+06:00').getTime();
 
 // In-memory persistent registry for duplicate detection and fallback storage
 const registrationsStore: StoredRegistration[] = [];
@@ -509,10 +509,10 @@ async function startServer() {
     res.setHeader('Content-Type', 'application/json');
     try {
       if (Date.now() >= REGISTRATION_DEADLINE_TIMESTAMP) {
-        console.warn('[REGISTRATION] Submission rejected: Registration deadline has passed (30 Sept 2026, 11:59 PM BST)');
+        console.warn('[REGISTRATION] Submission rejected: Registration deadline has passed (5 Oct 2026, 11:59 PM BST)');
         return res.status(403).json({
           success: false,
-          error: 'Registration is officially closed. The deadline was 30 September 2026, 11:59 PM BST.',
+          error: 'Registration is officially closed. The deadline was 5 October 2026, 11:59 PM BST.',
           details: 'Online team registration is closed.'
         });
       }

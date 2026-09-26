@@ -151,7 +151,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onNavigate, onOpenView
                   ? 'bg-rose-100 text-rose-700 border border-rose-200'
                   : 'bg-amber-100 text-amber-800 border border-amber-200'
               }`}>
-                {isClosed ? 'Locked / Closed' : 'Deadline: 30 Sept (11:59 PM)'}
+                {isClosed ? 'Locked / Closed' : 'Deadline: 5 Oct (11:59 PM)'}
               </span>
             </div>
 
@@ -193,7 +193,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onNavigate, onOpenView
             {/* Deadline Sub-caption */}
             <p className="text-[11px] text-slate-500 font-medium mt-2.5 text-center">
               {isClosed
-                ? 'Registration closed on 30 September 2026 at 11:59 PM BST.'
+                ? `Registration closed on ${REGISTRATION_DEADLINE_LABEL}.`
                 : `Final Registration Deadline: ${REGISTRATION_DEADLINE_LABEL}`}
             </p>
           </div>

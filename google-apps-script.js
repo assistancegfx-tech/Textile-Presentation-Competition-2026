@@ -655,7 +655,7 @@ function sendPaymentApprovedEmail(details) {
     "1. Join Official WhatsApp Group:\n" + whatsappUrl + "\n\n" +
     "2. Download Entry Pass:\n" + viewRegistrationUrl + "\n\n" +
     "Event Date & Venue:\n" +
-    "04 October 2026 (9:00 AM BST) at BTEC Auditorium\n\n" +
+    "10 October 2026 (9:00 AM BST) at BTEC Auditorium\n\n" +
     "Sincerely,\n" +
     "Career Club BTEC\n" +
     "Barishal Textile Engineering College (BTEC)";
@@ -713,7 +713,7 @@ function sendPaymentApprovedEmail(details) {
             '</div>' +
 
             '<div style="background-color: #fdf4ff; border: 1px solid #f0abfc; border-radius: 8px; padding: 10px 14px; margin-bottom: 18px; font-size: 12px; color: #86198f; line-height: 1.4;">' +
-              '📍 <strong>Event Date &amp; Venue:</strong> 04 October 2026 (9:00 AM BST) at BTEC Auditorium.' +
+              '📍 <strong>Event Date &amp; Venue:</strong> 10 October 2026 (9:00 AM BST) at BTEC Auditorium.' +
             '</div>' +
 
             // Signature
@@ -1149,13 +1149,13 @@ function doPost(e) {
     // =========================================================================
     // ACTION 2: NEW REGISTRATION SUBMISSION (25 COLUMNS WITH TEAM NAME)
     // =========================================================================
-    // Check registration deadline: 30 September 2026, 11:59:59 PM BST (UTC+6)
-    const DEADLINE_TIMESTAMP = new Date("2026-09-30T23:59:59+06:00").getTime();
+    // Check registration deadline: 5 October 2026, 11:59:59 PM BST (UTC+6)
+    const DEADLINE_TIMESTAMP = new Date("2026-10-05T23:59:59+06:00").getTime();
     if (new Date().getTime() > DEADLINE_TIMESTAMP) {
       return createResponse({
         success: false,
         status: "error",
-        error: "Registration is officially closed. The deadline was 30 September 2026, 11:59 PM BST."
+        error: "Registration is officially closed. The deadline was 5 October 2026, 11:59 PM BST."
       });
     }
 
@@ -1606,7 +1606,7 @@ function sendRegistrationConfirmationEmail(details) {
     "• Leader Mobile No: " + leaderWhatsApp + "\n\n" +
     "View Registration:\n" + viewRegistrationUrl + "\n\n" +
     "Event Date & Venue:\n" +
-    "04 October 2026 (9:00 AM BST) at BTEC Auditorium\n\n" +
+    "10 October 2026 (9:00 AM BST) at BTEC Auditorium\n\n" +
     "Sincerely,\n" +
     "Career Club BTEC\n" +
     "Barishal Textile Engineering College (BTEC)";
@@ -1659,7 +1659,7 @@ function sendRegistrationConfirmationEmail(details) {
 
             // Event Schedule Notice
             '<div style="background-color: #fdf4ff; border: 1px solid #f0abfc; border-radius: 8px; padding: 10px 14px; margin-bottom: 18px; font-size: 12px; color: #86198f; line-height: 1.4;">' +
-              '📍 <strong>Event Date &amp; Venue:</strong> 04 October 2026 (9:00 AM BST) at BTEC Auditorium.' +
+              '📍 <strong>Event Date &amp; Venue:</strong> 10 October 2026 (9:00 AM BST) at BTEC Auditorium.' +
             '</div>' +
 
             // Signature

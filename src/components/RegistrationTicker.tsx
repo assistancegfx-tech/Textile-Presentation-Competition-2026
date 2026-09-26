@@ -114,9 +114,9 @@ export const RegistrationTicker: React.FC<RegistrationTickerProps> = ({ onNaviga
     {
       icon: Calendar,
       iconColor: 'text-cyan-400',
-      badge: 'Grand Finale: 04 October 2026',
+      badge: 'Grand Finale: 10 October 2026',
       badgeStyle: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30 font-bold',
-      text: 'Venue: BTEC Auditorium • Deadline: 30 September 2026',
+      text: 'Venue: BTEC Auditorium • Deadline: 5 October 2026',
       actionText: 'Event Info',
       action: () => onNavigate?.('event')
     },

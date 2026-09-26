@@ -243,7 +243,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
   // Final confirmation & submit
   const handleFinalSubmit = async () => {
     if (isClosed) {
-      setSubmitError('Registration is officially closed. The deadline was 30 September 2026, 11:59 PM BST.');
+      setSubmitError(`Registration is officially closed. The deadline was ${REGISTRATION_DEADLINE_LABEL}.`);
       return;
     }
 
@@ -620,7 +620,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                 <Calendar className="w-4 h-4 text-[#16A34A] shrink-0" />
                 <div className="text-xs text-slate-700">
                   <span className="font-bold text-[#0A192F]">Registration Closes: </span>
-                  <span className="font-semibold text-emerald-800">30 September 2026, 11:59 PM BST</span>
+                  <span className="font-semibold text-emerald-800">{REGISTRATION_DEADLINE_LABEL}</span>
                 </div>
               </div>
               <span className="hidden sm:inline-block text-[10px] font-black uppercase tracking-wider text-[#16A34A] bg-white px-2.5 py-0.5 rounded-md border border-emerald-200">

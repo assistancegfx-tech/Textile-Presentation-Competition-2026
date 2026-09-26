@@ -53,7 +53,7 @@ export function buildRegistrationPdfDoc(data: RegistrationPdfData): jsPDF {
   // Right side header badge: Date & Venue
   doc.setFontSize(8);
   doc.setTextColor(255, 255, 255);
-  doc.text('EVENT DATE: 04 OCT 2026', pageWidth - margin, 16, { align: 'right' });
+  doc.text('EVENT DATE: 10 OCT 2026', pageWidth - margin, 16, { align: 'right' });
   doc.text('VENUE: BTEC Auditorium', pageWidth - margin, 22, { align: 'right' });
   doc.setTextColor(132, 204, 22); // Lime accent
   doc.text('Time: 9:00 AM BST', pageWidth - margin, 28, { align: 'right' });
@@ -341,7 +341,7 @@ export function buildRegistrationPdfDoc(data: RegistrationPdfData): jsPDF {
     doc.setFontSize(7.5);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(22, 101, 52);
-    doc.text('Payment is verified. Present this Payment Approved PDF at the BTEC Auditorium gate on event day (04 Oct 2026).', margin + 4, y + 9.5);
+    doc.text('Payment is verified. Present this Payment Approved PDF at the BTEC Auditorium gate on event day (10 Oct 2026).', margin + 4, y + 9.5);
   } else {
     doc.setFillColor(254, 242, 242); // Red 50
     doc.setDrawColor(239, 68, 68); // Red 500
@@ -387,7 +387,7 @@ export function buildRegistrationPdfDoc(data: RegistrationPdfData): jsPDF {
 
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(51, 65, 85);
-  doc.text('2. IF PENDING: Verify your payment on the portal before 04 Oct 2026 and download the approved entry pass once verified.', margin + 4, y + 15);
+  doc.text('2. IF PENDING: Verify your payment on the portal before 10 Oct 2026 and download the approved entry pass once verified.', margin + 4, y + 15);
   doc.text('3. REPORTING TIME: All team members must report to BTEC Auditorium by 8:30 AM BST. Event starts at 9:00 AM BST.', margin + 4, y + 19.5);
   doc.text('4. EDITS: Registration information can be updated up to 3 times on the official portal using this Registration No.', margin + 4, y + 24);
 

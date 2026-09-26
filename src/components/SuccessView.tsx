@@ -185,7 +185,7 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
           <div className="p-3.5 bg-white rounded-xl border border-slate-200 space-y-1">
             <span className="text-[10px] uppercase font-bold text-slate-400 block">Date & Venue</span>
             <span className="font-extrabold text-slate-900 text-sm block">
-              4 October 2026
+              10 October 2026
             </span>
             <span className="text-slate-500 truncate block">
               Barishal Textile Engineering College Auditorium
