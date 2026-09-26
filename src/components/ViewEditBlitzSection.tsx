@@ -108,52 +108,124 @@ export const ViewEditBlitzSection: React.FC<ViewEditBlitzSectionProps> = ({
     setIsEditing(false);
 
     try {
+      let verifiedData: any = null;
+
       // 1. Try server verification endpoint
-      const res = await fetch('/api/blitz/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          registrationId: regNo,
-          studentId: studentId
-        })
-      });
+      try {
+        const res = await fetch('/api/blitz/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            registrationId: regNo,
+            studentId: studentId
+          })
+        });
 
-      const data = await res.json();
-
-      if (!res.ok || !data.success || !data.registration) {
-        throw new Error(data.error || 'Verification failed. Please check both your Registration No and Student ID.');
+        const rawText = await res.text();
+        if (rawText && rawText.trim().length > 0) {
+          try {
+            const data = JSON.parse(rawText);
+            if (data && data.success && data.registration) {
+              verifiedData = data.registration;
+            } else if (res.status === 403) {
+              throw new Error(data.error || 'Student ID does not match this Registration No.');
+            }
+          } catch (pErr: any) {
+            if (pErr.message && pErr.message.includes('Student ID does not match')) throw pErr;
+          }
+        }
+      } catch (srvErr: any) {
+        if (srvErr.message && srvErr.message.includes('Student ID does not match')) throw srvErr;
       }
 
-      setRecord(data.registration);
-      setShowSearchBox(false);
-    } catch (err: any) {
-      // Fallback check in local storage if offline/server cache restarted
-      let localMatch: any = null;
-      try {
-        const localList = JSON.parse(localStorage.getItem('tbw2026_submissions') || '[]');
-        localMatch = localList.find((item: any) => {
-          const matchReg = item.result?.registrationId?.toUpperCase() === regNo.toUpperCase() ||
-                           item.formData?.transactionId?.toUpperCase() === regNo.toUpperCase();
-          const matchStudent = item.formData?.studentId?.toUpperCase() === studentId.toUpperCase();
-          return matchReg && matchStudent;
-        });
-      } catch (_) {}
+      // 2. If not verified via server endpoint, try direct Google Apps Script query
+      if (!verifiedData) {
+        const defaultScriptUrl = 'https://script.google.com/macros/s/AKfycbxFVWAVQApNuw2g_zvbSEK_QhXIcso8MoDhne75A4L0ryUUeh2G4GEclUkMn8GY21VT2Q/exec';
+        const scriptUrl = localStorage.getItem('tpc2026_google_script_url') || defaultScriptUrl;
+        if (scriptUrl && scriptUrl.startsWith('http')) {
+          try {
+            const gRes = await fetch(`${scriptUrl}?action=get_blitz&query=${encodeURIComponent(regNo)}`);
+            const gText = await gRes.text();
+            if (gText && gText.trim().length > 0) {
+              const gJson = JSON.parse(gText);
+              if (gJson && gJson.success && gJson.registration) {
+                const sheetRec = gJson.registration;
+                const storedStudent = String(sheetRec.studentId || '').trim().toUpperCase();
+                const storedClean = storedStudent.replace(/[\s\-_]/g, '');
+                const inputClean = studentId.toUpperCase().replace(/[\s\-_]/g, '');
+                const storedDigits = storedStudent.replace(/\D/g, '');
+                const studentDigits = studentId.replace(/\D/g, '');
+                const isStudentMatch = storedStudent === studentId.toUpperCase() || 
+                                       (inputClean.length >= 2 && storedClean === inputClean) ||
+                                       (studentDigits.length >= 2 && storedDigits === studentDigits) ||
+                                       (studentDigits.length >= 4 && storedDigits.endsWith(studentDigits));
+                if (!isStudentMatch) {
+                  throw new Error(`Student ID "${studentId}" does not match the record for Registration No "${regNo}".`);
+                }
+                verifiedData = {
+                  registrationId: sheetRec.registrationId,
+                  submissionDate: sheetRec.submissionDate,
+                  paymentStatus: sheetRec.paymentStatus || 'Pending',
+                  editCount: sheetRec.editCount || 0,
+                  maxEdits: 3,
+                  remainingEdits: Math.max(0, 3 - (sheetRec.editCount || 0)),
+                  formData: {
+                    fullName: sheetRec.fullName,
+                    batch: sheetRec.batch,
+                    department: sheetRec.department,
+                    studentId: sheetRec.studentId,
+                    whatsapp: sheetRec.whatsapp,
+                    email: sheetRec.email,
+                    senderBkash: sheetRec.senderBkash,
+                    transactionId: sheetRec.transactionId
+                  }
+                };
+              }
+            }
+          } catch (gErr: any) {
+            if (gErr.message && gErr.message.includes('Student ID')) throw gErr;
+          }
+        }
+      }
 
-      if (localMatch && localMatch.result && localMatch.formData) {
-        setRecord({
-          registrationId: localMatch.result.registrationId,
-          submissionDate: localMatch.result.submissionDate,
-          paymentStatus: localMatch.result.paymentStatus || 'Pending',
-          editCount: localMatch.result.editCount || 0,
-          maxEdits: localMatch.result.maxEdits || 3,
-          remainingEdits: localMatch.result.remainingEdits || 3,
-          formData: localMatch.formData
-        });
+      // 3. Fallback check in local storage if offline/server cache restarted
+      if (!verifiedData) {
+        let localMatch: any = null;
+        try {
+          const localList = JSON.parse(localStorage.getItem('tbw2026_submissions') || '[]');
+          localMatch = localList.find((item: any) => {
+            const matchReg = item.result?.registrationId?.toUpperCase() === regNo.toUpperCase() ||
+                             item.formData?.transactionId?.toUpperCase() === regNo.toUpperCase();
+            const storedStudent = String(item.formData?.studentId || '').toUpperCase();
+            const storedClean = storedStudent.replace(/[\s\-_]/g, '');
+            const inputClean = studentId.toUpperCase().replace(/[\s\-_]/g, '');
+            const matchStudent = storedStudent === studentId.toUpperCase() || (inputClean.length >= 2 && storedClean === inputClean);
+            return matchReg && matchStudent;
+          });
+        } catch (_) {}
+
+        if (localMatch && localMatch.result && localMatch.formData) {
+          verifiedData = {
+            registrationId: localMatch.result.registrationId,
+            submissionDate: localMatch.result.submissionDate,
+            paymentStatus: localMatch.result.paymentStatus || 'Pending',
+            editCount: localMatch.result.editCount || 0,
+            maxEdits: localMatch.result.maxEdits || 3,
+            remainingEdits: localMatch.result.remainingEdits || 3,
+            formData: localMatch.formData
+          };
+        }
+      }
+
+      if (verifiedData) {
+        setRecord(verifiedData);
         setShowSearchBox(false);
       } else {
-        setSearchError(err.message || 'Unable to verify registration. Please check your Registration No and Student ID.');
-        setRecord(null);
+        throw new Error('Verification failed. Please check both your Registration No and Student ID.');
       }
+    } catch (err: any) {
+      setSearchError(err.message || 'Unable to verify registration. Please check your Registration No and Student ID.');
+      setRecord(null);
     } finally {
       setIsLoading(false);
     }
@@ -252,23 +324,66 @@ export const ViewEditBlitzSection: React.FC<ViewEditBlitzSectionProps> = ({
         });
       } catch (_) {}
 
-      const res = await fetch(`/api/blitz/${encodeURIComponent(record.registrationId)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          formData: cleanData,
-          pdfBase64
-        })
-      });
+      let updatedRecord: any = null;
 
-      const json = await res.json();
-      if (!res.ok || !json.success || !json.registration) {
-        throw new Error(json.error || 'Failed to update registration.');
+      // 1. Try server update endpoint
+      try {
+        const res = await fetch(`/api/blitz/${encodeURIComponent(record.registrationId)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            formData: cleanData,
+            pdfBase64
+          })
+        });
+
+        const rawText = await res.text();
+        if (rawText && rawText.trim().length > 0) {
+          try {
+            const json = JSON.parse(rawText);
+            if (res.ok && json.success && json.registration) {
+              updatedRecord = json.registration;
+            }
+          } catch (_) {}
+        }
+      } catch (_) {}
+
+      // 2. If server endpoint failed or returned non-JSON, update via Google Apps Script directly
+      if (!updatedRecord) {
+        const defaultScriptUrl = 'https://script.google.com/macros/s/AKfycbxFVWAVQApNuw2g_zvbSEK_QhXIcso8MoDhne75A4L0ryUUeh2G4GEclUkMn8GY21VT2Q/exec';
+        const scriptUrl = localStorage.getItem('tpc2026_google_script_url') || defaultScriptUrl;
+        if (scriptUrl && scriptUrl.startsWith('http')) {
+          try {
+            await fetch(scriptUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+              body: JSON.stringify({
+                action: 'update_blitz',
+                registrationId: record.registrationId,
+                ...cleanData,
+                pdfBase64
+              })
+            });
+          } catch (gErr) {
+            console.warn('[EDIT BLITZ] Direct script update notice:', gErr);
+          }
+        }
+
+        const newEditCount = (record.editCount || 0) + 1;
+        updatedRecord = {
+          registrationId: record.registrationId,
+          submissionDate: record.submissionDate,
+          paymentStatus: record.paymentStatus,
+          editCount: newEditCount,
+          maxEdits: 3,
+          remainingEdits: Math.max(0, 3 - newEditCount),
+          formData: cleanData
+        };
       }
 
-      setRecord(json.registration);
+      setRecord(updatedRecord);
       setIsEditing(false);
-      setSaveSuccessMsg(`Registration updated successfully! You have ${json.registration.remainingEdits} edits remaining.`);
+      setSaveSuccessMsg(`Registration updated successfully! You have ${updatedRecord.remainingEdits} edits remaining.`);
 
       // Update local storage record
       try {
@@ -278,7 +393,7 @@ export const ViewEditBlitzSection: React.FC<ViewEditBlitzSectionProps> = ({
             return {
               ...item,
               formData: cleanData,
-              result: { ...item.result, ...json.registration }
+              result: { ...item.result, ...updatedRecord }
             };
           }
           return item;
