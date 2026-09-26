@@ -55,9 +55,20 @@ export const BlitzWritingForm: React.FC<BlitzWritingFormProps> = ({
   const [copiedBkash, setCopiedBkash] = useState(false);
 
   const handleCopyBkash = () => {
-    navigator.clipboard.writeText(BKASH_PERSONAL_NUMBER);
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(BKASH_PERSONAL_NUMBER);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = BKASH_PERSONAL_NUMBER;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+    } catch (_) {}
     setCopiedBkash(true);
-    setTimeout(() => setCopiedBkash(false), 2000);
+    setTimeout(() => setCopiedBkash(false), 2500);
   };
 
   const handleChange = (field: keyof BlitzRegistrationFormData, value: string) => {
@@ -563,41 +574,94 @@ export const BlitzWritingForm: React.FC<BlitzWritingFormProps> = ({
             </h3>
 
             {/* bKash Payment Instructions Card */}
-            <div className="bg-[#FFF5F8] border-2 border-[#E2136E]/25 rounded-2xl p-4 sm:p-5 space-y-3.5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-pink-200/60">
+            <div className="bg-gradient-to-br from-[#FFF5F8] via-white to-pink-50/70 border-2 border-[#E2136E]/30 rounded-2xl sm:rounded-3xl p-5 sm:p-6 space-y-4 shadow-sm shadow-pink-500/5">
+              {/* Header Badge Row */}
+              <div className="flex flex-wrap items-center justify-between gap-2.5 pb-3 border-b border-pink-100">
                 <div className="flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-full bg-[#E2136E] text-white text-xs font-black flex items-center justify-center">৳</span>
-                  <span className="text-xs font-black text-[#0A192F] uppercase tracking-wider">
-                    Registration Fee: {REGISTRATION_FEE_BDT} BDT
+                  <span className="px-3 py-1 rounded-lg text-xs font-black bg-[#E2136E] text-white shadow-xs tracking-wider uppercase flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                    bKash Personal
                   </span>
+                  <span className="text-xs font-bold text-slate-600 bg-pink-100/70 px-2.5 py-0.5 rounded-md">Send Money</span>
                 </div>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-pink-50 text-[#E2136E] border border-pink-200 text-xs font-extrabold shadow-2xs">
+                  <span className="text-slate-500 font-semibold">Entry Fee:</span>
+                  <span className="text-sm font-black">{REGISTRATION_FEE_BDT} BDT</span>
+                </div>
+              </div>
 
-                <div className="inline-flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-xl border border-pink-200 text-xs font-bold text-slate-800 shadow-2xs">
-                  <span className="text-[11px] text-slate-500">bKash Personal:</span>
-                  <code className="text-[#E2136E] font-black text-xs font-mono">{BKASH_PERSONAL_NUMBER}</code>
-                  <button
+              {/* Large, High-Visibility bKash Number & Big Copy Button */}
+              <div className="bg-white rounded-2xl border-2 border-pink-200/90 p-4 sm:p-5 shadow-xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-[#E2136E] flex items-center gap-1.5">
+                      <span>Official bKash Personal Number</span>
+                    </span>
+                    <div 
+                      onClick={handleCopyBkash}
+                      className="cursor-pointer group inline-flex items-center gap-2"
+                      title="Click to copy bKash number"
+                    >
+                      <span className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 font-mono tracking-wider group-hover:text-[#E2136E] transition-colors select-all">
+                        {BKASH_PERSONAL_NUMBER}
+                      </span>
+                    </div>
+                    <p className="text-[11.5px] text-slate-500">
+                      Send <strong className="text-slate-900 font-bold">{REGISTRATION_FEE_BDT} BDT</strong> via <strong className="text-[#E2136E]">Send Money</strong> to this number.
+                    </p>
+                  </div>
+
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.96 }}
                     type="button"
                     onClick={handleCopyBkash}
-                    className="ml-1 text-slate-400 hover:text-[#E2136E] transition cursor-pointer"
+                    className={`w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-6 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl text-sm sm:text-base font-black transition-all shadow-md cursor-pointer select-none shrink-0 ${
+                      copiedBkash
+                        ? 'bg-emerald-600 text-white border-2 border-emerald-600 shadow-emerald-600/30 ring-2 ring-emerald-500/20'
+                        : 'bg-[#E2136E] hover:bg-[#C2105D] text-white border-2 border-[#E2136E] shadow-pink-600/25 active:bg-pink-800'
+                    }`}
                     title="Copy bKash Number"
                   >
-                    {copiedBkash ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                  </button>
+                    {copiedBkash ? (
+                      <>
+                        <Check className="w-5 h-5 stroke-[2.5]" />
+                        <span>Number Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-5 h-5 stroke-[2.5]" />
+                        <span>Copy bKash Number</span>
+                      </>
+                    )}
+                  </motion.button>
                 </div>
               </div>
 
               {/* Payment Rules Ordered Steps */}
-              <div className="space-y-1.5 text-xs text-slate-700">
-                <p className="font-bold text-slate-900 mb-1">Payment Rules (Registration Fee: {REGISTRATION_FEE_BDT} BDT):</p>
-                <ol className="list-decimal list-inside space-y-1 font-medium pl-1 text-[12.5px] leading-relaxed">
-                  <li>Go to your bKash App or dial <strong>*247#</strong>.</li>
+              <div className="space-y-1.5 text-xs text-slate-700 bg-pink-50/50 rounded-xl p-3.5 border border-pink-100/90">
+                <p className="font-extrabold text-slate-900 mb-1 flex items-center gap-2">
+                  <span className="w-4 h-4 rounded-full bg-[#E2136E] text-white text-[10px] font-black flex items-center justify-center">৳</span>
+                  <span>Payment Instructions (Entry Fee: {REGISTRATION_FEE_BDT} BDT):</span>
+                </p>
+                <ol className="list-decimal list-inside space-y-1.5 font-medium pl-1 text-[12.5px] leading-relaxed text-slate-700">
+                  <li>Open your bKash App or dial <strong>*247#</strong>.</li>
                   <li>Select <strong>“Send Money”</strong>.</li>
                   <li>
-                    Enter bKash Personal Number: <strong className="text-[#E2136E] font-mono">{BKASH_PERSONAL_NUMBER}</strong>
+                    Enter bKash Personal Number:{' '}
+                    <button
+                      type="button"
+                      onClick={handleCopyBkash}
+                      className="inline-flex items-center gap-1 font-mono font-black text-[#E2136E] bg-white px-2 py-0.5 rounded border border-pink-200 hover:bg-pink-50 transition cursor-pointer"
+                      title="Click to copy"
+                    >
+                      <span>{BKASH_PERSONAL_NUMBER}</span>
+                      <Copy className="w-3 h-3 text-pink-500" />
+                    </button>
                   </li>
-                  <li>Enter Amount: <strong>{REGISTRATION_FEE_BDT} BDT</strong>.</li>
+                  <li>Enter Exact Amount: <strong className="text-[#E2136E] font-bold">{REGISTRATION_FEE_BDT} BDT</strong>.</li>
                   <li>Use your <strong>Roll</strong> or <strong>Name</strong> as reference.</li>
-                  <li>Enter the bKash number you sent the money from below.</li>
+                  <li>Enter the sender bKash number and TrxID in the fields below.</li>
                 </ol>
               </div>
             </div>

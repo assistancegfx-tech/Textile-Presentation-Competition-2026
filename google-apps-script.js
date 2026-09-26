@@ -1337,6 +1337,7 @@ function sendBlitzPaymentApprovedEmail(details) {
     "studentId=" + encodeURIComponent(studentId)
   ].join("&");
   const viewRegistrationUrl = baseUrl + "/?" + viewParams;
+  const blitzWhatsappUrl = "https://chat.whatsapp.com/Da8xsese6CkFxN6TXcYvDW";
 
   const subject = "Payment Approved & Registration Confirmed – Textile Blitz Writing | " + regId;
 
@@ -1348,6 +1349,7 @@ function sendBlitzPaymentApprovedEmail(details) {
     "• Student ID       : " + studentId + "\n" +
     "• Batch & Dept     : " + (batch ? batch + "th Batch • " : "") + (department || "N/A") + "\n" +
     "• WhatsApp No      : " + whatsapp + "\n\n" +
+    "Join WhatsApp Group:\n" + blitzWhatsappUrl + "\n\n" +
     "Download Entry Pass:\n" + viewRegistrationUrl + "\n\n" +
     "Event Date & Venue:\n" +
     "10 October 2026 at BTEC Campus\n\n" +
@@ -1394,11 +1396,18 @@ function sendBlitzPaymentApprovedEmail(details) {
               '</table>' +
             '</div>' +
 
-            // Action Button: Download Entry Pass (Dodger Blue #1E90FF)
+            // Action Buttons (WhatsApp in Green, Download Entry Pass in Dodger Blue)
             '<div style="margin-bottom: 20px; text-align: center;">' +
-              '<a href="' + escapeHtml(viewRegistrationUrl) + '" target="_blank" style="display: block; background-color: #1E90FF; color: #ffffff; text-decoration: none; font-weight: 800; font-size: 14.5px; padding: 13px 18px; border-radius: 10px; border: 2px solid #1c86ee; box-shadow: 0 3px 6px rgba(30, 144, 255, 0.25); text-align: center;">' +
-                '📥 Download Entry Pass' +
-              '</a>' +
+              '<div style="margin-bottom: 10px;">' +
+                '<a href="' + escapeHtml(blitzWhatsappUrl) + '" target="_blank" style="display: block; background-color: #25D366; color: #ffffff; text-decoration: none; font-weight: 800; font-size: 14.5px; padding: 13px 18px; border-radius: 10px; border: 2px solid #22c55e; box-shadow: 0 3px 6px rgba(37, 211, 102, 0.2); text-align: center;">' +
+                  '💬 Join WhatsApp Group' +
+                '</a>' +
+              '</div>' +
+              '<div>' +
+                '<a href="' + escapeHtml(viewRegistrationUrl) + '" target="_blank" style="display: block; background-color: #1E90FF; color: #ffffff; text-decoration: none; font-weight: 800; font-size: 14.5px; padding: 13px 18px; border-radius: 10px; border: 2px solid #1c86ee; box-shadow: 0 3px 6px rgba(30, 144, 255, 0.25); text-align: center;">' +
+                  '📥 Download Entry Pass' +
+                '</a>' +
+              '</div>' +
             '</div>' +
 
             '<div style="background-color: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 10px 14px; margin-bottom: 18px; font-size: 12px; color: #0369a1; line-height: 1.4;">' +

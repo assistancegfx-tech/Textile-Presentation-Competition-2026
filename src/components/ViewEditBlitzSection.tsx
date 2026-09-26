@@ -21,11 +21,15 @@ import {
   Lock,
   ArrowLeft,
   Sparkles,
-  KeyRound
+  KeyRound,
+  MessageCircle,
+  ExternalLink
 } from 'lucide-react';
 import { RegisteredBlitzRecord, BlitzRegistrationFormData } from '../types';
 import { generateBlitzPdf, getBlitzPdfBase64 } from '../utils/pdfGenerator';
 import { validateBangladeshPhone, validateEmail } from '../utils/formUtils';
+
+const BLITZ_WHATSAPP_GROUP_URL = 'https://chat.whatsapp.com/Da8xsese6CkFxN6TXcYvDW';
 
 interface ViewEditBlitzSectionProps {
   initialSearchQuery?: string;
@@ -651,6 +655,19 @@ export const ViewEditBlitzSection: React.FC<ViewEditBlitzSectionProps> = ({
                   </span>
                 </span>
 
+                {isApproved && (
+                  <a
+                    href={BLITZ_WHATSAPP_GROUP_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#25D366] hover:bg-[#20ba5a] text-white text-[11px] font-black shadow-sm transition"
+                  >
+                    <MessageCircle className="w-3.5 h-3.5 fill-current" />
+                    <span>Join WhatsApp Group</span>
+                    <ExternalLink className="w-3 h-3 opacity-80" />
+                  </a>
+                )}
+
                 <span className="text-[11px] text-sky-200 font-medium">
                   Edits: {record.editCount}/3 ({record.remainingEdits} remaining)
                 </span>
@@ -918,17 +935,68 @@ export const ViewEditBlitzSection: React.FC<ViewEditBlitzSectionProps> = ({
                 </div>
               </div>
 
-              {/* Download Action Button */}
+              {/* WhatsApp Group Banner - STRICTLY ONLY AFTER PAYMENT IS APPROVED */}
+              {isApproved && (
+                <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50/40 to-white border-2 border-emerald-400/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-start sm:items-center gap-3.5">
+                    <div className="w-11 h-11 rounded-2xl bg-[#25D366] text-white flex items-center justify-center shrink-0 shadow-md shadow-[#25D366]/25">
+                      <MessageCircle className="w-6 h-6 stroke-[2.2]" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-black uppercase tracking-wider text-emerald-950">
+                          Official WhatsApp Group
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase">
+                          Payment Approved
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">
+                        Join the official Textile Blitz Writing group for competition briefs, reporting times &amp; hall seating plans.
+                      </p>
+                    </div>
+                  </div>
+
+                  <a
+                    href={BLITZ_WHATSAPP_GROUP_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl sm:rounded-2xl bg-[#25D366] hover:bg-[#20ba5a] text-white font-black text-xs sm:text-sm shadow-md shadow-[#25D366]/25 hover:shadow-lg hover:shadow-[#25D366]/35 transition cursor-pointer shrink-0 select-none text-center"
+                  >
+                    <MessageCircle className="w-4 h-4 fill-current" />
+                    <span>Join WhatsApp Group</span>
+                    <ExternalLink className="w-3.5 h-3.5 opacity-80" />
+                  </a>
+                </div>
+              )}
+
+              {/* Download & Action Buttons */}
               <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3">
-                <button
-                  type="button"
-                  onClick={handleDownloadPdf}
-                  disabled={isDownloading}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-gradient-to-r from-[#1E90FF] to-[#0066CC] hover:from-[#187bcd] hover:to-[#0055b3] text-white font-black text-xs shadow-md shadow-[#1E90FF]/25 hover:shadow-lg hover:shadow-[#1E90FF]/35 transition cursor-pointer"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>{isDownloading ? 'Generating PDF...' : 'Download Entry Pass (PDF)'}</span>
-                </button>
+                <div className="w-full sm:w-auto flex flex-col sm:flex-row items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleDownloadPdf}
+                    disabled={isDownloading}
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-gradient-to-r from-[#1E90FF] to-[#0066CC] hover:from-[#187bcd] hover:to-[#0055b3] text-white font-black text-xs shadow-md shadow-[#1E90FF]/25 hover:shadow-lg hover:shadow-[#1E90FF]/35 transition cursor-pointer"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>{isDownloading ? 'Generating PDF...' : 'Download Entry Pass (PDF)'}</span>
+                  </button>
+
+                  {/* Join WhatsApp Group Button - STRICTLY ONLY AFTER PAYMENT IS APPROVED */}
+                  {isApproved && (
+                    <a
+                      href={BLITZ_WHATSAPP_GROUP_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-[#25D366] hover:bg-[#20ba5a] text-white font-black text-xs shadow-md shadow-[#25D366]/25 hover:shadow-lg hover:shadow-[#25D366]/35 transition cursor-pointer text-center"
+                    >
+                      <MessageCircle className="w-4 h-4 fill-current" />
+                      <span>Join WhatsApp Group</span>
+                      <ExternalLink className="w-3.5 h-3.5 opacity-80" />
+                    </a>
+                  )}
+                </div>
 
                 <button
                   type="button"
