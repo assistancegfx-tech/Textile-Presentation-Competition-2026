@@ -718,7 +718,7 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
                 View Your Registration
               </h2>
               <p className="text-xs text-slate-400">
-                View registration voucher, check payment status & edit details (up to 3 times)
+                View entry pass, check payment status & edit details (up to 3 times)
               </p>
             </div>
           </div>
@@ -1059,10 +1059,10 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
                           onClick={handleDownloadPdf}
                           whileHover={{ scale: 1.03, y: -1 }}
                           whileTap={{ scale: 0.97 }}
-                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-extrabold text-white bg-gradient-to-r from-[#16A34A] to-[#15803D] hover:from-[#15803D] hover:to-[#166534] shadow-sm shadow-emerald-700/20 active:scale-98 transition cursor-pointer"
+                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-extrabold text-white bg-[#1E90FF] hover:bg-[#1873cc] border border-[#1c86ee] shadow-sm shadow-blue-500/20 active:scale-98 transition cursor-pointer"
                         >
                           <Download className="w-3.5 h-3.5" />
-                          <span>Download PDF Pass</span>
+                          <span>Download Entry Pass</span>
                         </motion.button>
 
                         {record.remainingEdits > 0 && (

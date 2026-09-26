@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { User, Users, CreditCard, CheckCircle2, ChevronRight, ChevronLeft, AlertCircle, ShieldAlert, RotateCcw, Search, Lock, Calendar, MessageCircle, Sparkles, Database } from 'lucide-react';
+import { User, Users, CreditCard, CheckCircle2, ChevronRight, ChevronLeft, RotateCcw, Search, Lock, Calendar } from 'lucide-react';
 import { RegistrationFormData, SubmissionResponse, Participant, SubmissionProgressStage } from '../types';
 import { ParticipantStepForm } from './ParticipantStepForm';
 import { PaymentStepForm } from './PaymentStepForm';
@@ -82,7 +82,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
   const getStepsForSize = (size: 1 | 2 | 3) => {
     if (size === 1) {
       return [
-        { label: 'Participant (Solo)', icon: User, type: 'leader' },
+        { label: 'Team Leader', icon: User, type: 'leader' },
         { label: 'Payment', icon: CreditCard, type: 'payment' },
         { label: 'Review & Confirm', icon: CheckCircle2, type: 'review' }
       ];
@@ -90,15 +90,15 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
     if (size === 2) {
       return [
         { label: 'Team Leader', icon: User, type: 'leader' },
-        { label: 'Student 2 (Member 1)', icon: Users, type: 'member1' },
+        { label: 'Member 1', icon: Users, type: 'member1' },
         { label: 'Payment', icon: CreditCard, type: 'payment' },
         { label: 'Review & Confirm', icon: CheckCircle2, type: 'review' }
       ];
     }
     return [
       { label: 'Team Leader', icon: User, type: 'leader' },
-      { label: 'Student 2 (Member 1)', icon: Users, type: 'member1' },
-      { label: 'Student 3 (Member 2)', icon: Users, type: 'member2' },
+      { label: 'Member 1', icon: Users, type: 'member1' },
+      { label: 'Member 2', icon: Users, type: 'member2' },
       { label: 'Payment', icon: CreditCard, type: 'payment' },
       { label: 'Review & Confirm', icon: CheckCircle2, type: 'review' }
     ];
@@ -525,59 +525,6 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
     setCurrentStep(0);
   };
 
-  const handleFillDemoData = () => {
-    const demoPhoto = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%230A192F"/><circle cx="50" cy="40" r="20" fill="%2322C55E"/><path d="M20 90 C20 65, 80 65, 80 90 Z" fill="%2322C55E"/></svg>';
-    const randomTrx = 'TRX' + Math.floor(10000000 + Math.random() * 90000000);
-    const randomRollSeed = Math.floor(1000 + Math.random() * 8000);
-
-    setFormData({
-      teamName: teamSize === 1 ? 'TexSolo Innovator' : 'TexVanguard BTEC',
-      teamSize,
-      leader: {
-        name: 'Naimur Rahman',
-        roll: String(randomRollSeed + 1),
-        department: 'Yarn Engineering',
-        whatsapp: '01712345678',
-        facebook: 'https://facebook.com/naimur.rahman',
-        email: 'naimur.rahman@example.com',
-        photoBase64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
-        photoPreview: demoPhoto,
-        photoName: 'naimur_photo.jpg',
-        photoSize: 102400
-      },
-      member1: teamSize >= 2 ? {
-        name: 'Tanjim Hasan',
-        roll: String(randomRollSeed + 2),
-        department: 'Fabric Engineering',
-        whatsapp: '01812345678',
-        facebook: 'https://facebook.com/tanjim.hasan',
-        email: 'tanjim.hasan@example.com',
-        photoBase64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
-        photoPreview: demoPhoto,
-        photoName: 'tanjim_photo.jpg',
-        photoSize: 102400
-      } : createNAParticipant(),
-      member2: teamSize >= 3 ? {
-        name: 'Ayesha Siddiqua',
-        roll: String(randomRollSeed + 3),
-        department: 'Wet Process Engineering',
-        whatsapp: '01912345678',
-        facebook: 'https://facebook.com/ayesha.siddiqua',
-        email: 'ayesha.siddiqua@example.com',
-        photoBase64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
-        photoPreview: demoPhoto,
-        photoName: 'ayesha_photo.jpg',
-        photoSize: 102400
-      } : createNAParticipant(),
-      payment: {
-        bkashNumber: '01712345678',
-        transactionId: randomTrx
-      }
-    });
-    setStepErrors({});
-    setSubmitError(null);
-  };
-
   const currentStepDef = steps[currentStep] || steps[0];
 
   return (
@@ -681,37 +628,9 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
               </span>
             </div>
 
-            {/* Action Bar: Demo Fill, Sheet Setup & Reset Form */}
-            <div className="flex flex-wrap items-center justify-between gap-2.5 mb-6 pb-4 border-b border-slate-100">
-              <div className="flex flex-wrap items-center gap-2">
-                <motion.button
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
-                  type="button"
-                  onClick={handleFillDemoData}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 transition shadow-2xs cursor-pointer"
-                  title="Auto-fill complete sample data for testing"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-[#16A34A]" />
-                  <span>⚡ Fill Demo Data</span>
-                </motion.button>
-
-                {onOpenGoogleSheetModal && (
-                  <motion.button
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.97 }}
-                    type="button"
-                    onClick={() => onOpenGoogleSheetModal()}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 hover:border-slate-300 transition shadow-2xs cursor-pointer"
-                    title="Connect or verify your Google Sheet Web App URL"
-                  >
-                    <Database className="w-3.5 h-3.5 text-[#16A34A]" />
-                    <span>Sheet Connection</span>
-                  </motion.button>
-                )}
-              </div>
-
-              {isFormPartiallyFilled && (
+            {/* Action Bar: Reset Form when partially filled */}
+            {isFormPartiallyFilled && (
+              <div className="flex items-center justify-end mb-5 pb-3 border-b border-slate-100">
                 <motion.button
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.97 }}
@@ -722,33 +641,27 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                   <RotateCcw className="w-3.5 h-3.5" />
                   <span>Reset Form</span>
                 </motion.button>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Team Size Selector (1, 2, or 3 Students) */}
             <div className="mb-6 p-4 sm:p-5 rounded-2xl bg-slate-50/80 border border-slate-200/90 space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+              <div className="flex items-center justify-between">
                 <label className="text-xs font-black uppercase tracking-wider text-[#0A192F] flex items-center gap-1.5">
                   <Users className="w-4 h-4 text-[#16A34A]" />
-                  <span>Select Team Size / দলের সদস্য সংখ্যা:</span>
+                  <span>SELECT TEAM SIZE</span>
                   <span className="text-red-500 font-bold">*</span>
                 </label>
-                <span className="text-[11px] text-slate-500 font-semibold">
-                  {teamSize === 1
-                    ? 'Solo Registration: 1 Student'
-                    : teamSize === 2
-                    ? 'Duo Registration: 2 Students (Student 3 auto-set to N/A)'
-                    : 'Team Registration: 3 Students'}
-                </span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                 {[
-                  { size: 1 as const, label: '1 Student', sub: 'Solo / একক', desc: 'Single presenter' },
-                  { size: 2 as const, label: '2 Students', sub: 'Duo / যুগল', desc: 'Leader + 1 Member' },
-                  { size: 3 as const, label: '3 Students', sub: 'Trio / দলগত', desc: 'Leader + 2 Members' }
+                  { size: 1 as const, label: '1 Student — Solo', icon: User },
+                  { size: 2 as const, label: '2 Students — Duo', icon: Users },
+                  { size: 3 as const, label: '3 Students — Trio', icon: Users }
                 ].map((item) => {
                   const isSelected = teamSize === item.size;
+                  const Icon = item.icon;
                   return (
                     <motion.button
                       key={item.size}
@@ -756,33 +669,19 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => handleTeamSizeChange(item.size)}
-                      className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                      className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between ${
                         isSelected
                           ? 'bg-[#0A192F] text-white border-[#0A192F] shadow-md ring-2 ring-[#22C55E]/40'
                           : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-100/60 shadow-2xs'
                       }`}
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5">
-                          {item.size === 1 ? (
-                            <User className={`w-4 h-4 ${isSelected ? 'text-[#22C55E]' : 'text-slate-400'}`} />
-                          ) : (
-                            <Users className={`w-4 h-4 ${isSelected ? 'text-[#22C55E]' : 'text-slate-400'}`} />
-                          )}
-                          <span className="text-xs font-black tracking-tight">{item.label}</span>
-                        </div>
-                        {isSelected && (
-                          <CheckCircle2 className="w-4 h-4 text-[#22C55E]" />
-                        )}
+                      <div className="flex items-center gap-2">
+                        <Icon className={`w-4 h-4 shrink-0 ${isSelected ? 'text-[#22C55E]' : 'text-slate-400'}`} />
+                        <span className="text-xs font-black tracking-tight">{item.label}</span>
                       </div>
-                      <div className="mt-1 flex items-center justify-between text-[10px]">
-                        <span className={`font-bold ${isSelected ? 'text-emerald-300' : 'text-slate-500'}`}>
-                          {item.sub}
-                        </span>
-                        <span className={isSelected ? 'text-slate-300' : 'text-slate-400'}>
-                          {item.desc}
-                        </span>
-                      </div>
+                      {isSelected && (
+                        <CheckCircle2 className="w-4 h-4 text-[#22C55E] shrink-0" />
+                      )}
                     </motion.button>
                   );
                 })}
@@ -857,9 +756,9 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             <div>
               {currentStepDef.type === 'leader' && (
                 <ParticipantStepForm
-                  title={teamSize === 1 ? 'Solo Participant Information' : 'Team & Group Leader Information'}
-                  subtitle={teamSize === 1 ? 'Single presenter details and official student contact information.' : 'Primary point of contact for the team and official representative.'}
-                  roleBadge={teamSize === 1 ? 'Solo Presenter' : 'Team Leader'}
+                  title={teamSize === 1 ? 'Team Leader Information' : 'Team Leader Information'}
+                  subtitle="Enter team leader and presentation details."
+                  roleBadge="Team Leader"
                   participant={formData.leader}
                   onChange={(updated) =>
                     setFormData((prev) => ({ ...prev, leader: { ...prev.leader, ...updated } }))
@@ -887,8 +786,8 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
 
               {currentStepDef.type === 'member1' && teamSize >= 2 && (
                 <ParticipantStepForm
-                  title="Member 1 Information (Student 2)"
-                  subtitle="Second team member details and student identification."
+                  title="Member 1 Information"
+                  subtitle="Enter second team member details."
                   roleBadge="Member 1"
                   participant={formData.member1}
                   onChange={(updated) =>
@@ -904,8 +803,8 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
 
               {currentStepDef.type === 'member2' && teamSize >= 3 && (
                 <ParticipantStepForm
-                  title="Member 2 Information (Student 3)"
-                  subtitle="Third team member details and student identification."
+                  title="Member 2 Information"
+                  subtitle="Enter third team member details."
                   roleBadge="Member 2"
                   participant={formData.member2}
                   onChange={(updated) =>

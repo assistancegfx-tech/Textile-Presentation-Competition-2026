@@ -48,7 +48,7 @@ export function buildRegistrationPdfDoc(data: RegistrationPdfData): jsPDF {
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(148, 163, 184);
-  doc.text('Official Participant Registration Info & Entry Voucher', margin, 33);
+  doc.text('Official Participant Registration Info & Entry Pass', margin, 33);
 
   // Right side header badge: Date & Venue
   doc.setFontSize(8);
@@ -117,7 +117,7 @@ export function buildRegistrationPdfDoc(data: RegistrationPdfData): jsPDF {
     doc.setFontSize(6);
     doc.setTextColor(22, 163, 74);
     doc.setFont('helvetica', 'normal');
-    doc.text('Official Event Entry Voucher', pageWidth - margin - 31, y + 21.5, { align: 'center' });
+    doc.text('Official Event Entry Pass', pageWidth - margin - 31, y + 21.5, { align: 'center' });
   } else {
     doc.setFillColor(254, 242, 242); // Red 50
     doc.setDrawColor(239, 68, 68); // Red 500
@@ -387,7 +387,7 @@ export function buildRegistrationPdfDoc(data: RegistrationPdfData): jsPDF {
 
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(51, 65, 85);
-  doc.text('2. IF PENDING: Verify your payment on the portal before 04 Oct 2026 and download the approved voucher once verified.', margin + 4, y + 15);
+  doc.text('2. IF PENDING: Verify your payment on the portal before 04 Oct 2026 and download the approved entry pass once verified.', margin + 4, y + 15);
   doc.text('3. REPORTING TIME: All team members must report to BTEC Auditorium by 8:30 AM BST. Event starts at 9:00 AM BST.', margin + 4, y + 19.5);
   doc.text('4. EDITS: Registration information can be updated up to 3 times on the official portal using this Registration No.', margin + 4, y + 24);
 
@@ -398,7 +398,7 @@ export function buildRegistrationPdfDoc(data: RegistrationPdfData): jsPDF {
   doc.setTextColor(148, 163, 184);
   doc.setFontSize(7);
   doc.setFont('helvetica', 'normal');
-  doc.text('Career Club BTEC | Barishal Textile Engineering College | Officially Issued Registration Voucher', margin, pageHeight - 8);
+  doc.text('Career Club BTEC | Barishal Textile Engineering College | Officially Issued Entry Pass', margin, pageHeight - 8);
   doc.text(`Doc Ref: ${data.registrationId}`, pageWidth - margin, pageHeight - 8, { align: 'right' });
 
   return doc;
@@ -406,7 +406,7 @@ export function buildRegistrationPdfDoc(data: RegistrationPdfData): jsPDF {
 
 export function generateRegistrationPdf(data: RegistrationPdfData) {
   const doc = buildRegistrationPdfDoc(data);
-  const filename = `Registration_${data.registrationId}_Info.pdf`;
+  const filename = `Registration_${data.registrationId}_Entry_Pass.pdf`;
   doc.save(filename);
 }
 

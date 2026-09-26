@@ -262,17 +262,17 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
           </div>
         </div>
 
-        {/* Action Buttons: Download Registration Info PDF Pass and Close */}
+        {/* Action Buttons: Download Entry Pass and Close */}
         <div className="pt-6 mt-3 border-t border-slate-200/80 flex flex-col sm:flex-row flex-wrap items-center justify-center gap-3.5 print:hidden">
           <motion.button
             whileHover={{ scale: 1.03, y: -1 }}
             whileTap={{ scale: 0.97 }}
             type="button"
             onClick={handleDownloadPdf}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl text-sm font-black text-white bg-gradient-to-r from-[#16A34A] to-[#15803D] hover:from-[#15803D] hover:to-[#0A192F] shadow-lg shadow-[#16A34A]/25 transition-all duration-200 cursor-pointer border border-emerald-600"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl text-sm font-black text-white bg-[#1E90FF] hover:bg-[#1873cc] shadow-lg shadow-blue-500/25 transition-all duration-200 cursor-pointer border border-[#1c86ee]"
           >
             <Download className="w-4 h-4" />
-            <span>Download Registration PDF Pass</span>
+            <span>Download Entry Pass</span>
           </motion.button>
 
           <motion.button

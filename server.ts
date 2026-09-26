@@ -191,8 +191,8 @@ async function startServer() {
     }
   });
 
-  // Direct Website jsPDF Voucher Generator for Emails & Approvals (Exact match to website PDF)
-  app.post('/api/generate-voucher-pdf', (req: Request, res: Response) => {
+  // Direct Website jsPDF Entry Pass Generator for Emails & Approvals (Exact match to website PDF)
+  const handleGenerateEntryPassPdf = (req: Request, res: Response) => {
     try {
       const {
         registrationId,
@@ -276,7 +276,10 @@ async function startServer() {
     } catch (e: any) {
       return res.status(500).json({ success: false, error: e.message });
     }
-  });
+  };
+
+  app.post('/api/generate-entry-pass-pdf', handleGenerateEntryPassPdf);
+  app.post('/api/generate-voucher-pdf', handleGenerateEntryPassPdf);
 
   let configuredGoogleScriptUrl = sanitizeScriptUrl(process.env.GOOGLE_SCRIPT_URL || process.env.VITE_GOOGLE_SCRIPT_URL || DEFAULT_SCRIPT_URL);
 
