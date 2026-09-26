@@ -322,6 +322,28 @@ export const GoogleSheetSettingsModal: React.FC<GoogleSheetSettingsModalProps> =
             </div>
           </div>
 
+          {/* Textile Blitz Writing Tab Preview */}
+          <div className="border border-purple-200 rounded-xl p-3.5 bg-purple-50/40 space-y-2">
+            <span className="text-[11px] font-extrabold uppercase tracking-wider text-purple-900 flex items-center gap-1.5">
+              <FolderSync className="w-3.5 h-3.5 text-purple-600" />
+              Tab 2: "Textile Blitz Writing" (10 Dedicated Columns):
+            </span>
+            <div className="flex flex-wrap gap-1 text-[10px]">
+              {[
+                '1. Reg ID', '2. Date & Time', '3. Payment Status', '4. Full Name',
+                '5. Batch', '6. Department', '7. Student ID', '8. WhatsApp',
+                '9. Sender bKash', '10. Transaction ID'
+              ].map((col) => (
+                <span
+                  key={col}
+                  className="px-1.5 py-0.5 rounded font-medium border bg-white text-purple-900 border-purple-200"
+                >
+                  {col}
+                </span>
+              ))}
+            </div>
+          </div>
+
         </div>
 
         {/* Footer actions */}

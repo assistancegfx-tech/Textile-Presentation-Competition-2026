@@ -17,7 +17,10 @@ import { GoogleSheetSettingsModal } from './components/GoogleSheetSettingsModal'
 import { SuccessView } from './components/SuccessView';
 import { TextileGridBackground } from './components/TextileMotifs';
 import { RegistrationTicker } from './components/RegistrationTicker';
-import { PageId } from './types';
+import { RegistrationSegmentSelector } from './components/RegistrationSegmentSelector';
+import { BlitzWritingForm } from './components/BlitzWritingForm';
+import { BlitzSuccessView } from './components/BlitzSuccessView';
+import { PageId, RegistrationSegment, BlitzRegistrationFormData, BlitzSubmissionResponse } from './types';
 import { FileText, ArrowLeft } from 'lucide-react';
 
 function parseHashToPage(): PageId {
@@ -79,18 +82,37 @@ export default function App() {
     } catch (_) {}
     return null;
   });
+  const [selectedSegment, setSelectedSegment] = useState<RegistrationSegment | null>(null);
+  const [latestBlitzRegistration, setLatestBlitzRegistration] = useState<{
+    result: BlitzSubmissionResponse;
+    formData: BlitzRegistrationFormData;
+  } | null>(() => {
+    try {
+      const saved = localStorage.getItem('tbw2026_latest_submission');
+      if (saved) return JSON.parse(saved);
+    } catch (_) {}
+    return null;
+  });
   const [isViewEditModalOpen, setIsViewEditModalOpen] = useState(false);
   const [viewEditRegId, setViewEditRegId] = useState('');
   const [viewEditRoll, setViewEditRoll] = useState('');
   const [viewEditMobile, setViewEditMobile] = useState('');
+  const [viewEditSegment, setViewEditSegment] = useState<RegistrationSegment>('presentation');
   const [viewEditAutoSearch, setViewEditAutoSearch] = useState(false);
   const [isGoogleSheetModalOpen, setIsGoogleSheetModalOpen] = useState(false);
 
-  const handleOpenViewEdit = (regId?: string, roll?: string, mobile?: string, autoSearch = false) => {
+  const handleOpenViewEdit = (regId?: string, roll?: string, mobile?: string, autoSearch = false, segment?: RegistrationSegment) => {
     setViewEditRegId(regId || '');
     setViewEditRoll(roll || '');
     setViewEditMobile(mobile || '');
     setViewEditAutoSearch(autoSearch);
+    if (segment) {
+      setViewEditSegment(segment);
+    } else if (regId && regId.toUpperCase().startsWith('TBW')) {
+      setViewEditSegment('blitz');
+    } else {
+      setViewEditSegment('presentation');
+    }
     setIsViewEditModalOpen(true);
   };
 
@@ -151,8 +173,13 @@ export default function App() {
           rawPath === 'entry-voucher' ||
           rawPath === 'voucher';
 
+        const paramSegment = (searchParams.get('segment') || hashParams?.get('segment') || '') as RegistrationSegment;
+
         if (isViewAction || paramRegId || paramRoll) {
-          handleOpenViewEdit(paramRegId || '', paramRoll || '', paramMobile || '', Boolean(paramRegId || paramRoll));
+          const seg: RegistrationSegment | undefined = paramSegment === 'blitz' || paramSegment === 'presentation'
+            ? paramSegment
+            : (paramRegId && paramRegId.toUpperCase().startsWith('TBW') ? 'blitz' : 'presentation');
+          handleOpenViewEdit(paramRegId || '', paramRoll || '', paramMobile || '', Boolean(paramRegId || paramRoll), seg);
         }
       } catch (err) {
         console.warn('Error reading URL parameters:', err);
@@ -194,7 +221,10 @@ export default function App() {
     };
   }, []);
 
-  const navigateToPage = (page: PageId) => {
+  const navigateToPage = (page: PageId, segment?: RegistrationSegment) => {
+    if (page === 'registration') {
+      setSelectedSegment(segment !== undefined ? segment : null);
+    }
     setCurrentPage(page);
     if (page === 'registration-success') {
       try {
@@ -251,17 +281,45 @@ export default function App() {
             )}
 
             {currentPage === 'registration' && (
-              <RegistrationForm
-                onOpenViewEditModal={handleOpenViewEdit}
-                onOpenGoogleSheetModal={handleOpenGoogleSheet}
-                onRegistrationSuccess={(result, formData) => {
-                  setLatestRegistration({ result, formData });
-                  try {
-                    window.dispatchEvent(new CustomEvent('tpc_registration_success'));
-                  } catch (_) {}
-                  navigateToPage('registration-success');
-                }}
-              />
+              <div className="w-full">
+                {selectedSegment === null ? (
+                  <div className="py-10 md:py-16 px-4">
+                    <RegistrationSegmentSelector
+                      onSelectSegment={(segment) => setSelectedSegment(segment)}
+                    />
+                  </div>
+                ) : selectedSegment === 'presentation' ? (
+                  <RegistrationForm
+                    onOpenViewEditModal={handleOpenViewEdit}
+                    onOpenGoogleSheetModal={handleOpenGoogleSheet}
+                    onBackToSelector={() => setSelectedSegment(null)}
+                    onRegistrationSuccess={(result, formData) => {
+                      setLatestRegistration({ result, formData });
+                      try {
+                        window.dispatchEvent(new CustomEvent('tpc_registration_success'));
+                      } catch (_) {}
+                      navigateToPage('registration-success');
+                    }}
+                  />
+                ) : (
+                  <div className="py-10 md:py-16 px-4">
+                    {latestBlitzRegistration ? (
+                      <BlitzSuccessView
+                        result={latestBlitzRegistration.result}
+                        formData={latestBlitzRegistration.formData}
+                        onRegisterAnother={() => setLatestBlitzRegistration(null)}
+                      />
+                    ) : (
+                      <BlitzWritingForm
+                        onBackToSelector={() => setSelectedSegment(null)}
+                        onSuccess={(result, formData) => {
+                          setLatestBlitzRegistration({ result, formData });
+                        }}
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
             )}
 
             {currentPage === 'registration-success' && (
@@ -325,6 +383,7 @@ export default function App() {
         initialRegId={viewEditRegId}
         initialRoll={viewEditRoll}
         initialMobile={viewEditMobile}
+        initialSegment={viewEditSegment}
         autoSearch={viewEditAutoSearch}
         onUpdated={(updated) => {
           setLatestRegistration(prev => {

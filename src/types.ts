@@ -98,6 +98,52 @@ export interface ExistingRegistrationRecord {
   };
 }
 
+export type RegistrationSegment = 'presentation' | 'blitz';
+
+export interface BlitzRegistrationFormData {
+  fullName: string;
+  batch: '13' | '14' | '15' | '16' | '';
+  department: 'YE' | 'FE' | 'WPE' | 'AE' | '';
+  studentId: string;
+  whatsapp: string;
+  email: string;
+  senderBkash: string;
+  transactionId: string;
+}
+
+export interface BlitzSubmissionResponse {
+  success: boolean;
+  registrationId?: string;
+  submissionDate?: string;
+  fullName?: string;
+  batch?: string;
+  department?: string;
+  studentId?: string;
+  whatsapp?: string;
+  email?: string;
+  senderBkash?: string;
+  transactionId?: string;
+  paymentStatus?: 'Pending' | 'Verified' | 'Approved' | 'Rejected';
+  editCount?: number;
+  maxEdits?: number;
+  remainingEdits?: number;
+  emailSent?: boolean;
+  emailRecipient?: string;
+  message: string;
+  error?: string;
+  source?: 'google_sheets' | 'local_fallback' | 'local';
+}
+
+export interface RegisteredBlitzRecord {
+  registrationId: string;
+  submissionDate: string;
+  paymentStatus: 'Pending' | 'Verified' | 'Approved' | 'Rejected';
+  editCount: number;
+  maxEdits: number;
+  remainingEdits: number;
+  formData: BlitzRegistrationFormData;
+}
+
 export type PageId = 'home' | 'event' | 'registration' | 'guidelines' | 'contact' | 'registration-success';
 
 export type SubmissionProgressStage = 
@@ -106,3 +152,4 @@ export type SubmissionProgressStage =
   | 'photos'
   | 'saving_sheets'
   | 'finalizing';
+

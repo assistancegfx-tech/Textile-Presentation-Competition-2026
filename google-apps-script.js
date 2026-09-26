@@ -59,6 +59,7 @@
 const SPREADSHEET_ID = ""; 
 
 const SHEET_NAME = "Registrations";
+const BLITZ_SHEET_NAME = "Textile Blitz Writing";
 const DRIVE_FOLDER_NAME = "Textile Presentation 2026 - Participant Photos";
 
 const STANDARD_HEADERS = [
@@ -117,17 +118,47 @@ const COLUMN_WIDTHS = [
   150  // 25. Transaction ID
 ];
 
+const BLITZ_HEADERS = [
+  "Registration ID",          // Col 1 (A)
+  "Submission Date & Time",   // Col 2 (B)
+  "Payment Status",           // Col 3 (C)
+  "Full Name",                // Col 4 (D)
+  "Batch",                    // Col 5 (E)
+  "Department",               // Col 6 (F)
+  "Student ID",               // Col 7 (G)
+  "WhatsApp Number",          // Col 8 (H)
+  "Email Address",            // Col 9 (I)
+  "Sender bKash Number",      // Col 10 (J)
+  "Transaction ID (TrxID)"    // Col 11 (K)
+];
+
+const BLITZ_COLUMN_WIDTHS = [
+  150, // 1. Registration ID
+  170, // 2. Submission Date & Time
+  130, // 3. Payment Status
+  200, // 4. Full Name
+  100, // 5. Batch
+  130, // 6. Department
+  140, // 7. Student ID
+  150, // 8. WhatsApp Number
+  220, // 9. Email Address
+  150, // 10. Sender bKash Number
+  160  // 11. Transaction ID (TrxID)
+];
+
 /**
  * ⚡ RUN THIS FUNCTION ONCE IN APPS SCRIPT EDITOR (CLICK ▶ Run)
  * 1. Renames Sheet1 to "Registrations" (or creates it).
- * 2. Applies dark navy styling, bold white text, and sets frozen header.
- * 3. Adjusts all 25 column widths and sets plain text format for rolls and phone numbers.
- * 4. Sets up Payment Status dropdown and conditional color formatting.
- * 5. Prepares Google Drive folder for participant photo uploads.
+ * 2. Creates and formats the "Textile Blitz Writing" tab.
+ * 3. Applies dark navy styling, bold white text, and sets frozen header.
+ * 4. Adjusts all column widths and sets plain text format for rolls and phone numbers.
+ * 5. Sets up Payment Status dropdown and conditional color formatting on both sheets.
+ * 6. Prepares Google Drive folder for participant photo uploads.
  */
 function setup() {
   const ss = getSpreadsheet();
   const sheet = setupNewSheet(ss);
+  const blitzSheet = setupBlitzSheet(ss);
   const folder = getOrCreateDriveFolder(DRIVE_FOLDER_NAME);
 
   let emailQuota = "N/A";
@@ -138,13 +169,14 @@ function setup() {
   Logger.log("==================================================");
   Logger.log("🎉 NEW GOOGLE SHEET SETUP COMPLETE!");
   Logger.log("📄 Spreadsheet: " + ss.getName());
-  Logger.log("📋 Sheet Name: " + sheet.getName());
+  Logger.log("📋 Presentation Sheet: " + sheet.getName());
+  Logger.log("📋 Blitz Writing Sheet: " + blitzSheet.getName());
   Logger.log("📁 Drive Folder: " + folder.getName());
-  Logger.log("✨ 25 columns configured with Team Name at Column D.");
+  Logger.log("✨ Both registration categories configured with separate tabs.");
   Logger.log("📧 Daily Email Quota Remaining: " + emailQuota + " emails");
   Logger.log("==================================================");
 
-  return "Setup successful! 25 standard columns are ready with dropdowns, photo folder, and automatic confirmation emails.";
+  return "Setup successful! Both 'Registrations' and 'Textile Blitz Writing' tabs are ready with dropdowns and formatting.";
 }
 
 /**
@@ -335,24 +367,326 @@ function applyPaymentConditionalFormatting(sheet, maxRows) {
 }
 
 /**
+ * Prepares the separate "Textile Blitz Writing" tab with dedicated columns and styles
+ */
+function setupBlitzSheet(ss) {
+  let sheet = ss.getSheetByName(BLITZ_SHEET_NAME);
+
+  if (!sheet) {
+    sheet = ss.insertSheet(BLITZ_SHEET_NAME);
+  }
+
+  // Set Tab Color to Dodger Blue
+  try {
+    sheet.setTabColor("#1E90FF");
+  } catch (_) {}
+
+  // Set Row 1 Headers
+  const headerRange = sheet.getRange(1, 1, 1, BLITZ_HEADERS.length);
+  headerRange.setValues([BLITZ_HEADERS]);
+
+  // Style Header Row (Deep Dodger Blue, White Bold, Center, Middle)
+  headerRange.setBackground("#0066CC");
+  headerRange.setFontColor("#FFFFFF");
+  headerRange.setFontFamily("Arial");
+  headerRange.setFontSize(10);
+  headerRange.setFontWeight("bold");
+  headerRange.setHorizontalAlignment("center");
+  headerRange.setVerticalAlignment("middle");
+  headerRange.setWrapStrategy(SpreadsheetApp.WrapStrategy.WRAP);
+
+  sheet.setRowHeight(1, 40);
+  sheet.setFrozenRows(1);
+
+  // Set individual column widths
+  for (let i = 0; i < BLITZ_COLUMN_WIDTHS.length; i++) {
+    sheet.setColumnWidth(i + 1, BLITZ_COLUMN_WIDTHS[i]);
+  }
+
+  // Format Plain Text Columns (@) so leading zeroes in Phone & Student ID are NEVER stripped
+  // Col 1 (Reg ID), Col 5 (Batch), Col 7 (Student ID), Col 8 (WhatsApp), Col 9 (Email), Col 10 (bKash), Col 11 (TrxID)
+  const plainTextCols = [1, 5, 7, 8, 9, 10, 11];
+  const maxRows = Math.max(100, sheet.getMaxRows());
+
+  plainTextCols.forEach(col => {
+    sheet.getRange(2, col, maxRows - 1, 1).setNumberFormat("@");
+  });
+
+  // Date column format (Col 2)
+  sheet.getRange(2, 2, maxRows - 1, 1).setNumberFormat("yyyy-mm-dd hh:mm:ss");
+
+  // Center align specific columns
+  const centerCols = [1, 2, 3, 5, 6, 7, 8, 10, 11];
+  centerCols.forEach(col => {
+    sheet.getRange(2, col, maxRows - 1, 1).setHorizontalAlignment("center");
+  });
+
+  // Payment Status Dropdown Data Validation (Col C / 3)
+  const statusRule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(["Pending", "Approved", "Paid", "Rejected"], true)
+    .setAllowInvalid(true)
+    .build();
+  sheet.getRange(2, 3, maxRows - 1, 1).setDataValidation(statusRule);
+
+  // Conditional Formatting Rules for Payment Status
+  applyPaymentConditionalFormatting(sheet, maxRows);
+
+  // Auto-Filter
+  try {
+    const existingFilter = sheet.getFilter();
+    if (!existingFilter) {
+      sheet.getRange(1, 1, maxRows, BLITZ_HEADERS.length).createFilter();
+    }
+  } catch (_) {}
+
+  return sheet;
+}
+
+/**
+ * Handles incoming Textile Blitz Writing registration and appends to the Blitz tab
+ */
+function handleBlitzRegistration(blitzSheet, data) {
+  // Check registration deadline: 5 October 2026, 11:59:59 PM BST (UTC+6)
+  const DEADLINE_TIMESTAMP = new Date("2026-10-05T23:59:59+06:00").getTime();
+  if (new Date().getTime() > DEADLINE_TIMESTAMP) {
+    return createResponse({
+      success: false,
+      error: "Registration is officially closed. The deadline was 5 October 2026, 11:59 PM BST."
+    });
+  }
+
+  const fullName = String(data.fullName || "").trim();
+  const batch = String(data.batch || "").trim();
+  const department = String(data.department || "").trim();
+  const studentId = String(data.studentId || "").trim();
+  const whatsapp = String(data.whatsapp || "").trim();
+  const email = String(data.email || "").trim();
+  const senderBkash = String(data.senderBkash || "").trim();
+  const transactionId = String(data.transactionId || "").trim().toUpperCase();
+
+  if (!fullName || !batch || !department || !studentId || !whatsapp || !senderBkash || !transactionId) {
+    return createResponse({
+      success: false,
+      error: "All fields are required. Please ensure Full Name, Batch, Department, Student ID, WhatsApp, Sender bKash, and TrxID are filled."
+    });
+  }
+
+  // Duplicate Check against existing rows in Blitz Sheet
+  const rows = blitzSheet.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    const rowTrx = String(rows[i][10] || "").trim().toUpperCase(); // Col 11: TrxID
+    if (rowTrx && rowTrx === transactionId) {
+      return createResponse({
+        success: false,
+        error: "Transaction ID (" + transactionId + ") was already registered for " + rows[i][0] + " (" + rows[i][3] + ")."
+      });
+    }
+  }
+
+  // Generate Registration ID: TBW-{idCode}-{sequence}
+  const digits = studentId.replace(/\D/g, "");
+  const idCode = digits.length >= 2 ? digits.slice(-2) : (batch || "26").padStart(2, "0");
+  
+  let maxSeq = 0;
+  for (let i = 1; i < rows.length; i++) {
+    const rId = String(rows[i][0] || "").trim();
+    const match = rId.match(/-(\d+)$/);
+    if (match) {
+      const num = parseInt(match[1], 10);
+      if (!isNaN(num) && num > maxSeq) maxSeq = num;
+    }
+  }
+  const nextSeq = maxSeq + 1;
+  const seqStr = ("0" + nextSeq).slice(-2);
+  const registrationId = data.registrationId || ("TBW-" + idCode + "-" + seqStr);
+  const submissionDate = data.submissionDate || Utilities.formatDate(new Date(), "Asia/Dhaka", "yyyy-MM-dd HH:mm:ss");
+
+  // Construct 11-column Blitz row
+  const blitzRow = [
+    registrationId, // 1. Registration ID
+    submissionDate, // 2. Submission Date & Time
+    "Pending",      // 3. Payment Status
+    fullName,       // 4. Full Name
+    batch,          // 5. Batch
+    department,     // 6. Department
+    studentId,      // 7. Student ID
+    whatsapp,       // 8. WhatsApp Number
+    email,          // 9. Email Address
+    senderBkash,    // 10. Sender bKash Number
+    transactionId   // 11. Transaction ID
+  ];
+
+  blitzSheet.appendRow(blitzRow);
+  const newRowNum = blitzSheet.getLastRow();
+
+  // Apply row height & text formats
+  blitzSheet.setRowHeight(newRowNum, 30);
+  blitzSheet.getRange(newRowNum, 1, 1, BLITZ_HEADERS.length).setVerticalAlignment("middle");
+  blitzSheet.getRange(newRowNum, 1).setFontWeight("bold").setHorizontalAlignment("center");
+  blitzSheet.getRange(newRowNum, 7).setNumberFormat("@");
+  blitzSheet.getRange(newRowNum, 8).setNumberFormat("@");
+  blitzSheet.getRange(newRowNum, 9).setNumberFormat("@");
+  blitzSheet.getRange(newRowNum, 10).setNumberFormat("@");
+  blitzSheet.getRange(newRowNum, 11).setNumberFormat("@").setFontFamily("Courier New").setFontWeight("bold");
+
+  Logger.log("Blitz Writing registration recorded successfully: " + registrationId + " (" + fullName + ")");
+
+  // Send Confirmation Email with Entry Pass
+  let emailSent = false;
+  if (email && email.includes("@")) {
+    try {
+      emailSent = sendBlitzConfirmationEmail({
+        registrationId: registrationId,
+        fullName: fullName,
+        batch: batch,
+        department: department,
+        studentId: studentId,
+        whatsapp: whatsapp,
+        email: email,
+        senderBkash: senderBkash,
+        transactionId: transactionId,
+        submissionDate: submissionDate,
+        isApproved: false,
+        pdfBase64: data.pdfBase64
+      });
+    } catch (mailErr) {
+      Logger.log("Blitz email dispatch notice: " + mailErr.toString());
+    }
+  }
+
+  return createResponse({
+    success: true,
+    registrationId: registrationId,
+    submissionDate: submissionDate,
+    fullName: fullName,
+    batch: batch,
+    department: department,
+    studentId: studentId,
+    whatsapp: whatsapp,
+    email: email,
+    senderBkash: senderBkash,
+    transactionId: transactionId,
+    paymentStatus: "Pending",
+    emailSent: emailSent,
+    emailRecipient: email,
+    message: "Textile Blitz Writing registration recorded successfully in sheet tab '" + BLITZ_SHEET_NAME + "'."
+  });
+}
+
+/**
+ * Sends official Blitz Writing confirmation email with Entry Pass attachment
+ */
+function sendBlitzConfirmationEmail(params) {
+  try {
+    const toEmail = params.email;
+    if (!toEmail || !toEmail.includes("@")) return false;
+
+    const subject = params.isApproved 
+      ? "🎉 [APPROVED] Textile Blitz Writing 2026 Entry Pass - " + params.registrationId
+      : "✅ [RECEIVED] Textile Blitz Writing 2026 Registration - " + params.registrationId;
+
+    const statusBadge = params.isApproved
+      ? '<span style="display:inline-block;padding:6px 14px;background:#dcfce7;color:#15803d;font-weight:bold;border-radius:20px;font-size:12px;border:1px solid #86efac;">PAYMENT APPROVED • VALID FOR ENTRY</span>'
+      : '<span style="display:inline-block;padding:6px 14px;background:#fef3c7;color:#b45309;font-weight:bold;border-radius:20px;font-size:12px;border:1px solid #fcd34d;">PAYMENT PENDING VERIFICATION</span>';
+
+    const htmlBody = `
+      <div style="font-family:Arial,Helvetica,sans-serif;max-width:620px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+        <div style="background:#0A192F;padding:26px 28px;text-align:center;border-bottom:3px solid #1E90FF;">
+          <h1 style="color:#ffffff;margin:0;font-size:20px;font-weight:900;letter-spacing:0.5px;">CAREER CLUB BTEC</h1>
+          <p style="color:#38bdf8;margin:4px 0 0 0;font-size:13px;font-weight:bold;">TEXTILE BLITZ WRITING 2026</p>
+          <p style="color:#94a3b8;margin:2px 0 0 0;font-size:11px;">Barishal Textile Engineering College</p>
+        </div>
+
+        <div style="padding:28px;">
+          <div style="text-align:center;margin-bottom:20px;">
+            <p style="font-size:14px;color:#334155;margin:0 0 10px 0;">Hello <strong>${params.fullName}</strong>,</p>
+            <p style="font-size:13px;color:#64748b;margin:0 0 16px 0;">
+              ${params.isApproved 
+                ? 'Your bKash payment has been verified by the organizing team. Your official entry pass is confirmed.'
+                : 'Thank you for registering for Textile Blitz Writing 2026. Your registration details have been received.'}
+            </p>
+            <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:16px;margin:12px 0;">
+              <span style="font-size:11px;color:#0284c7;text-transform:uppercase;font-weight:bold;letter-spacing:1px;display:block;">Your Registration ID</span>
+              <span style="font-size:24px;font-weight:900;color:#0369a1;font-family:monospace;letter-spacing:2px;display:block;margin:4px 0;">${params.registrationId}</span>
+              ${statusBadge}
+            </div>
+          </div>
+
+          <table style="width:100%;border-collapse:collapse;font-size:12px;margin:20px 0;background:#f8fafc;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0;">
+            <tr style="border-bottom:1px solid #e2e8f0;">
+              <td style="padding:10px 14px;color:#64748b;font-weight:bold;width:40%;">Participant Name</td>
+              <td style="padding:10px 14px;color:#0f172a;font-weight:bold;">${params.fullName}</td>
+            </tr>
+            <tr style="border-bottom:1px solid #e2e8f0;">
+              <td style="padding:10px 14px;color:#64748b;font-weight:bold;">Student ID / Roll</td>
+              <td style="padding:10px 14px;color:#0f172a;font-weight:bold;font-family:monospace;">${params.studentId}</td>
+            </tr>
+            <tr style="border-bottom:1px solid #e2e8f0;">
+              <td style="padding:10px 14px;color:#64748b;font-weight:bold;">Batch & Department</td>
+              <td style="padding:10px 14px;color:#0f172a;">${params.batch}th Batch • ${params.department}</td>
+            </tr>
+            <tr style="border-bottom:1px solid #e2e8f0;">
+              <td style="padding:10px 14px;color:#64748b;font-weight:bold;">WhatsApp Number</td>
+              <td style="padding:10px 14px;color:#0f172a;font-family:monospace;">${params.whatsapp}</td>
+            </tr>
+            <tr style="border-bottom:1px solid #e2e8f0;">
+              <td style="padding:10px 14px;color:#64748b;font-weight:bold;">bKash Transaction ID</td>
+              <td style="padding:10px 14px;color:#0f172a;font-weight:bold;font-family:monospace;">${params.transactionId}</td>
+            </tr>
+            <tr>
+              <td style="padding:10px 14px;color:#64748b;font-weight:bold;">Event Date & Venue</td>
+              <td style="padding:10px 14px;color:#0f172a;">10 October 2026 • BTEC Campus</td>
+            </tr>
+          </table>
+
+          <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:12px;margin:16px 0;font-size:11.5px;color:#991b1b;line-height:1.5;">
+            <strong>Important Event Rule:</strong> A payment-approved Entry Pass PDF is mandatory to enter the writing hall. You can view your live payment verification status and download your voucher anytime by visiting the registration portal.
+          </div>
+        </div>
+
+        <div style="background:#f8fafc;padding:16px 28px;text-align:center;border-top:1px solid #e2e8f0;font-size:11px;color:#94a3b8;">
+          Career Club BTEC • Barishal Textile Engineering College • All Rights Reserved
+        </div>
+      </div>
+    `;
+
+    const emailOptions = {
+      to: toEmail,
+      subject: subject,
+      htmlBody: htmlBody
+    };
+
+    // Attach PDF voucher if available
+    if (params.pdfBase64) {
+      try {
+        const decoded = Utilities.base64Decode(params.pdfBase64);
+        const attachment = Utilities.newBlob(decoded, "application/pdf", "Textile_Blitz_Writing_" + params.registrationId + "_Entry_Pass.pdf");
+        emailOptions.attachments = [attachment];
+      } catch (attachErr) {
+        Logger.log("PDF attachment error: " + attachErr.toString());
+      }
+    }
+
+    MailApp.sendEmail(emailOptions);
+    Logger.log("Blitz confirmation email sent to: " + toEmail);
+    return true;
+  } catch (err) {
+    Logger.log("sendBlitzConfirmationEmail error: " + err.toString());
+    return false;
+  }
+}
+
+/**
  * ============================================================================
  * 🔔 AUTOMATIC ON-EDIT TRIGGER: INSTANT PAYMENT APPROVAL & UPDATED PDF EMAIL
  * ============================================================================
- * Whenever an admin/organizer edits the "Payment Status" column (Col C / 3)
- * in Google Sheets to "Paid" or "Approved":
- * 1. Checks if an approval email was already sent (prevents duplicate spam).
- * 2. Generates the updated official PDF voucher reflecting the "Paid" status.
- * 3. Sends a verified confirmation email to the group leader with the attached updated PDF voucher.
- * 4. Includes direct 1-click links to the website and participant WhatsApp group.
- * 5. Marks Column Z ("Email Sent") as "YES" with timestamp.
  */
 function onEdit(e) {
   try {
     if (!e || !e.range) return;
     
     const sheet = e.range.getSheet();
-    if (sheet.getName() !== SHEET_NAME && sheet.getName() !== "Sheet1") return;
-
+    const sheetName = sheet.getName();
     const editedRow = e.range.getRow();
     const editedCol = e.range.getColumn();
     const newValue = String(e.value || "").trim();
@@ -360,16 +694,66 @@ function onEdit(e) {
     // Skip header row
     if (editedRow <= 1) return;
 
-    // Check if edited column is Payment Status (Column 3 / C)
+    // 1. Check if edited sheet is "Textile Blitz Writing"
+    if (sheetName === BLITZ_SHEET_NAME) {
+      if (editedCol === 3) {
+        const isApprovedOrPaid = newValue.toLowerCase() === "paid" || newValue.toLowerCase() === "approved";
+        if (isApprovedOrPaid) {
+          handleBlitzPaymentApprovalNotification(sheet, editedRow, newValue);
+        }
+      }
+      return;
+    }
+
+    // 2. Check if edited sheet is "Registrations"
+    if (sheetName !== SHEET_NAME && sheetName !== "Sheet1") return;
+
     if (editedCol === 3) {
       const isApprovedOrPaid = newValue.toLowerCase() === "paid" || newValue.toLowerCase() === "approved";
-      
       if (isApprovedOrPaid) {
         handlePaymentApprovalNotification(sheet, editedRow, newValue);
       }
     }
   } catch (err) {
     Logger.log("[ONEDIT ERROR] " + err.toString());
+  }
+}
+
+/**
+ * Handles Blitz payment approval email when admin marks Col C / 3 as Paid or Approved
+ */
+function handleBlitzPaymentApprovalNotification(sheet, rowNum, newStatus) {
+  try {
+    const rowValues = sheet.getRange(rowNum, 1, 1, Math.max(sheet.getLastColumn(), 12)).getValues()[0];
+    const regId = String(rowValues[0] || "").trim();
+    const submissionDate = String(rowValues[1] || "").trim();
+    const fullName = String(rowValues[3] || "").trim();
+    const batch = String(rowValues[4] || "").trim();
+    const department = String(rowValues[5] || "").trim();
+    const studentId = String(rowValues[6] || "").trim();
+    const whatsapp = String(rowValues[7] || "").trim();
+    const email = String(rowValues[8] || "").trim();
+    const senderBkash = String(rowValues[9] || "").trim();
+    const transactionId = String(rowValues[10] || "").trim();
+
+    if (email && email.includes("@")) {
+      sendBlitzConfirmationEmail({
+        registrationId: regId,
+        fullName: fullName,
+        batch: batch,
+        department: department,
+        studentId: studentId,
+        whatsapp: whatsapp,
+        email: email,
+        senderBkash: senderBkash,
+        transactionId: transactionId,
+        submissionDate: submissionDate,
+        isApproved: true
+      });
+      Logger.log("Blitz Payment Approval email dispatched to: " + email);
+    }
+  } catch (err) {
+    Logger.log("handleBlitzPaymentApprovalNotification error: " + err.toString());
   }
 }
 
@@ -954,6 +1338,55 @@ function doGet(e) {
     }
 
     // Live search for single registration
+    if (action === "get_blitz") {
+      const ss = getSpreadsheet();
+      const blitzSheet = setupBlitzSheet(ss);
+      const rows = blitzSheet.getDataRange().getValues();
+      const rawQuery = String(e.parameter.query || e.parameter.regId || "").trim();
+      const cleanQ = rawQuery.toUpperCase();
+      const phoneDigits = rawQuery.replace(/[^0-9]/g, "").slice(-10);
+
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        const rId = String(row[0] || "").trim().toUpperCase();
+        const rStudentId = String(row[6] || "").trim().toUpperCase();
+        const rPhone = String(row[7] || "").replace(/[^0-9]/g, "").slice(-10);
+        const rEmail = String(row[8] || "").trim().toLowerCase();
+
+        const match = rId === cleanQ || 
+                      (cleanQ.length >= 2 && rStudentId === cleanQ) || 
+                      (phoneDigits.length >= 8 && rPhone === phoneDigits) ||
+                      (rawQuery.includes("@") && rEmail === rawQuery.toLowerCase());
+
+        if (match) {
+          return createResponse({
+            success: true,
+            found: true,
+            registration: {
+              registrationId: row[0],
+              submissionDate: row[1],
+              paymentStatus: row[2] || "Pending",
+              fullName: row[3],
+              batch: row[4],
+              department: row[5],
+              studentId: row[6],
+              whatsapp: row[7],
+              email: row[8],
+              senderBkash: row[9],
+              transactionId: row[10]
+            }
+          });
+        }
+      }
+
+      return createResponse({
+        success: false,
+        found: false,
+        error: "No Blitz Writing record found for " + rawQuery
+      });
+    }
+
+    // Live search for single registration
     if (action === "get" || action === "status" || action === "find") {
       if (!rawSearch) {
         return createResponse({
@@ -1099,6 +1532,40 @@ function doPost(e) {
 
     const ss = getSpreadsheet();
     const sheet = setupNewSheet(ss);
+
+    // =========================================================================
+    // ACTION 0: TEXTILE BLITZ WRITING REGISTRATION
+    // =========================================================================
+    if (data.action === "blitz_registration" || data.registrationType === "blitz") {
+      const blitzSheet = setupBlitzSheet(ss);
+      return handleBlitzRegistration(blitzSheet, data);
+    }
+
+    if (data.action === "update_blitz") {
+      const blitzSheet = setupBlitzSheet(ss);
+      const rows = blitzSheet.getDataRange().getValues();
+      const targetId = String(data.registrationId || "").trim().toUpperCase();
+      for (let i = 1; i < rows.length; i++) {
+        if (String(rows[i][0] || "").trim().toUpperCase() === targetId) {
+          const rowNum = i + 1;
+          if (data.fullName) blitzSheet.getRange(rowNum, 4).setValue(data.fullName.trim());
+          if (data.batch) blitzSheet.getRange(rowNum, 5).setValue(data.batch);
+          if (data.department) blitzSheet.getRange(rowNum, 6).setValue(data.department);
+          if (data.studentId) blitzSheet.getRange(rowNum, 7).setValue(data.studentId.trim());
+          if (data.whatsapp) blitzSheet.getRange(rowNum, 8).setValue(data.whatsapp.trim());
+          if (data.email) blitzSheet.getRange(rowNum, 9).setValue(data.email.trim());
+
+          return createResponse({
+            success: true,
+            message: "Blitz writing registration updated successfully in Google Sheet."
+          });
+        }
+      }
+      return createResponse({
+        success: false,
+        error: "Registration ID " + targetId + " not found in Blitz sheet."
+      });
+    }
 
     // =========================================================================
     // ACTION 1: STATUS UPDATE ONLY

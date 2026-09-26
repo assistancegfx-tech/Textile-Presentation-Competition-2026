@@ -19,11 +19,32 @@ interface StoredRegistration {
   payload: any;
 }
 
+interface StoredBlitzRegistration {
+  registrationId: string;
+  submissionDate: string;
+  paymentStatus: 'Pending' | 'Verified' | 'Approved' | 'Rejected';
+  fullName: string;
+  batch: string;
+  department: string;
+  studentId: string;
+  whatsapp: string;
+  email: string;
+  senderBkash: string;
+  transactionId: string;
+  editCount: number;
+  maxEdits: number;
+  lastEditedAt?: string;
+  payload: any;
+}
+
 const REGISTRATION_DEADLINE_TIMESTAMP = new Date('2026-10-05T23:59:59+06:00').getTime();
 
 // In-memory persistent registry for duplicate detection and fallback storage
 const registrationsStore: StoredRegistration[] = [];
 let idSequence = 1;
+
+const blitzRegistrationsStore: StoredBlitzRegistration[] = [];
+let blitzIdSequence = 1;
 
 const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxFVWAVQApNuw2g_zvbSEK_QhXIcso8MoDhne75A4L0ryUUeh2G4GEclUkMn8GY21VT2Q/exec';
 
@@ -502,6 +523,467 @@ async function startServer() {
     }
 
     return res.json({ duplicate: false });
+  });
+
+  // Textile Blitz Writing Registration Endpoint
+  app.post('/api/register-blitz', async (req: Request, res: Response) => {
+    res.setHeader('Content-Type', 'application/json');
+    try {
+      if (Date.now() >= REGISTRATION_DEADLINE_TIMESTAMP) {
+        console.warn('[BLITZ] Submission rejected: Registration deadline has passed (5 Oct 2026, 11:59 PM BST)');
+        return res.status(403).json({
+          success: false,
+          error: 'Registration is officially closed. The deadline was 5 October 2026, 11:59 PM BST.',
+          details: 'Online registration is closed.'
+        });
+      }
+
+      const data = req.body || {};
+      const fullName = String(data.fullName || '').trim();
+      const batch = String(data.batch || '').trim();
+      const department = String(data.department || '').trim();
+      const studentId = String(data.studentId || '').trim();
+      const whatsapp = String(data.whatsapp || '').trim();
+      const email = String(data.email || '').trim();
+      const senderBkash = String(data.senderBkash || '').trim();
+      const transactionId = String(data.transactionId || '').trim().toUpperCase();
+
+      if (!fullName || !batch || !department || !studentId || !whatsapp || !senderBkash || !transactionId) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required fields. Please ensure Full Name, Batch, Department, Student ID, WhatsApp, Sender bKash, and TrxID are filled.'
+        });
+      }
+
+      // Check duplicates in internal Blitz store
+      for (const reg of blitzRegistrationsStore) {
+        if (reg.transactionId && reg.transactionId.toUpperCase() === transactionId) {
+          return res.status(409).json({
+            success: false,
+            error: `Duplicate Transaction ID "${transactionId}". This payment was already used for registration ${reg.registrationId}.`
+          });
+        }
+      }
+
+      const now = new Date();
+      const submissionDate = now.toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' });
+
+      // Generate Blitz Registration ID: TBW-{batchLast2 or idLast2}-{seq}
+      const digits = studentId.replace(/\D/g, '');
+      const idCode = digits.length >= 2 ? digits.slice(-2) : (batch || '26').padStart(2, '0');
+      
+      let maxBlitzSeq = 0;
+      for (const b of blitzRegistrationsStore) {
+        const match = String(b.registrationId || '').match(/-(\d+)$/);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          if (!isNaN(num) && num > maxBlitzSeq) maxBlitzSeq = num;
+        }
+      }
+      const nextBlitzSeq = Math.max(blitzIdSequence++, maxBlitzSeq + 1);
+      const seqStr = String(nextBlitzSeq).padStart(2, '0');
+      const regId = `TBW-${idCode}-${seqStr}`;
+
+      const customScriptUrl = (req.headers['x-google-script-url'] as string | undefined) || data?.scriptUrl;
+      const targetScriptUrl = customScriptUrl || process.env.GOOGLE_SCRIPT_URL || process.env.VITE_GOOGLE_SCRIPT_URL || configuredGoogleScriptUrl || DEFAULT_SCRIPT_URL;
+
+      let googleSynced = false;
+      let emailSent = false;
+
+      if (targetScriptUrl && targetScriptUrl.startsWith('http')) {
+        try {
+          console.log(`[BLITZ] Syncing to Google Sheet tab "Textile Blitz Writing" (${targetScriptUrl.slice(0, 45)}...)...`);
+          const scriptPayload = {
+            action: 'blitz_registration',
+            registrationType: 'blitz',
+            registrationId: regId,
+            submissionDate,
+            fullName,
+            batch,
+            department,
+            studentId,
+            whatsapp,
+            email,
+            senderBkash,
+            transactionId,
+            pdfBase64: data.pdfBase64
+          };
+
+          const scriptRes = await fetch(targetScriptUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'text/plain;charset=utf-8',
+              'Accept': 'application/json, text/plain, */*'
+            },
+            body: JSON.stringify(scriptPayload),
+            signal: AbortSignal.timeout(6000)
+          });
+
+          const rawText = await scriptRes.text();
+          let scriptData: any = {};
+          try {
+            scriptData = JSON.parse(rawText);
+          } catch (_) {}
+
+          if (scriptData.status === 'error' || scriptData.success === false) {
+            console.warn('[BLITZ] Google Sheet sync warning:', scriptData.error || rawText);
+          } else {
+            googleSynced = true;
+            emailSent = scriptData.emailSent !== undefined ? Boolean(scriptData.emailSent) : Boolean(email);
+            console.log(`[BLITZ] Google Sheet sync SUCCESS (ID: ${regId}, Email: ${emailSent})`);
+          }
+        } catch (err: any) {
+          console.warn('[BLITZ] Google Sheet sync network notice:', err.message);
+        }
+      }
+
+      blitzRegistrationsStore.push({
+        registrationId: regId,
+        submissionDate,
+        paymentStatus: 'Pending',
+        fullName,
+        batch,
+        department,
+        studentId,
+        whatsapp,
+        email,
+        senderBkash,
+        transactionId,
+        editCount: 0,
+        maxEdits: 3,
+        payload: data
+      });
+
+      return res.status(200).json({
+        success: true,
+        registrationId: regId,
+        submissionDate,
+        fullName,
+        batch,
+        department,
+        studentId,
+        whatsapp,
+        email,
+        senderBkash,
+        transactionId,
+        paymentStatus: 'Pending',
+        editCount: 0,
+        maxEdits: 3,
+        remainingEdits: 3,
+        emailSent: Boolean(email),
+        emailRecipient: email,
+        message: 'Textile Blitz Writing registration recorded successfully.',
+        source: googleSynced ? 'google_sheets' : 'local_fallback'
+      });
+    } catch (err: any) {
+      console.error('[BLITZ] Unexpected error:', err);
+      return res.status(500).json({
+        success: false,
+        error: 'An internal error occurred while processing Blitz Writing registration.'
+      });
+    }
+  });
+
+  // POST Verify Blitz Registration by Registration No and Student ID (Exact 2-box verification)
+  app.post('/api/blitz/verify', async (req: Request, res: Response) => {
+    const rawRegId = String(req.body.registrationId || req.body.regId || '').trim();
+    const rawStudentId = String(req.body.studentId || '').trim();
+
+    if (!rawRegId || !rawStudentId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Both Registration No and Student ID are required for verification.'
+      });
+    }
+
+    let cleanRegId = rawRegId.toUpperCase();
+    if (!cleanRegId.startsWith('TBW-') && /^\d+$/.test(cleanRegId)) {
+      cleanRegId = `TBW-${cleanRegId}`;
+    }
+
+    const cleanStudentId = rawStudentId.toUpperCase();
+    const studentDigits = rawStudentId.replace(/\D/g, '');
+
+    // 1. Search in local blitz registrations store
+    let found = blitzRegistrationsStore.find(b => {
+      const matchId = b.registrationId && b.registrationId.toUpperCase() === cleanRegId;
+      return matchId;
+    });
+
+    // 2. Query Google Sheet tab if not found or sync status
+    const customScriptUrl = (req.headers['x-google-script-url'] as string | undefined) || req.query.scriptUrl as string;
+    const targetScriptUrl = customScriptUrl || process.env.GOOGLE_SCRIPT_URL || process.env.VITE_GOOGLE_SCRIPT_URL || configuredGoogleScriptUrl || DEFAULT_SCRIPT_URL;
+
+    if (targetScriptUrl && targetScriptUrl.startsWith('http')) {
+      try {
+        const queryUrl = `${targetScriptUrl}${targetScriptUrl.includes('?') ? '&' : '?'}action=get_blitz&query=${encodeURIComponent(cleanRegId)}`;
+        const gRes = await fetch(queryUrl, { signal: AbortSignal.timeout(5000), redirect: 'follow' });
+        if (gRes.ok) {
+          const gData = await gRes.json();
+          if (gData && gData.success && gData.registration) {
+            const sheetRec = gData.registration;
+            if (found) {
+              found.paymentStatus = sheetRec.paymentStatus || found.paymentStatus;
+              if (found.editCount === 0) {
+                found.fullName = sheetRec.fullName || found.fullName;
+                found.batch = sheetRec.batch || found.batch;
+                found.department = sheetRec.department || found.department;
+                found.studentId = sheetRec.studentId || found.studentId;
+                found.whatsapp = sheetRec.whatsapp || found.whatsapp;
+                found.email = sheetRec.email || found.email;
+              }
+            } else {
+              found = {
+                registrationId: sheetRec.registrationId,
+                submissionDate: sheetRec.submissionDate,
+                paymentStatus: sheetRec.paymentStatus || 'Pending',
+                fullName: sheetRec.fullName,
+                batch: sheetRec.batch,
+                department: sheetRec.department,
+                studentId: sheetRec.studentId,
+                whatsapp: sheetRec.whatsapp,
+                email: sheetRec.email || '',
+                senderBkash: sheetRec.senderBkash,
+                transactionId: sheetRec.transactionId,
+                editCount: sheetRec.editCount || 0,
+                maxEdits: 3,
+                payload: sheetRec
+              };
+              blitzRegistrationsStore.push(found);
+            }
+          }
+        }
+      } catch (err: any) {
+        console.warn('[BLITZ VERIFY] Google Sheet sync check notice:', err.message);
+      }
+    }
+
+    if (!found) {
+      return res.status(404).json({
+        success: false,
+        error: `No Blitz Writing record found for Registration No "${cleanRegId}". Please verify your Registration No.`
+      });
+    }
+
+    // Verify Student ID matches record
+    const storedStudent = String(found.studentId || '').trim().toUpperCase();
+    const storedDigits = storedStudent.replace(/\D/g, '');
+    const isStudentMatch = storedStudent === cleanStudentId || 
+                           (studentDigits.length >= 2 && storedDigits === studentDigits) ||
+                           (studentDigits.length >= 4 && storedDigits.endsWith(studentDigits));
+
+    if (!isStudentMatch) {
+      return res.status(403).json({
+        success: false,
+        error: `Student ID "${rawStudentId}" does not match the record for Registration No "${cleanRegId}".`
+      });
+    }
+
+    return res.json({
+      success: true,
+      verified: true,
+      registration: {
+        registrationId: found.registrationId,
+        submissionDate: found.submissionDate,
+        paymentStatus: found.paymentStatus,
+        editCount: found.editCount || 0,
+        maxEdits: found.maxEdits || 3,
+        remainingEdits: Math.max(0, (found.maxEdits || 3) - (found.editCount || 0)),
+        formData: {
+          fullName: found.fullName,
+          batch: found.batch,
+          department: found.department,
+          studentId: found.studentId,
+          whatsapp: found.whatsapp,
+          email: found.email,
+          senderBkash: found.senderBkash,
+          transactionId: found.transactionId
+        }
+      }
+    });
+  });
+
+  // GET Blitz Registration by ID, Student ID, or WhatsApp
+  app.get('/api/blitz/:query', async (req: Request, res: Response) => {
+    const rawQuery = String(req.params.query || '').trim();
+    if (!rawQuery) {
+      return res.status(400).json({ success: false, error: 'Query parameter required.' });
+    }
+
+    const cleanQuery = rawQuery.toUpperCase();
+    const phoneDigits = rawQuery.replace(/\D/g, '').slice(-10);
+
+    // 1. Search in local blitz store
+    let found = blitzRegistrationsStore.find(b => {
+      const matchId = b.registrationId && b.registrationId.toUpperCase() === cleanQuery;
+      const matchStudent = b.studentId && b.studentId.trim().toUpperCase() === cleanQuery;
+      const matchPhone = phoneDigits && b.whatsapp && b.whatsapp.replace(/\D/g, '').slice(-10) === phoneDigits;
+      return matchId || matchStudent || matchPhone;
+    });
+
+    // 2. Query Google Sheet tab if not found or sync status
+    const customScriptUrl = (req.headers['x-google-script-url'] as string | undefined) || req.query.scriptUrl as string;
+    const targetScriptUrl = customScriptUrl || process.env.GOOGLE_SCRIPT_URL || process.env.VITE_GOOGLE_SCRIPT_URL || configuredGoogleScriptUrl || DEFAULT_SCRIPT_URL;
+
+    if (targetScriptUrl && targetScriptUrl.startsWith('http')) {
+      try {
+        const queryUrl = `${targetScriptUrl}${targetScriptUrl.includes('?') ? '&' : '?'}action=get_blitz&query=${encodeURIComponent(rawQuery)}`;
+        const gRes = await fetch(queryUrl, { signal: AbortSignal.timeout(5000), redirect: 'follow' });
+        if (gRes.ok) {
+          const gData = await gRes.json();
+          if (gData && gData.success && gData.registration) {
+            const sheetRec = gData.registration;
+            if (found) {
+              found.paymentStatus = sheetRec.paymentStatus || found.paymentStatus;
+              if (found.editCount === 0) {
+                found.fullName = sheetRec.fullName || found.fullName;
+                found.batch = sheetRec.batch || found.batch;
+                found.department = sheetRec.department || found.department;
+                found.studentId = sheetRec.studentId || found.studentId;
+                found.whatsapp = sheetRec.whatsapp || found.whatsapp;
+                found.email = sheetRec.email || found.email;
+              }
+            } else {
+              found = {
+                registrationId: sheetRec.registrationId,
+                submissionDate: sheetRec.submissionDate,
+                paymentStatus: sheetRec.paymentStatus || 'Pending',
+                fullName: sheetRec.fullName,
+                batch: sheetRec.batch,
+                department: sheetRec.department,
+                studentId: sheetRec.studentId,
+                whatsapp: sheetRec.whatsapp,
+                email: sheetRec.email || '',
+                senderBkash: sheetRec.senderBkash,
+                transactionId: sheetRec.transactionId,
+                editCount: sheetRec.editCount || 0,
+                maxEdits: 3,
+                payload: sheetRec
+              };
+              blitzRegistrationsStore.push(found);
+            }
+          }
+        }
+      } catch (err: any) {
+        console.warn('[BLITZ GET] Google Sheet sync check notice:', err.message);
+      }
+    }
+
+    if (!found) {
+      return res.status(404).json({
+        success: false,
+        error: `No Textile Blitz Writing registration found for "${rawQuery}". Please check your Registration ID, Student ID, or WhatsApp number.`
+      });
+    }
+
+    return res.json({
+      success: true,
+      registration: {
+        registrationId: found.registrationId,
+        submissionDate: found.submissionDate,
+        paymentStatus: found.paymentStatus,
+        editCount: found.editCount || 0,
+        maxEdits: found.maxEdits || 3,
+        remainingEdits: Math.max(0, (found.maxEdits || 3) - (found.editCount || 0)),
+        formData: {
+          fullName: found.fullName,
+          batch: found.batch,
+          department: found.department,
+          studentId: found.studentId,
+          whatsapp: found.whatsapp,
+          email: found.email,
+          senderBkash: found.senderBkash,
+          transactionId: found.transactionId
+        }
+      }
+    });
+  });
+
+  // PUT Update Blitz Registration (up to 3 edits allowed)
+  app.put('/api/blitz/:regId', async (req: Request, res: Response) => {
+    const rawId = String(req.params.regId || '').trim();
+    if (!rawId) {
+      return res.status(400).json({ success: false, error: 'Registration ID required.' });
+    }
+
+    const { formData, pdfBase64 } = req.body || {};
+    if (!formData) {
+      return res.status(400).json({ success: false, error: 'Form data required.' });
+    }
+
+    let found = blitzRegistrationsStore.find(b => b.registrationId.toUpperCase() === rawId.toUpperCase());
+    if (!found) {
+      return res.status(404).json({ success: false, error: `Registration "${rawId}" not found.` });
+    }
+
+    if ((found.editCount || 0) >= (found.maxEdits || 3)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Edit limit reached. Each participant can only edit their information up to 3 times.'
+      });
+    }
+
+    // Apply updates
+    if (formData.fullName?.trim()) found.fullName = formData.fullName.trim();
+    if (formData.batch) found.batch = formData.batch;
+    if (formData.department) found.department = formData.department;
+    if (formData.studentId?.trim()) found.studentId = formData.studentId.trim();
+    if (formData.whatsapp?.trim()) found.whatsapp = formData.whatsapp.trim();
+    if (formData.email?.trim()) found.email = formData.email.trim();
+    found.editCount = (found.editCount || 0) + 1;
+    found.lastEditedAt = new Date().toISOString();
+
+    // Sync update to Google Sheet tab
+    const customScriptUrl = (req.headers['x-google-script-url'] as string | undefined) || req.query.scriptUrl as string;
+    const targetScriptUrl = customScriptUrl || process.env.GOOGLE_SCRIPT_URL || process.env.VITE_GOOGLE_SCRIPT_URL || configuredGoogleScriptUrl || DEFAULT_SCRIPT_URL;
+
+    if (targetScriptUrl && targetScriptUrl.startsWith('http')) {
+      try {
+        const updatePayload = {
+          action: 'update_blitz',
+          registrationId: found.registrationId,
+          fullName: found.fullName,
+          batch: found.batch,
+          department: found.department,
+          studentId: found.studentId,
+          whatsapp: found.whatsapp,
+          email: found.email,
+          pdfBase64
+        };
+
+        await fetch(targetScriptUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(updatePayload),
+          signal: AbortSignal.timeout(6000)
+        });
+      } catch (err: any) {
+        console.warn('[BLITZ UPDATE] Google Sheet sync warning:', err.message);
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: 'Blitz Writing registration updated successfully.',
+      registration: {
+        registrationId: found.registrationId,
+        submissionDate: found.submissionDate,
+        paymentStatus: found.paymentStatus,
+        editCount: found.editCount,
+        maxEdits: found.maxEdits || 3,
+        remainingEdits: Math.max(0, (found.maxEdits || 3) - found.editCount),
+        formData: {
+          fullName: found.fullName,
+          batch: found.batch,
+          department: found.department,
+          studentId: found.studentId,
+          whatsapp: found.whatsapp,
+          email: found.email,
+          senderBkash: found.senderBkash,
+          transactionId: found.transactionId
+        }
+      }
+    });
   });
 
   // Main Registration Endpoint

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { User, Users, CreditCard, CheckCircle2, ChevronRight, ChevronLeft, RotateCcw, Search, Lock, Calendar } from 'lucide-react';
+import { User, Users, CreditCard, CheckCircle2, ChevronRight, ChevronLeft, ArrowLeft, RotateCcw, Search, Lock, Calendar } from 'lucide-react';
 import { RegistrationFormData, SubmissionResponse, Participant, SubmissionProgressStage } from '../types';
 import { ParticipantStepForm } from './ParticipantStepForm';
 import { PaymentStepForm } from './PaymentStepForm';
@@ -53,13 +53,15 @@ interface RegistrationFormProps {
   onOpenViewEditModal?: (regId?: string) => void;
   onOpenGoogleSheetModal?: () => void;
   onRegistrationSuccess?: (result: SubmissionResponse, formData: RegistrationFormData) => void;
+  onBackToSelector?: () => void;
 }
 
 export const RegistrationForm: React.FC<RegistrationFormProps> = ({
   customScriptUrl,
   onOpenViewEditModal,
   onOpenGoogleSheetModal,
-  onRegistrationSuccess
+  onRegistrationSuccess,
+  onBackToSelector
 }) => {
   const [formData, setFormData] = useState<RegistrationFormData>(initialFormData());
   const [currentStep, setCurrentStep] = useState<number>(0);
@@ -530,6 +532,24 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
   return (
     <div id="registration" className="py-10 md:py-16 relative overflow-hidden animate-in fade-in duration-200">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        {onBackToSelector && (
+          <div className="flex items-center justify-between gap-3 mb-6 max-w-xl mx-auto">
+            <button
+              type="button"
+              onClick={onBackToSelector}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-slate-700 hover:text-[#0A192F] bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition shadow-2xs cursor-pointer"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Change Registration Option</span>
+            </button>
+
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-extrabold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <Users className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Textile Presentation</span>
+            </span>
+          </div>
+        )}
+
         {/* Section Heading */}
         <div className="text-center max-w-xl mx-auto mb-8 space-y-2.5">
           <span className="text-xs font-extrabold uppercase tracking-wider text-[#16A34A] bg-[#22C55E]/10 px-3 py-1 rounded-full">

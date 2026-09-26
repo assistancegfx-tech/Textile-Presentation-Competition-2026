@@ -31,12 +31,14 @@ import {
   Copy,
   Check,
   Crown,
-  ShieldCheck
+  ShieldCheck,
+  PenTool
 } from 'lucide-react';
-import { RegisteredTeamRecord, RegistrationFormData, Participant } from '../types';
+import { RegisteredTeamRecord, RegistrationFormData, Participant, RegistrationSegment } from '../types';
 import { generateRegistrationPdf, getRegistrationPdfBase64 } from '../utils/pdfGenerator';
 import { fireCelebrationConfetti } from '../utils/confetti';
 import { DEPARTMENTS, validateBangladeshPhone, validateEmail, processAndCompressImage } from '../utils/formUtils';
+import { ViewEditBlitzSection } from './ViewEditBlitzSection';
 
 interface ViewEditRegistrationModalProps {
   isOpen: boolean;
@@ -44,6 +46,7 @@ interface ViewEditRegistrationModalProps {
   initialRegId?: string;
   initialRoll?: string;
   initialMobile?: string;
+  initialSegment?: RegistrationSegment;
   autoSearch?: boolean;
   onUpdated?: (record: RegisteredTeamRecord) => void;
 }
@@ -74,9 +77,16 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
   initialRegId = '',
   initialRoll = '',
   initialMobile = '',
+  initialSegment,
   autoSearch = false,
   onUpdated
 }) => {
+  const [activeSegment, setActiveSegment] = useState<RegistrationSegment>(() => {
+    if (initialSegment) return initialSegment;
+    if (initialRegId && initialRegId.toUpperCase().startsWith('TBW')) return 'blitz';
+    return 'presentation';
+  });
+
   const [searchId, setSearchId] = useState(initialRegId);
   const [searchRoll, setSearchRoll] = useState(initialRoll);
   const [searchMobile, setSearchMobile] = useState(initialMobile);
@@ -137,7 +147,12 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
     if (initialRegId) setSearchId(initialRegId);
     if (initialRoll) setSearchRoll(initialRoll);
     if (initialMobile) setSearchMobile(initialMobile);
-  }, [initialRegId, initialRoll, initialMobile, isOpen]);
+    if (initialSegment) {
+      setActiveSegment(initialSegment);
+    } else if (initialRegId && initialRegId.toUpperCase().startsWith('TBW')) {
+      setActiveSegment('blitz');
+    }
+  }, [initialRegId, initialRoll, initialMobile, initialSegment, isOpen]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -736,8 +751,50 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
 
         {/* Modal Body */}
         <div className="p-5 sm:p-7 max-h-[82vh] overflow-y-auto">
-          {/* If record is loaded, show a clean switcher bar */}
-          {record && (
+          {/* Two Section Switcher: Textile Presentation vs Textile Blitz Writing */}
+          <div className="mb-6 p-1.5 bg-slate-100 rounded-2xl border border-slate-200 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setActiveSegment('presentation');
+                setSearchError(null);
+              }}
+              className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition cursor-pointer ${
+                activeSegment === 'presentation'
+                  ? 'bg-[#0A192F] text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+              }`}
+            >
+              <Users className={`w-4 h-4 ${activeSegment === 'presentation' ? 'text-[#22C55E]' : 'text-slate-500'}`} />
+              <span>Textile Presentation</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setActiveSegment('blitz');
+                setSearchError(null);
+              }}
+              className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition cursor-pointer ${
+                activeSegment === 'blitz'
+                  ? 'bg-gradient-to-r from-[#1E90FF] to-[#0066CC] text-white shadow-md shadow-[#1E90FF]/25'
+                  : 'text-slate-600 hover:text-[#1E90FF] hover:bg-white/60'
+              }`}
+            >
+              <PenTool className={`w-4 h-4 ${activeSegment === 'blitz' ? 'text-white' : 'text-slate-500'}`} />
+              <span>Textile Blitz Writing</span>
+            </button>
+          </div>
+
+          {activeSegment === 'blitz' ? (
+            <ViewEditBlitzSection
+              initialSearchQuery={initialRegId.toUpperCase().startsWith('TBW') ? initialRegId : ''}
+              onCloseModal={onClose}
+            />
+          ) : (
+            <>
+              {/* If record is loaded, show a clean switcher bar */}
+              {record && (
             <div className="mb-4 p-3 px-4 rounded-xl bg-slate-50 border border-slate-200/90 flex flex-wrap items-center justify-between gap-2.5 text-xs shadow-2xs">
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 rounded-lg bg-[#22C55E]/10 text-[#16A34A] flex items-center justify-center shrink-0">
@@ -1729,6 +1786,8 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
                 </div>
               )}
             </div>
+          )}
+            </>
           )}
         </div>
       </div>
