@@ -403,13 +403,16 @@ export const ViewEditBlitzSection: React.FC<ViewEditBlitzSectionProps> = ({
                 <div className="relative">
                   <input
                     type="text"
-                    placeholder="e.g. 202114001 or Roll"
+                    placeholder="e.g. 230404... or AE-04"
                     value={searchStudentId}
                     onChange={(e) => setSearchStudentId(e.target.value)}
                     disabled={isLoading}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-bold text-slate-900 font-mono tracking-wider focus:outline-none focus:ring-2 focus:ring-[#1E90FF]/25 focus:border-[#1E90FF] transition placeholder:font-normal placeholder:font-sans placeholder:text-slate-400"
                   />
                 </div>
+                <p className="text-[10.5px] text-slate-400 mt-1">
+                  e.g. 230404... or AE-04
+                </p>
               </div>
             </div>
 
@@ -651,6 +654,7 @@ export const ViewEditBlitzSection: React.FC<ViewEditBlitzSectionProps> = ({
                     </label>
                     <input
                       type="text"
+                      placeholder="e.g. 230404... or AE-04"
                       value={editFormData.studentId}
                       onChange={(e) => handleEditChange('studentId', e.target.value)}
                       disabled={isSaving}

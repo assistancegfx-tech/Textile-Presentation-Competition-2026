@@ -385,7 +385,7 @@ export const BlitzWritingForm: React.FC<BlitzWritingFormProps> = ({
                   <Hash className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
                     type="text"
-                    placeholder="e.g. 2023-1-4-025 or Roll"
+                    placeholder="e.g. 230404... or AE-04"
                     value={formData.studentId}
                     onChange={(e) => handleChange('studentId', e.target.value)}
                     disabled={isSubmitting || isClosed}
@@ -396,6 +396,9 @@ export const BlitzWritingForm: React.FC<BlitzWritingFormProps> = ({
                     }`}
                   />
                 </div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  e.g. 230404... or AE-04
+                </p>
                 {errors.studentId && (
                   <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1">
                     <AlertCircle className="w-3.5 h-3.5" /> {errors.studentId}

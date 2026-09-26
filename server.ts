@@ -861,10 +861,13 @@ async function startServer() {
       });
     }
 
-    // Verify Student ID matches record
+    // Verify Student ID matches record (supports e.g. 230404... or AE-04)
     const storedStudent = String(found.studentId || '').trim().toUpperCase();
+    const storedClean = storedStudent.replace(/[\s\-_]/g, '');
+    const inputClean = cleanStudentId.replace(/[\s\-_]/g, '');
     const storedDigits = storedStudent.replace(/\D/g, '');
     const isStudentMatch = storedStudent === cleanStudentId || 
+                           (inputClean.length >= 2 && storedClean === inputClean) ||
                            (studentDigits.length >= 2 && storedDigits === studentDigits) ||
                            (studentDigits.length >= 4 && storedDigits.endsWith(studentDigits));
 

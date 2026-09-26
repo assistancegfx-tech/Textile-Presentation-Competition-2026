@@ -189,20 +189,23 @@ export const ParticipantStepForm: React.FC<ParticipantStepFormProps> = ({
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1.5">
                 <Hash className="w-3.5 h-3.5 text-[#16A34A]" />
-                <span>Roll Number</span>
+                <span>Student ID / Roll</span>
                 <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={participant.roll}
                 onChange={(e) => onChange({ roll: e.target.value.trim() })}
-                placeholder="Student Roll"
+                placeholder="e.g. 230404... or AE-04"
                 className={`w-full px-3.5 py-2.5 rounded-xl border text-sm text-slate-800 placeholder-slate-400 bg-white transition focus:outline-none focus:ring-2 ${
                   errors.roll || isRollDuplicateInTeam
                     ? 'border-red-400 focus:ring-red-200'
                     : 'border-slate-300 focus:border-[#16A34A] focus:ring-[#22C55E]/20'
                 }`}
               />
+              <p className="text-[11px] text-slate-400 mt-1">
+                e.g. 230404... or AE-04
+              </p>
               {(errors.roll || isRollDuplicateInTeam) && (
                 <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
                   <AlertCircle className="w-3 h-3" />
