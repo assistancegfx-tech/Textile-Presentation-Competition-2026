@@ -655,7 +655,8 @@ function sendBlitzConfirmationEmail(params) {
     const emailOptions = {
       to: toEmail,
       subject: subject,
-      htmlBody: htmlBody
+      htmlBody: htmlBody,
+      name: "Career Club BTEC"
     };
 
     // Attach PDF voucher if available
@@ -669,9 +670,27 @@ function sendBlitzConfirmationEmail(params) {
       }
     }
 
-    MailApp.sendEmail(emailOptions);
-    Logger.log("Blitz confirmation email sent to: " + toEmail);
-    return true;
+    try {
+      MailApp.sendEmail(emailOptions);
+      Logger.log("Blitz confirmation email sent to: " + toEmail);
+      return true;
+    } catch (errMail) {
+      try {
+        const gmailAdvanced = {
+          htmlBody: htmlBody,
+          name: "Career Club BTEC"
+        };
+        if (emailOptions.attachments) {
+          gmailAdvanced.attachments = emailOptions.attachments;
+        }
+        GmailApp.sendEmail(toEmail, subject, "", gmailAdvanced);
+        Logger.log("Blitz confirmation email sent via GmailApp to: " + toEmail);
+        return true;
+      } catch (errGmail) {
+        Logger.log("sendBlitzConfirmationEmail error: " + errGmail.toString());
+        return false;
+      }
+    }
   } catch (err) {
     Logger.log("sendBlitzConfirmationEmail error: " + err.toString());
     return false;
@@ -1403,7 +1422,7 @@ function sendBlitzPaymentApprovedEmail(details) {
     subject: subject,
     body: plainBody,
     htmlBody: htmlBody,
-    name: "Textile Blitz Writing — Career Club BTEC"
+    name: "Career Club BTEC"
   };
 
   // Generate and attach specifically generated Textile Blitz Writing Entry Pass PDF
@@ -1420,7 +1439,7 @@ function sendBlitzPaymentApprovedEmail(details) {
     try {
       const gmailAdvanced = {
         htmlBody: htmlBody,
-        name: "Textile Blitz Writing — Career Club BTEC"
+        name: "Career Club BTEC"
       };
       if (pdfBlob) {
         gmailAdvanced.attachments = [pdfBlob];
