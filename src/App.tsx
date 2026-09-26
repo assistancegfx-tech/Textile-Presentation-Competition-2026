@@ -280,7 +280,7 @@ export default function App() {
                     </div>
                     <h2 className="text-xl font-bold text-[#0A192F] mb-2 font-display">No Active Registration Found</h2>
                     <p className="text-neutral-600 text-sm mb-6 leading-relaxed">
-                      You haven't submitted a registration in this session yet, or the session was reset. Register your team to receive your official Registration ID and verification voucher.
+                      You haven't submitted a registration in this session yet, or the session was reset. Register your team to receive your official Registration ID and verification entry pass.
                     </p>
                     <div className="flex flex-col sm:flex-row gap-3 justify-center">
                       <button

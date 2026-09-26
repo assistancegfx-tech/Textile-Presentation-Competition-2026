@@ -123,7 +123,7 @@ export const RegistrationTicker: React.FC<RegistrationTickerProps> = ({ onNaviga
     {
       icon: ShieldCheck,
       iconColor: 'text-[#22C55E]',
-      badge: 'Instant Digital PDF Voucher',
+      badge: 'Instant Digital PDF Entry Pass',
       badgeStyle: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30 font-bold',
       text: 'Automated email confirmation & downloadable entry pass',
       actionText: 'Guidelines',

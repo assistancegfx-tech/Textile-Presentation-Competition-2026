@@ -338,7 +338,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
         } : createNAParticipant()
       };
 
-      // Pre-generate official registration voucher PDF base64 to send with confirmation email
+      // Pre-generate official registration entry pass PDF base64 to send with confirmation email
       let pdfBase64 = '';
       try {
         pdfBase64 = getRegistrationPdfBase64({
@@ -461,7 +461,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
         };
       }
 
-      // Stage 4: Finalizing Voucher & registration ID
+      // Stage 4: Finalizing Entry Pass & registration ID
       setSubmitProgressStage('finalizing');
       await new Promise((r) => setTimeout(r, 400));
 
@@ -593,7 +593,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
               </div>
               <ul className="text-xs text-slate-600 space-y-2 list-disc list-inside">
                 <li>Check your payment approval status and official registration record.</li>
-                <li>Download or print your updated official entry voucher (PDF).</li>
+                <li>Download or print your updated official entry pass (PDF).</li>
                 <li>Join the official WhatsApp group once payment is verified.</li>
                 <li>Attend the presentation event at <strong>{EVENT_VENUE}</strong> on <strong>{EVENT_DATE_SHORT}</strong>.</li>
               </ul>
@@ -607,7 +607,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-xs sm:text-sm font-extrabold text-white bg-[#0A192F] hover:bg-[#16A34A] transition shadow-md cursor-pointer"
               >
                 <Search className="w-4 h-4 text-[#22C55E]" />
-                <span>View Registration & Download Voucher</span>
+                <span>View Registration & Download Entry Pass</span>
               </motion.button>
             </div>
           </motion.div>

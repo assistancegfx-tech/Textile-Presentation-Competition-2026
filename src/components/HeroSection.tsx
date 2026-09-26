@@ -214,7 +214,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onNavigate, onOpenView
                 <span>Registration Closed (Locked)</span>
               </div>
               <p className="text-[11.5px] text-rose-700 bg-rose-50 px-3 py-1 rounded-lg border border-rose-200/70 font-semibold">
-                🔒 Deadline has passed. Registered teams can search and download vouchers below.
+                🔒 Deadline has passed. Registered teams can search and download entry passes below.
               </p>
             </div>
           ) : (
@@ -244,7 +244,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onNavigate, onOpenView
               <Search className={`w-4 h-4 transition-transform group-hover:scale-110 ${
                 isClosed ? 'text-[#22C55E]' : 'text-[#16A34A]'
               }`} />
-              <span>View Your Registration & Voucher</span>
+              <span>View Your Registration & Entry Pass</span>
             </motion.button>
 
             <motion.button

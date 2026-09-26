@@ -335,7 +335,7 @@ export const ParticipantStepForm: React.FC<ParticipantStepFormProps> = ({
                 </p>
               ) : (
                 <p className="text-[11px] text-slate-400 mt-1">
-                  Registration voucher & official event notifications will be sent to this email address.
+                  Registration entry pass & official event notifications will be sent to this email address.
                 </p>
               )}
             </div>

@@ -70,8 +70,8 @@ export const ReviewConfirmStep: React.FC<ReviewConfirmStepProps> = ({
         return {
           stepIndex: 3,
           percentage: 100,
-          title: 'Finalizing Voucher',
-          description: 'Generating official Registration ID and preparing downloadable registration voucher...',
+          title: 'Finalizing Entry Pass',
+          description: 'Generating official Registration ID and preparing downloadable registration entry pass...',
           buttonLabel: 'Finalizing Registration…'
         };
       default:
@@ -108,7 +108,7 @@ export const ReviewConfirmStep: React.FC<ReviewConfirmStepProps> = ({
     },
     {
       id: 'finalizing',
-      label: 'Generating Voucher',
+      label: 'Generating Entry Pass',
       icon: Sparkles,
       desc: 'Official ID & PDF pass'
     }

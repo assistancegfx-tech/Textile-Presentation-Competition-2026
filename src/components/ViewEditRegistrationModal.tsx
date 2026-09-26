@@ -534,7 +534,7 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
       }
     };
 
-    // Pre-generate updated official entry voucher PDF base64
+    // Pre-generate updated official entry pass PDF base64
     let pdfBase64 = '';
     try {
       pdfBase64 = getRegistrationPdfBase64({

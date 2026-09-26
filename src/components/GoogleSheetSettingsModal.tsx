@@ -220,7 +220,7 @@ export const GoogleSheetSettingsModal: React.FC<GoogleSheetSettingsModalProps> =
               <li className="bg-emerald-100/60 -mx-1.5 p-2 rounded-lg border border-emerald-300/80">
                 <strong>🔔 Auto-Send Updated PDF when Payment is Approved:</strong>
                 <span className="block mt-0.5 text-[11px] text-emerald-900 leading-normal">
-                  In Apps Script left sidebar, click <strong>Triggers (⏰) &gt; + Add Trigger</strong> &rarr; Select <code>onEdit</code> function &rarr; Event type: <strong>On edit</strong> &rarr; <strong>Save</strong>. Whenever you change any team's Payment Status to <strong>"Paid"</strong> or <strong>"Approved"</strong> in the Sheet, an updated verified PDF voucher is automatically generated and emailed to the team leader!
+                  In Apps Script left sidebar, click <strong>Triggers (⏰) &gt; + Add Trigger</strong> &rarr; Select <code>onEdit</code> function &rarr; Event type: <strong>On edit</strong> &rarr; <strong>Save</strong>. Whenever you change any team's Payment Status to <strong>"Paid"</strong> or <strong>"Approved"</strong> in the Sheet, an updated verified PDF entry pass is automatically generated and emailed to the team leader!
                 </span>
               </li>
               <li>

@@ -89,8 +89,8 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
   return (
     <div className="max-w-3xl mx-auto space-y-6 animate-in zoom-in-95 duration-300">
 
-      {/* Official Voucher Printable Card */}
-      <div id="registration-voucher" className="bg-white rounded-3xl border-2 border-[#22C55E]/40 p-6 sm:p-10 shadow-xl relative overflow-hidden print:border-none print:shadow-none print:p-0">
+      {/* Official Entry Pass Printable Card */}
+      <div id="registration-entry-pass" className="bg-white rounded-3xl border-2 border-[#22C55E]/40 p-6 sm:p-10 shadow-xl relative overflow-hidden print:border-none print:shadow-none print:p-0">
         {/* Top Accent Strip */}
         <div className="absolute top-0 left-0 right-0 h-2.5 bg-gradient-to-r from-[#0A192F] via-[#22C55E] to-[#84CC16]" />
 

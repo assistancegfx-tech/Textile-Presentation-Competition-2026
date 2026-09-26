@@ -153,7 +153,7 @@ export const EventInfoSection: React.FC<EventInfoSectionProps> = ({ onNavigate }
             </h4>
             <p className="text-xs text-slate-500">
               {isClosed
-                ? `Registration deadline closed on ${REGISTRATION_DEADLINE_LABEL}. Registered teams can view status and vouchers.`
+                ? `Registration deadline closed on ${REGISTRATION_DEADLINE_LABEL}. Registered teams can view status and entry passes.`
                 : 'Registration fee is 149 BDT per team. Secure your auditorium presentation slot before 30 September.'}
             </p>
           </div>
