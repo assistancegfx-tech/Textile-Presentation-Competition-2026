@@ -111,44 +111,25 @@ export const ViewEditBlitzSection: React.FC<ViewEditBlitzSectionProps> = ({
     setSaveSuccessMsg(null);
     setIsEditing(false);
 
+    const defaultScriptUrl = 'https://script.google.com/macros/s/AKfycbxFVWAVQApNuw2g_zvbSEK_QhXIcso8MoDhne75A4L0ryUUeh2G4GEclUkMn8GY21VT2Q/exec';
+    const scriptUrl = localStorage.getItem('tpc2026_google_script_url') || 
+      (import.meta as any).env?.VITE_GOOGLE_SCRIPT_URL || 
+      defaultScriptUrl;
+
     try {
       let verifiedData: any = null;
 
-      // 1. Try server verification endpoint
-      try {
-        const res = await fetch('/api/blitz/verify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            registrationId: regNo,
-            studentId: studentId
-          })
-        });
-
-        const rawText = await res.text();
-        if (rawText && rawText.trim().length > 0) {
-          try {
-            const data = JSON.parse(rawText);
-            if (data && data.success && data.registration) {
-              verifiedData = data.registration;
-            } else if (res.status === 403) {
-              throw new Error(data.error || 'Student ID does not match this Registration No.');
-            }
-          } catch (pErr: any) {
-            if (pErr.message && pErr.message.includes('Student ID does not match')) throw pErr;
-          }
-        }
-      } catch (srvErr: any) {
-        if (srvErr.message && srvErr.message.includes('Student ID does not match')) throw srvErr;
-      }
-
-      // 2. If not verified via server endpoint, try direct Google Apps Script query
-      if (!verifiedData) {
-        const defaultScriptUrl = 'https://script.google.com/macros/s/AKfycbxFVWAVQApNuw2g_zvbSEK_QhXIcso8MoDhne75A4L0ryUUeh2G4GEclUkMn8GY21VT2Q/exec';
-        const scriptUrl = localStorage.getItem('tpc2026_google_script_url') || defaultScriptUrl;
-        if (scriptUrl && scriptUrl.startsWith('http')) {
-          try {
-            const gRes = await fetch(`${scriptUrl}?action=get_blitz&query=${encodeURIComponent(regNo)}`);
+      // 1. DIRECT LIVE QUERY to Google Apps Script tab "Textile Blitz Writing" (cache: 'no-store', timestamped)
+      // This guarantees the absolute freshest live data directly from the Sheet, bypassing any stale server/browser cache!
+      if (scriptUrl && scriptUrl.startsWith('http')) {
+        try {
+          const directUrl = `${scriptUrl}${scriptUrl.includes('?') ? '&' : '?'}action=get_blitz&query=${encodeURIComponent(regNo)}&_t=${Date.now()}`;
+          const gRes = await fetch(directUrl, { 
+            cache: 'no-store', 
+            redirect: 'follow',
+            signal: AbortSignal.timeout(8000)
+          });
+          if (gRes.ok) {
             const gText = await gRes.text();
             if (gText && gText.trim().length > 0) {
               const gJson = JSON.parse(gText);
@@ -167,28 +148,63 @@ export const ViewEditBlitzSection: React.FC<ViewEditBlitzSectionProps> = ({
                   throw new Error(`Student ID "${studentId}" does not match the record for Registration No "${regNo}".`);
                 }
                 verifiedData = {
-                  registrationId: sheetRec.registrationId,
-                  submissionDate: sheetRec.submissionDate,
-                  paymentStatus: sheetRec.paymentStatus || 'Pending',
+                  registrationId: String(sheetRec.registrationId || regNo).trim(),
+                  submissionDate: String(sheetRec.submissionDate || '').trim(),
+                  paymentStatus: String(sheetRec.paymentStatus || 'Pending').trim(),
                   editCount: sheetRec.editCount || 0,
                   maxEdits: 3,
                   remainingEdits: Math.max(0, 3 - (sheetRec.editCount || 0)),
                   formData: {
-                    fullName: sheetRec.fullName,
-                    batch: sheetRec.batch,
-                    department: sheetRec.department,
-                    studentId: sheetRec.studentId,
-                    whatsapp: sheetRec.whatsapp,
-                    email: sheetRec.email,
-                    senderBkash: sheetRec.senderBkash,
-                    transactionId: sheetRec.transactionId
+                    fullName: String(sheetRec.fullName || '').trim(),
+                    batch: String(sheetRec.batch || '').trim(),
+                    department: String(sheetRec.department || '').trim(),
+                    studentId: String(sheetRec.studentId || '').trim(),
+                    whatsapp: String(sheetRec.whatsapp || '').trim(),
+                    email: String(sheetRec.email || '').trim(),
+                    senderBkash: String(sheetRec.senderBkash || '').trim(),
+                    transactionId: String(sheetRec.transactionId || '').trim()
                   }
                 };
               }
             }
-          } catch (gErr: any) {
-            if (gErr.message && gErr.message.includes('Student ID')) throw gErr;
           }
+        } catch (gErr: any) {
+          if (gErr.message && gErr.message.includes('Student ID does not match')) throw gErr;
+          console.warn('[BLITZ VERIFY] Direct Google Sheet query notice:', gErr);
+        }
+      }
+
+      // 2. Query server endpoint /api/blitz/verify if direct sheet query was blocked by CORS/network
+      if (!verifiedData) {
+        try {
+          const res = await fetch('/api/blitz/verify', {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'x-google-script-url': scriptUrl
+            },
+            body: JSON.stringify({
+              registrationId: regNo,
+              studentId: studentId,
+              scriptUrl: scriptUrl
+            })
+          });
+
+          const rawText = await res.text();
+          if (rawText && rawText.trim().length > 0) {
+            try {
+              const data = JSON.parse(rawText);
+              if (data && data.success && data.registration) {
+                verifiedData = data.registration;
+              } else if (res.status === 403) {
+                throw new Error(data.error || 'Student ID does not match this Registration No.');
+              }
+            } catch (pErr: any) {
+              if (pErr.message && pErr.message.includes('Student ID does not match')) throw pErr;
+            }
+          }
+        } catch (srvErr: any) {
+          if (srvErr.message && srvErr.message.includes('Student ID does not match')) throw srvErr;
         }
       }
 
@@ -224,6 +240,31 @@ export const ViewEditBlitzSection: React.FC<ViewEditBlitzSectionProps> = ({
       if (verifiedData) {
         setRecord(verifiedData);
         setShowSearchBox(false);
+
+        // Update local storage cache with latest verified data from Sheet
+        try {
+          const localList = JSON.parse(localStorage.getItem('tbw2026_submissions') || '[]');
+          const updatedList = localList.map((item: any) => {
+            const rId = item.result?.registrationId?.toUpperCase();
+            if (rId && rId === verifiedData.registrationId?.toUpperCase()) {
+              return {
+                ...item,
+                result: {
+                  ...item.result,
+                  paymentStatus: verifiedData.paymentStatus,
+                  submissionDate: verifiedData.submissionDate || item.result?.submissionDate
+                },
+                formData: {
+                  ...item.formData,
+                  ...verifiedData.formData
+                }
+              };
+            }
+            return item;
+          });
+          localStorage.setItem('tbw2026_submissions', JSON.stringify(updatedList));
+          localStorage.setItem('tbw2026_latest_submission', JSON.stringify({ result: verifiedData, formData: verifiedData.formData }));
+        } catch (_) {}
       } else {
         throw new Error('Verification failed. Please check both your Registration No and Student ID.');
       }
@@ -451,14 +492,27 @@ export const ViewEditBlitzSection: React.FC<ViewEditBlitzSectionProps> = ({
             <span className="font-extrabold text-[#0066CC] font-mono tracking-wide">{record.registrationId}</span>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setShowSearchBox(!showSearchBox)}
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-[#1E90FF] hover:text-[#0066CC] bg-white hover:bg-sky-50 px-3 py-1.5 rounded-lg border border-sky-200 transition cursor-pointer shadow-2xs"
-          >
-            <Search className="w-3 h-3 text-[#1E90FF]" />
-            <span>{showSearchBox ? 'Hide Search Form' : 'Verify Another Registration'}</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => handleVerify(record.registrationId, record.formData.studentId)}
+              disabled={isLoading}
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg border border-emerald-200 transition cursor-pointer shadow-2xs disabled:opacity-50"
+              title="Sync fresh payment status and details live from Google Sheet"
+            >
+              <RotateCcw className={`w-3 h-3 text-emerald-600 ${isLoading ? 'animate-spin' : ''}`} />
+              <span>{isLoading ? 'Syncing...' : 'Sync Sheet Live'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowSearchBox(!showSearchBox)}
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-[#1E90FF] hover:text-[#0066CC] bg-white hover:bg-sky-50 px-3 py-1.5 rounded-lg border border-sky-200 transition cursor-pointer shadow-2xs"
+            >
+              <Search className="w-3 h-3 text-[#1E90FF]" />
+              <span>{showSearchBox ? 'Hide Search Form' : 'Verify Another Registration'}</span>
+            </button>
+          </div>
         </div>
       )}
 

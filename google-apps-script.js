@@ -1660,43 +1660,63 @@ function doGet(e) {
       return handleUpdateRegistration(sheet, updatePayload);
     }
 
-    // Live search for single registration
-    if (action === "get_blitz") {
+    // Live search for single Blitz Writing registration directly from Sheet
+    if (action === "get_blitz" || (params.segment === "blitz" && (action === "get" || action === "find" || action === "status")) || cleanSearch.indexOf("TBW") !== -1) {
       const ss = getSpreadsheet();
       const blitzSheet = setupBlitzSheet(ss);
       const rows = blitzSheet.getDataRange().getValues();
-      const rawQuery = String(e.parameter.query || e.parameter.regId || "").trim();
+      const rawQuery = String(params.query || params.regId || params.registrationId || params.search || rawSearch || "").trim();
       const cleanQ = rawQuery.toUpperCase();
+      const cleanQAlphanum = cleanQ.replace(/[^A-Z0-9]/g, "");
+      const cleanQWithTBW = cleanQ.startsWith("TBW") ? cleanQ : ("TBW-" + cleanQ);
+      const cleanQWithTBWAlphanum = cleanQWithTBW.replace(/[^A-Z0-9]/g, "");
       const phoneDigits = rawQuery.replace(/[^0-9]/g, "").slice(-10);
+
+      const formatCellDate = (val) => {
+        if (!val) return "";
+        if (val instanceof Date) {
+          return Utilities.formatDate(val, "Asia/Dhaka", "yyyy-MM-dd HH:mm:ss");
+        }
+        return String(val);
+      };
 
       for (let i = 1; i < rows.length; i++) {
         const row = rows[i];
         const rId = String(row[0] || "").trim().toUpperCase();
+        const rIdAlphanum = rId.replace(/[^A-Z0-9]/g, "");
         const rStudentId = String(row[6] || "").trim().toUpperCase();
+        const rStudentDigits = rStudentId.replace(/\D/g, "");
         const rPhone = String(row[7] || "").replace(/[^0-9]/g, "").slice(-10);
         const rEmail = String(row[8] || "").trim().toLowerCase();
+        const rTrx = String(row[10] || "").trim().toUpperCase();
 
         const match = rId === cleanQ || 
+                      rId === cleanQWithTBW ||
+                      (cleanQAlphanum.length >= 2 && rIdAlphanum === cleanQAlphanum) ||
+                      (cleanQWithTBWAlphanum.length >= 3 && rIdAlphanum === cleanQWithTBWAlphanum) ||
                       (cleanQ.length >= 2 && rStudentId === cleanQ) || 
+                      (cleanQ.length >= 2 && rStudentId.replace(/[\s\-_]/g, "") === cleanQ.replace(/[\s\-_]/g, "")) ||
                       (phoneDigits.length >= 8 && rPhone === phoneDigits) ||
-                      (rawQuery.includes("@") && rEmail === rawQuery.toLowerCase());
+                      (rawQuery.includes("@") && rEmail === rawQuery.toLowerCase()) ||
+                      (cleanQ.length >= 6 && rTrx === cleanQ);
 
         if (match) {
           return createResponse({
             success: true,
             found: true,
             registration: {
-              registrationId: row[0],
-              submissionDate: row[1],
-              paymentStatus: row[2] || "Pending",
-              fullName: row[3],
-              batch: row[4],
-              department: row[5],
-              studentId: row[6],
-              whatsapp: row[7],
-              email: row[8],
-              senderBkash: row[9],
-              transactionId: row[10]
+              registrationId: String(row[0] || "").trim(),
+              submissionDate: formatCellDate(row[1]),
+              paymentStatus: String(row[2] || "Pending").trim(),
+              fullName: String(row[3] || "").trim(),
+              batch: String(row[4] || "").trim(),
+              department: String(row[5] || "").trim(),
+              studentId: String(row[6] || "").trim(),
+              whatsapp: String(row[7] || "").trim(),
+              email: String(row[8] || "").trim(),
+              senderBkash: String(row[9] || "").trim(),
+              transactionId: String(row[10] || "").trim(),
+              editCount: 0
             }
           });
         }

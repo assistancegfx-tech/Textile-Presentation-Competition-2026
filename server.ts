@@ -793,8 +793,12 @@ async function startServer() {
     }
 
     let cleanRegId = rawRegId.toUpperCase();
-    if (!cleanRegId.startsWith('TBW-') && /^\d+$/.test(cleanRegId)) {
-      cleanRegId = `TBW-${cleanRegId}`;
+    if (!cleanRegId.startsWith('TBW-')) {
+      if (cleanRegId.startsWith('TBW')) {
+        cleanRegId = cleanRegId.replace(/^TBW/i, 'TBW-');
+      } else {
+        cleanRegId = `TBW-${cleanRegId}`;
+      }
     }
 
     const cleanStudentId = rawStudentId.toUpperCase();
@@ -802,55 +806,79 @@ async function startServer() {
 
     // 1. Search in local blitz registrations store
     let found = blitzRegistrationsStore.find(b => {
-      const matchId = b.registrationId && b.registrationId.toUpperCase() === cleanRegId;
-      return matchId;
+      if (!b || !b.registrationId) return false;
+      const bId = b.registrationId.toUpperCase();
+      const bIdClean = bId.replace(/[^A-Z0-9]/g, '');
+      const searchClean = cleanRegId.replace(/[^A-Z0-9]/g, '');
+      return bId === cleanRegId || bIdClean === searchClean;
     });
 
-    // 2. Query Google Sheet tab if not found or sync status
-    const customScriptUrl = (req.headers['x-google-script-url'] as string | undefined) || req.query.scriptUrl as string;
-    const targetScriptUrl = customScriptUrl || process.env.GOOGLE_SCRIPT_URL || process.env.VITE_GOOGLE_SCRIPT_URL || configuredGoogleScriptUrl || DEFAULT_SCRIPT_URL;
+    // 2. Query Google Sheet tab with multi-candidate URLs & cache-busting
+    const candidateUrls: string[] = Array.from(new Set([
+      req.headers['x-google-script-url'] as string,
+      req.query?.scriptUrl as string,
+      req.body?.scriptUrl as string,
+      configuredGoogleScriptUrl,
+      process.env.GOOGLE_SCRIPT_URL,
+      process.env.VITE_GOOGLE_SCRIPT_URL,
+      DEFAULT_SCRIPT_URL
+    ].filter(u => u && typeof u === 'string' && u.startsWith('http'))))
+    .map(u => sanitizeScriptUrl(u));
 
-    if (targetScriptUrl && targetScriptUrl.startsWith('http')) {
+    let liveSynced = false;
+
+    for (const targetScriptUrl of candidateUrls) {
       try {
-        const queryUrl = `${targetScriptUrl}${targetScriptUrl.includes('?') ? '&' : '?'}action=get_blitz&query=${encodeURIComponent(cleanRegId)}`;
-        const gRes = await fetch(queryUrl, { signal: AbortSignal.timeout(5000), redirect: 'follow' });
+        const queryUrl = `${targetScriptUrl}${targetScriptUrl.includes('?') ? '&' : '?'}action=get_blitz&query=${encodeURIComponent(cleanRegId)}&regId=${encodeURIComponent(cleanRegId)}&studentId=${encodeURIComponent(cleanStudentId)}&_t=${Date.now()}`;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 9000);
+        const gRes = await fetch(queryUrl, { 
+          headers: { 'Cache-Control': 'no-cache, no-store' },
+          signal: controller.signal, 
+          redirect: 'follow' 
+        });
+        clearTimeout(timeoutId);
+
         if (gRes.ok) {
-          const gData = await gRes.json();
+          const gData: any = await gRes.json();
           if (gData && gData.success && gData.registration) {
             const sheetRec = gData.registration;
+            liveSynced = true;
             if (found) {
-              found.paymentStatus = sheetRec.paymentStatus || found.paymentStatus;
-              if (found.editCount === 0) {
-                found.fullName = sheetRec.fullName || found.fullName;
-                found.batch = sheetRec.batch || found.batch;
-                found.department = sheetRec.department || found.department;
-                found.studentId = sheetRec.studentId || found.studentId;
-                found.whatsapp = sheetRec.whatsapp || found.whatsapp;
-                found.email = sheetRec.email || found.email;
-              }
+              found.paymentStatus = sheetRec.paymentStatus || 'Pending';
+              found.fullName = sheetRec.fullName || found.fullName;
+              found.batch = sheetRec.batch || found.batch;
+              found.department = sheetRec.department || found.department;
+              found.studentId = sheetRec.studentId || found.studentId;
+              found.whatsapp = sheetRec.whatsapp || found.whatsapp;
+              found.email = sheetRec.email || found.email;
+              found.senderBkash = sheetRec.senderBkash || found.senderBkash;
+              found.transactionId = sheetRec.transactionId || found.transactionId;
+              if (sheetRec.submissionDate) found.submissionDate = sheetRec.submissionDate;
             } else {
               found = {
-                registrationId: sheetRec.registrationId,
-                submissionDate: sheetRec.submissionDate,
+                registrationId: sheetRec.registrationId || cleanRegId,
+                submissionDate: sheetRec.submissionDate || new Date().toISOString(),
                 paymentStatus: sheetRec.paymentStatus || 'Pending',
-                fullName: sheetRec.fullName,
-                batch: sheetRec.batch,
-                department: sheetRec.department,
-                studentId: sheetRec.studentId,
-                whatsapp: sheetRec.whatsapp,
+                fullName: sheetRec.fullName || '',
+                batch: sheetRec.batch || '',
+                department: sheetRec.department || '',
+                studentId: sheetRec.studentId || cleanStudentId,
+                whatsapp: sheetRec.whatsapp || '',
                 email: sheetRec.email || '',
-                senderBkash: sheetRec.senderBkash,
-                transactionId: sheetRec.transactionId,
+                senderBkash: sheetRec.senderBkash || '',
+                transactionId: sheetRec.transactionId || '',
                 editCount: sheetRec.editCount || 0,
                 maxEdits: 3,
                 payload: sheetRec
               };
               blitzRegistrationsStore.push(found);
             }
+            break;
           }
         }
       } catch (err: any) {
-        console.warn('[BLITZ VERIFY] Google Sheet sync check notice:', err.message);
+        console.warn(`[BLITZ VERIFY] Google Sheet sync notice (${targetScriptUrl.slice(0, 30)}...):`, err.message);
       }
     }
 
@@ -881,6 +909,7 @@ async function startServer() {
     return res.json({
       success: true,
       verified: true,
+      source: liveSynced ? 'google_sheets_live' : 'in_memory_cache',
       registration: {
         registrationId: found.registrationId,
         submissionDate: found.submissionDate,
@@ -914,34 +943,56 @@ async function startServer() {
 
     // 1. Search in local blitz store
     let found = blitzRegistrationsStore.find(b => {
-      const matchId = b.registrationId && b.registrationId.toUpperCase() === cleanQuery;
+      const bId = b.registrationId ? b.registrationId.toUpperCase() : '';
+      const bIdClean = bId.replace(/[^A-Z0-9]/g, '');
+      const qClean = cleanQuery.replace(/[^A-Z0-9]/g, '');
+      const matchId = bId === cleanQuery || (qClean.length >= 3 && bIdClean === qClean);
       const matchStudent = b.studentId && b.studentId.trim().toUpperCase() === cleanQuery;
       const matchPhone = phoneDigits && b.whatsapp && b.whatsapp.replace(/\D/g, '').slice(-10) === phoneDigits;
       return matchId || matchStudent || matchPhone;
     });
 
-    // 2. Query Google Sheet tab if not found or sync status
-    const customScriptUrl = (req.headers['x-google-script-url'] as string | undefined) || req.query.scriptUrl as string;
-    const targetScriptUrl = customScriptUrl || process.env.GOOGLE_SCRIPT_URL || process.env.VITE_GOOGLE_SCRIPT_URL || configuredGoogleScriptUrl || DEFAULT_SCRIPT_URL;
+    // 2. Query Google Sheet tab with multi-candidate URLs & cache-busting
+    const candidateUrls: string[] = Array.from(new Set([
+      req.headers['x-google-script-url'] as string,
+      req.query?.scriptUrl as string,
+      configuredGoogleScriptUrl,
+      process.env.GOOGLE_SCRIPT_URL,
+      process.env.VITE_GOOGLE_SCRIPT_URL,
+      DEFAULT_SCRIPT_URL
+    ].filter(u => u && typeof u === 'string' && u.startsWith('http'))))
+    .map(u => sanitizeScriptUrl(u));
 
-    if (targetScriptUrl && targetScriptUrl.startsWith('http')) {
+    let liveSynced = false;
+
+    for (const targetScriptUrl of candidateUrls) {
       try {
-        const queryUrl = `${targetScriptUrl}${targetScriptUrl.includes('?') ? '&' : '?'}action=get_blitz&query=${encodeURIComponent(rawQuery)}`;
-        const gRes = await fetch(queryUrl, { signal: AbortSignal.timeout(5000), redirect: 'follow' });
+        const queryUrl = `${targetScriptUrl}${targetScriptUrl.includes('?') ? '&' : '?'}action=get_blitz&query=${encodeURIComponent(rawQuery)}&_t=${Date.now()}`;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 9000);
+        const gRes = await fetch(queryUrl, {
+          headers: { 'Cache-Control': 'no-cache, no-store' },
+          signal: controller.signal,
+          redirect: 'follow'
+        });
+        clearTimeout(timeoutId);
+
         if (gRes.ok) {
-          const gData = await gRes.json();
+          const gData: any = await gRes.json();
           if (gData && gData.success && gData.registration) {
             const sheetRec = gData.registration;
+            liveSynced = true;
             if (found) {
-              found.paymentStatus = sheetRec.paymentStatus || found.paymentStatus;
-              if (found.editCount === 0) {
-                found.fullName = sheetRec.fullName || found.fullName;
-                found.batch = sheetRec.batch || found.batch;
-                found.department = sheetRec.department || found.department;
-                found.studentId = sheetRec.studentId || found.studentId;
-                found.whatsapp = sheetRec.whatsapp || found.whatsapp;
-                found.email = sheetRec.email || found.email;
-              }
+              found.paymentStatus = sheetRec.paymentStatus || 'Pending';
+              found.fullName = sheetRec.fullName || found.fullName;
+              found.batch = sheetRec.batch || found.batch;
+              found.department = sheetRec.department || found.department;
+              found.studentId = sheetRec.studentId || found.studentId;
+              found.whatsapp = sheetRec.whatsapp || found.whatsapp;
+              found.email = sheetRec.email || found.email;
+              found.senderBkash = sheetRec.senderBkash || found.senderBkash;
+              found.transactionId = sheetRec.transactionId || found.transactionId;
+              if (sheetRec.submissionDate) found.submissionDate = sheetRec.submissionDate;
             } else {
               found = {
                 registrationId: sheetRec.registrationId,
@@ -961,10 +1012,11 @@ async function startServer() {
               };
               blitzRegistrationsStore.push(found);
             }
+            break;
           }
         }
       } catch (err: any) {
-        console.warn('[BLITZ GET] Google Sheet sync check notice:', err.message);
+        console.warn(`[BLITZ GET] Google Sheet sync notice (${targetScriptUrl.slice(0, 30)}...):`, err.message);
       }
     }
 
