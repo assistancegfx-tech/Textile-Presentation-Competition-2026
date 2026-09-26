@@ -229,17 +229,6 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
                   </p>
                 </div>
               </div>
-
-              {/* WhatsApp Protection Security Notice */}
-              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-start gap-2.5 text-xs text-slate-700">
-                <Lock className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
-                <div>
-                  <span className="font-bold text-slate-900 block mb-0.5">🔒 WhatsApp Community Protection</span>
-                  <p className="text-slate-600 text-[11.5px] leading-relaxed">
-                    To prevent unauthorized access and protect genuine teams, the official WhatsApp group link will be <strong>unlocked automatically</strong> on your <span className="font-semibold text-slate-800">"View Your Registration"</span> portal and sent to your email <strong>immediately after your payment is approved</strong>.
-                  </p>
-                </div>
-              </div>
             </div>
           );
         })()}
@@ -252,73 +241,51 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
             <div className="p-3 rounded-xl bg-[#FAFBF9] border border-slate-200 space-y-1">
               <span className="text-[10px] text-[#16A34A] font-bold block uppercase">Group Leader</span>
-              <p className="font-bold text-slate-900 truncate">{formData.leader.name}</p>
-              <p className="text-slate-500">Roll: {formData.leader.roll}</p>
-              <p className="text-slate-500 truncate">{formData.leader.department}</p>
+              <p className="font-bold text-slate-900 truncate">{formData.leader.name || '—'}</p>
+              <p className="text-slate-500">Roll: {formData.leader.roll || '—'}</p>
+              <p className="text-slate-500 truncate">{formData.leader.department || '—'}</p>
             </div>
 
             <div className="p-3 rounded-xl bg-[#FAFBF9] border border-slate-200 space-y-1">
               <span className="text-[10px] text-slate-500 font-bold block uppercase">Member 1</span>
-              <p className="font-bold text-slate-900 truncate">{formData.member1.name}</p>
-              <p className="text-slate-500">Roll: {formData.member1.roll}</p>
-              <p className="text-slate-500 truncate">{formData.member1.department}</p>
+              <p className="font-bold text-slate-900 truncate">{formData.member1.name || '—'}</p>
+              <p className="text-slate-500">Roll: {formData.member1.roll || '—'}</p>
+              <p className="text-slate-500 truncate">{formData.member1.department || '—'}</p>
             </div>
 
             <div className="p-3 rounded-xl bg-[#FAFBF9] border border-slate-200 space-y-1">
               <span className="text-[10px] text-slate-500 font-bold block uppercase">Member 2</span>
-              <p className="font-bold text-slate-900 truncate">{formData.member2.name}</p>
-              <p className="text-slate-500">Roll: {formData.member2.roll}</p>
-              <p className="text-slate-500 truncate">{formData.member2.department}</p>
+              <p className="font-bold text-slate-900 truncate">{formData.member2.name || '—'}</p>
+              <p className="text-slate-500">Roll: {formData.member2.roll || '—'}</p>
+              <p className="text-slate-500 truncate">{formData.member2.department || '—'}</p>
             </div>
           </div>
         </div>
 
-        {/* Action Buttons: (Join WhatsApp ONLY IF PAID), Download Registration Info PDF, and Close */}
-        {(() => {
-          const statusStr = (result.paymentStatus || 'Pending').trim();
-          const isPaid = /^(paid|verified|approved|received|completed|success)/i.test(statusStr);
+        {/* Action Buttons: Download Registration Info PDF Pass and Close */}
+        <div className="pt-6 mt-3 border-t border-slate-200/80 flex flex-col sm:flex-row flex-wrap items-center justify-center gap-3.5 print:hidden">
+          <motion.button
+            whileHover={{ scale: 1.03, y: -1 }}
+            whileTap={{ scale: 0.97 }}
+            type="button"
+            onClick={handleDownloadPdf}
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl text-sm font-black text-white bg-gradient-to-r from-[#16A34A] to-[#15803D] hover:from-[#15803D] hover:to-[#0A192F] shadow-lg shadow-[#16A34A]/25 transition-all duration-200 cursor-pointer border border-emerald-600"
+          >
+            <Download className="w-4 h-4" />
+            <span>Download Registration PDF Pass</span>
+          </motion.button>
 
-          return (
-            <div className="pt-6 mt-3 border-t border-slate-200/80 flex flex-col sm:flex-row flex-wrap items-center justify-center gap-3.5 print:hidden">
-              {isPaid && (
-                <motion.a
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  href={OFFICIAL_WHATSAPP_GROUP_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-extrabold text-white bg-[#25D366] hover:bg-[#128C7E] shadow-md shadow-[#25D366]/25 transition-all duration-200 cursor-pointer"
-                >
-                  <MessageCircle className="w-4 h-4 fill-white" />
-                  <span>Join WhatsApp Group</span>
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </motion.a>
-              )}
-
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                type="button"
-                onClick={handleDownloadPdf}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-extrabold text-white bg-[#16A34A] hover:bg-[#0A192F] shadow-md shadow-[#16A34A]/20 transition-all duration-200 cursor-pointer"
-              >
-                <Download className="w-4 h-4" />
-                <span>Download Registration Info PDF</span>
-              </motion.button>
-
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                type="button"
-                onClick={onClose}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-slate-700 bg-white hover:bg-[#16A34A] hover:text-white hover:border-[#16A34A] border border-slate-300 shadow-xs transition-all duration-200 cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-                <span>Close</span>
-              </motion.button>
-            </div>
-          );
-        })()}
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            type="button"
+            onClick={onClose}
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl text-sm font-bold text-slate-700 bg-white hover:bg-slate-100 hover:text-slate-900 border border-slate-300 shadow-xs transition-all duration-200 cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+            <span>Close</span>
+          </motion.button>
+        </div>
 
         {/* Footer print note */}
         <div className="hidden print:block pt-6 border-t border-slate-300 text-[10px] text-slate-500 text-center">

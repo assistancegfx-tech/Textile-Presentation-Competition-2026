@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { User, Users, CreditCard, CheckCircle2, ChevronRight, ChevronLeft, AlertCircle, ShieldAlert, RotateCcw, Search, Lock, Calendar, MessageCircle } from 'lucide-react';
+import { User, Users, CreditCard, CheckCircle2, ChevronRight, ChevronLeft, AlertCircle, ShieldAlert, RotateCcw, Search, Lock, Calendar, MessageCircle, Sparkles, Database } from 'lucide-react';
 import { RegistrationFormData, SubmissionResponse, Participant, SubmissionProgressStage } from '../types';
 import { ParticipantStepForm } from './ParticipantStepForm';
 import { PaymentStepForm } from './PaymentStepForm';
@@ -23,8 +23,22 @@ const initialParticipant = (): Participant => ({
   photoSize: undefined
 });
 
+const createNAParticipant = (): Participant => ({
+  name: 'N/A',
+  roll: 'N/A',
+  department: 'N/A',
+  whatsapp: 'N/A',
+  facebook: 'N/A',
+  email: 'N/A',
+  photoBase64: undefined,
+  photoPreview: undefined,
+  photoName: 'N/A',
+  photoSize: 0
+});
+
 const initialFormData = (): RegistrationFormData => ({
   teamName: '',
+  teamSize: 3,
   leader: initialParticipant(),
   member1: initialParticipant(),
   member2: initialParticipant(),
@@ -47,20 +61,77 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
   onOpenGoogleSheetModal,
   onRegistrationSuccess
 }) => {
-  const [currentStep, setCurrentStep] = useState<number>(0);
   const [formData, setFormData] = useState<RegistrationFormData>(initialFormData());
+  const [currentStep, setCurrentStep] = useState<number>(0);
   const [stepErrors, setStepErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [submitProgressStage, setSubmitProgressStage] = useState<SubmissionProgressStage>('idle');
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submissionResult, setSubmissionResult] = useState<SubmissionResponse | null>(null);
+
+  const teamSize: 1 | 2 | 3 = formData.teamSize || 3;
+
   const isFormPartiallyFilled = Boolean(
     formData.teamName ||
-    formData.leader.name ||
-    formData.member1.name ||
-    formData.member2.name ||
+    (formData.leader.name && formData.leader.name !== 'N/A') ||
+    (teamSize >= 2 && formData.member1.name && formData.member1.name !== 'N/A') ||
+    (teamSize >= 3 && formData.member2.name && formData.member2.name !== 'N/A') ||
     formData.payment.transactionId
   );
+
+  const getStepsForSize = (size: 1 | 2 | 3) => {
+    if (size === 1) {
+      return [
+        { label: 'Participant (Solo)', icon: User, type: 'leader' },
+        { label: 'Payment', icon: CreditCard, type: 'payment' },
+        { label: 'Review & Confirm', icon: CheckCircle2, type: 'review' }
+      ];
+    }
+    if (size === 2) {
+      return [
+        { label: 'Team Leader', icon: User, type: 'leader' },
+        { label: 'Student 2 (Member 1)', icon: Users, type: 'member1' },
+        { label: 'Payment', icon: CreditCard, type: 'payment' },
+        { label: 'Review & Confirm', icon: CheckCircle2, type: 'review' }
+      ];
+    }
+    return [
+      { label: 'Team Leader', icon: User, type: 'leader' },
+      { label: 'Student 2 (Member 1)', icon: Users, type: 'member1' },
+      { label: 'Student 3 (Member 2)', icon: Users, type: 'member2' },
+      { label: 'Payment', icon: CreditCard, type: 'payment' },
+      { label: 'Review & Confirm', icon: CheckCircle2, type: 'review' }
+    ];
+  };
+
+  const steps = getStepsForSize(teamSize);
+
+  const handleTeamSizeChange = (newSize: 1 | 2 | 3) => {
+    setFormData((prev) => {
+      const updated: RegistrationFormData = { ...prev, teamSize: newSize };
+      if (newSize === 1) {
+        updated.member1 = createNAParticipant();
+        updated.member2 = createNAParticipant();
+      } else if (newSize === 2) {
+        updated.member2 = createNAParticipant();
+        if (updated.member1.name === 'N/A') {
+          updated.member1 = initialParticipant();
+        }
+      } else if (newSize === 3) {
+        if (updated.member1.name === 'N/A') {
+          updated.member1 = initialParticipant();
+        }
+        if (updated.member2.name === 'N/A') {
+          updated.member2 = initialParticipant();
+        }
+      }
+      return updated;
+    });
+
+    const newSteps = getStepsForSize(newSize);
+    setCurrentStep((prev) => Math.min(prev, newSteps.length - 1));
+    setStepErrors({});
+  };
 
   const handleClearForm = () => {
     setFormData(initialFormData());
@@ -69,25 +140,17 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
     setCurrentStep(0);
   };
 
-  const steps = [
-    { label: 'Team & Leader', icon: User },
-    { label: 'Member 1', icon: Users },
-    { label: 'Member 2', icon: Users },
-    { label: 'Payment', icon: CreditCard },
-    { label: 'Review & Confirm', icon: CheckCircle2 }
-  ];
-
   // Validation per step
   const validateParticipant = (p: Participant, otherRolls: string[], isLeader: boolean = false): Record<string, string> => {
     const errs: Record<string, string> = {};
-    if (!p.name.trim()) errs.name = 'Full name is required.';
-    if (!p.roll.trim()) {
+    if (!p.name.trim() || p.name === 'N/A') errs.name = 'Full name is required.';
+    if (!p.roll.trim() || p.roll === 'N/A') {
       errs.roll = 'Roll number is required.';
-    } else if (otherRolls.includes(p.roll.trim())) {
+    } else if (otherRolls.filter(r => r && r !== 'N/A').includes(p.roll.trim())) {
       errs.roll = 'This roll number is already assigned to another team member.';
     }
-    if (!p.department) errs.department = 'Department must be selected.';
-    if (!p.whatsapp.trim()) {
+    if (!p.department || p.department === 'N/A') errs.department = 'Department must be selected.';
+    if (!p.whatsapp.trim() || p.whatsapp === 'N/A') {
       errs.whatsapp = 'Mobile number is required.';
     } else if (!validateBangladeshPhone(p.whatsapp)) {
       errs.whatsapp = 'Please enter a valid Bangladesh mobile number (e.g. 017XXXXXXXX).';
@@ -95,16 +158,15 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
 
     // Leader specific validation
     if (isLeader) {
-      if (!p.facebook.trim() || p.facebook.trim().toLowerCase() === 'blank') {
-        errs.facebook = 'Team Leader Facebook profile link or ID is required.';
+      if (!p.facebook.trim() || p.facebook.trim().toLowerCase() === 'blank' || p.facebook === 'N/A') {
+        errs.facebook = 'Participant/Leader Facebook profile link or ID is required.';
       }
-      if (!p.email || !p.email.trim()) {
-        errs.email = 'Leader email address is required for official confirmation.';
+      if (!p.email || !p.email.trim() || p.email === 'N/A') {
+        errs.email = 'Email address is required for official confirmation.';
       } else if (!validateEmail(p.email)) {
-        errs.email = 'Please enter a valid email address (e.g. leader@gmail.com).';
+        errs.email = 'Please enter a valid email address (e.g. participant@gmail.com).';
       }
     }
-    // Team members (Member 1 & 2): Facebook is optional; if left empty it defaults to "Blank"
 
     if (!p.photoPreview) errs.photo = 'Participant photo upload is required.';
 
@@ -130,31 +192,34 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
 
   const handleNext = () => {
     let errs: Record<string, string> = {};
+    const stepType = steps[currentStep]?.type;
 
-    if (currentStep === 0) {
+    if (stepType === 'leader') {
       if (!formData.teamName || !formData.teamName.trim()) {
-        errs.teamName = 'Team name is required.';
+        errs.teamName = teamSize === 1 ? 'Presentation / Project title or Team Name is required.' : 'Team name is required.';
       } else if (formData.teamName.trim().length < 2) {
-        errs.teamName = 'Team name must be at least 2 characters.';
+        errs.teamName = 'Name must be at least 2 characters.';
       }
 
-      const leaderErrs = validateParticipant(formData.leader, [
-        formData.member1.roll.trim(),
-        formData.member2.roll.trim()
-      ].filter(Boolean), true);
-
+      const otherRolls = [
+        teamSize >= 2 ? formData.member1.roll.trim() : '',
+        teamSize >= 3 ? formData.member2.roll.trim() : ''
+      ].filter(r => r && r !== 'N/A');
+      const leaderErrs = validateParticipant(formData.leader, otherRolls, true);
       errs = { ...errs, ...leaderErrs };
-    } else if (currentStep === 1) {
-      errs = validateParticipant(formData.member1, [
+    } else if (stepType === 'member1' && teamSize >= 2) {
+      const otherRolls = [
         formData.leader.roll.trim(),
-        formData.member2.roll.trim()
-      ].filter(Boolean), false);
-    } else if (currentStep === 2) {
-      errs = validateParticipant(formData.member2, [
+        teamSize >= 3 ? formData.member2.roll.trim() : ''
+      ].filter(r => r && r !== 'N/A');
+      errs = validateParticipant(formData.member1, otherRolls, false);
+    } else if (stepType === 'member2' && teamSize >= 3) {
+      const otherRolls = [
         formData.leader.roll.trim(),
         formData.member1.roll.trim()
-      ].filter(Boolean), false);
-    } else if (currentStep === 3) {
+      ].filter(r => r && r !== 'N/A');
+      errs = validateParticipant(formData.member2, otherRolls, false);
+    } else if (stepType === 'payment') {
       errs = validatePayment();
     }
 
@@ -187,34 +252,34 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
     setSubmitError(null);
 
     try {
-      const formRolls = [
-        String(formData.leader.roll || '').trim(),
-        String(formData.member1.roll || '').trim(),
-        String(formData.member2.roll || '').trim()
-      ].filter(Boolean);
-      const cleanTrx = String(formData.payment.transactionId || '').trim().toUpperCase();
-
-      // Realistic stage feedback delay for seamless UX
+      // Stage 1: Validation
       await new Promise((r) => setTimeout(r, 450));
 
-      // 1. Client-side local check for duplicates first
+      const formRolls = [
+        formData.leader.roll?.trim(),
+        teamSize >= 2 ? formData.member1.roll?.trim() : '',
+        teamSize >= 3 ? formData.member2.roll?.trim() : ''
+      ].filter((r): r is string => Boolean(r && r !== 'N/A'));
+
+      const cleanTrx = formData.payment.transactionId?.trim().toUpperCase();
+
+      // 1. Client-side storage pre-check for duplicates
       try {
-        const localSaved = localStorage.getItem('tpc2026_saved_registrations');
-        if (localSaved) {
-          const list = JSON.parse(localSaved);
-          if (Array.isArray(list)) {
-            for (const item of list) {
-              const itemTrx = String(item.formData?.payment?.transactionId || '').trim().toUpperCase();
-              if (cleanTrx && itemTrx === cleanTrx) {
-                throw new Error(`Transaction ID "${cleanTrx}" was already submitted with team ${item.registrationId}.`);
-              }
+        const localListStr = localStorage.getItem('tpc2026_saved_registrations');
+        if (localListStr) {
+          const list = JSON.parse(localListStr);
+          for (const item of list) {
+            if (item.formData?.payment?.transactionId?.toUpperCase() === cleanTrx) {
+              throw new Error(`Transaction ID "${cleanTrx}" was already registered in team ${item.registrationId}.`);
+            }
+            if (item.formData) {
               const itemRolls = [
-                String(item.formData?.leader?.roll || '').trim(),
-                String(item.formData?.member1?.roll || '').trim(),
-                String(item.formData?.member2?.roll || '').trim()
-              ];
+                item.formData.leader?.roll?.trim().toUpperCase(),
+                item.formData.member1?.roll?.trim().toUpperCase(),
+                item.formData.member2?.roll?.trim().toUpperCase()
+              ].filter(Boolean);
               for (const r of formRolls) {
-                if (itemRolls.includes(r)) {
+                if (itemRolls.includes(r.toUpperCase())) {
                   throw new Error(`Student Roll "${r}" is already registered in team ${item.registrationId}.`);
                 }
               }
@@ -240,13 +305,12 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
 
         if (dupCheckRes.status === 409) {
           const dupData = await dupCheckRes.json();
-          throw new Error(dupData?.message || 'Duplicate registration detected.');
+          throw new Error(dupData.message || 'Duplicate roll or transaction ID already registered.');
         }
       } catch (dupErr: any) {
         if (dupErr.message && (dupErr.message.includes('already') || dupErr.message.includes('Duplicate'))) {
           throw dupErr;
         }
-        // Non-blocking for offline/static deployment
       }
 
       // Stage 2: Photos preparation & Google Drive payload optimization
@@ -256,21 +320,22 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
       // Stage 3: Submit to Google Sheets & Drive backend endpoint
       setSubmitProgressStage('saving_sheets');
 
-      // Ensure empty Facebook fields default to "Blank" for Google Sheets, PDF, and database
+      // Ensure unused members have complete "N/A" values across every field
       const normalizedFormData: RegistrationFormData = {
         ...formData,
+        teamSize,
         leader: {
           ...formData.leader,
           facebook: formData.leader.facebook?.trim() || 'Blank'
         },
-        member1: {
+        member1: teamSize >= 2 ? {
           ...formData.member1,
           facebook: formData.member1.facebook?.trim() || 'Blank'
-        },
-        member2: {
+        } : createNAParticipant(),
+        member2: teamSize >= 3 ? {
           ...formData.member2,
           facebook: formData.member2.facebook?.trim() || 'Blank'
-        }
+        } : createNAParticipant()
       };
 
       // Pre-generate official registration voucher PDF base64 to send with confirmation email
@@ -286,19 +351,21 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
         console.warn('PDF Base64 generation warning:', pdfErr);
       }
 
-      const payloadToSend = {
-        ...normalizedFormData,
-        websiteUrl: typeof window !== 'undefined' ? window.location.origin : '',
-        pdfBase64
-      };
-
-      let data: SubmissionResponse | null = null;
       const defaultScriptUrl = 'https://script.google.com/macros/s/AKfycbxFVWAVQApNuw2g_zvbSEK_QhXIcso8MoDhne75A4L0ryUUeh2G4GEclUkMn8GY21VT2Q/exec';
       const envScriptUrl = 
         (import.meta as any).env?.VITE_GOOGLE_SCRIPT_URL || 
         (import.meta as any).env?.GOOGLE_SCRIPT_URL || 
         '';
       const storedScriptUrl = customScriptUrl || envScriptUrl || localStorage.getItem('tpc2026_google_script_url') || defaultScriptUrl;
+
+      const payloadToSend = {
+        ...normalizedFormData,
+        websiteUrl: typeof window !== 'undefined' ? window.location.origin : '',
+        scriptUrl: storedScriptUrl,
+        pdfBase64
+      };
+
+      let data: SubmissionResponse | null = null;
 
       try {
         const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -332,7 +399,6 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
       // If backend was unreachable or returned static fallback and storedScriptUrl is set, try direct POST to Google Apps Script
       if ((!data || data.source !== 'google_sheets') && storedScriptUrl && storedScriptUrl.startsWith('http')) {
         try {
-          // Send as text/plain to avoid browser CORS preflight blocks with Google Apps Script
           const directScriptRes = await fetch(storedScriptUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -355,11 +421,16 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
 
       // If backend was not reached or returned static HTML, create reliable client response
       const getLast2Digits = (roll: any): string => {
+        if (!roll || roll === 'N/A') return '00';
         const digits = String(roll || '').replace(/\D/g, '');
         if (digits.length >= 2) return digits.slice(-2);
         return (digits || String(roll || '').trim()).padStart(2, '0').slice(-2);
       };
-      const rollsLast2 = `${getLast2Digits(formData.leader.roll)}${getLast2Digits(formData.member1.roll)}${getLast2Digits(formData.member2.roll)}`;
+
+      const rollsLast2 = 
+        getLast2Digits(formData.leader.roll) +
+        (teamSize >= 2 ? getLast2Digits(formData.member1.roll) : '00') +
+        (teamSize >= 3 ? getLast2Digits(formData.member2.roll) : '00');
 
       let localSeq = 1;
       try {
@@ -434,19 +505,12 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
       // Success! Set result state
       setSubmissionResult(data);
 
-      // Redirect to /registration-success
-      try {
-        window.history.pushState({ regId }, '', '/registration-success');
-        window.location.hash = '#/registration-success';
-      } catch (_) {}
-
       if (onRegistrationSuccess) {
         onRegistrationSuccess(data, normalizedFormData);
       }
-
     } catch (err: any) {
-      console.error('Submission error:', err);
-      setSubmitError(err.message || 'An error occurred during submission. Please check the fields and retry.');
+      console.error('Registration failed:', err);
+      setSubmitError(err.message || 'An unexpected error occurred during submission. Please try again.');
     } finally {
       setIsSubmitting(false);
       setSubmitProgressStage('idle');
@@ -461,19 +525,74 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
     setCurrentStep(0);
   };
 
+  const handleFillDemoData = () => {
+    const demoPhoto = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%230A192F"/><circle cx="50" cy="40" r="20" fill="%2322C55E"/><path d="M20 90 C20 65, 80 65, 80 90 Z" fill="%2322C55E"/></svg>';
+    const randomTrx = 'TRX' + Math.floor(10000000 + Math.random() * 90000000);
+    const randomRollSeed = Math.floor(1000 + Math.random() * 8000);
+
+    setFormData({
+      teamName: teamSize === 1 ? 'TexSolo Innovator' : 'TexVanguard BTEC',
+      teamSize,
+      leader: {
+        name: 'Naimur Rahman',
+        roll: String(randomRollSeed + 1),
+        department: 'Yarn Engineering',
+        whatsapp: '01712345678',
+        facebook: 'https://facebook.com/naimur.rahman',
+        email: 'naimur.rahman@example.com',
+        photoBase64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+        photoPreview: demoPhoto,
+        photoName: 'naimur_photo.jpg',
+        photoSize: 102400
+      },
+      member1: teamSize >= 2 ? {
+        name: 'Tanjim Hasan',
+        roll: String(randomRollSeed + 2),
+        department: 'Fabric Engineering',
+        whatsapp: '01812345678',
+        facebook: 'https://facebook.com/tanjim.hasan',
+        email: 'tanjim.hasan@example.com',
+        photoBase64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+        photoPreview: demoPhoto,
+        photoName: 'tanjim_photo.jpg',
+        photoSize: 102400
+      } : createNAParticipant(),
+      member2: teamSize >= 3 ? {
+        name: 'Ayesha Siddiqua',
+        roll: String(randomRollSeed + 3),
+        department: 'Wet Process Engineering',
+        whatsapp: '01912345678',
+        facebook: 'https://facebook.com/ayesha.siddiqua',
+        email: 'ayesha.siddiqua@example.com',
+        photoBase64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+        photoPreview: demoPhoto,
+        photoName: 'ayesha_photo.jpg',
+        photoSize: 102400
+      } : createNAParticipant(),
+      payment: {
+        bkashNumber: '01712345678',
+        transactionId: randomTrx
+      }
+    });
+    setStepErrors({});
+    setSubmitError(null);
+  };
+
+  const currentStepDef = steps[currentStep] || steps[0];
+
   return (
     <div id="registration" className="py-10 md:py-16 relative overflow-hidden animate-in fade-in duration-200">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Heading */}
         <div className="text-center max-w-xl mx-auto mb-8 space-y-2.5">
           <span className="text-xs font-extrabold uppercase tracking-wider text-[#16A34A] bg-[#22C55E]/10 px-3 py-1 rounded-full">
-            Official Team Portal
+            Official Registration Portal
           </span>
           <h1 className="text-3xl sm:text-4xl font-black text-[#0A192F] font-['Outfit'] tracking-tight">
-            Team Registration
+            Online Registration
           </h1>
           <p className="text-slate-600 text-xs sm:text-sm">
-            Complete your 3-member team profile (Leader + 2 Members) and submit the 149 BDT registration fee.
+            Register Solo (1 Member), Duo (2 Members), or as a Team of up to 3 members and submit the 149 BDT registration fee.
           </p>
 
           {/* Quick link to View/Edit Registration */}
@@ -515,7 +634,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                 Online Registration Has Closed
               </h2>
               <p className="text-xs sm:text-sm text-slate-600 max-w-lg mx-auto leading-relaxed">
-                The registration deadline for the <strong>Textile Presentation Competition 2026</strong> was <strong>{REGISTRATION_DEADLINE_LABEL}</strong>. New team submissions are now automatically locked.
+                The registration deadline for the <strong>Textile Presentation Competition 2026</strong> was <strong>{REGISTRATION_DEADLINE_LABEL}</strong>. New registrations are now automatically locked.
               </p>
             </div>
 
@@ -523,7 +642,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             <div className="bg-[#FAFBF9] border border-slate-200/80 rounded-2xl p-5 text-left space-y-3.5">
               <div className="flex items-center gap-2 text-xs font-bold text-[#0A192F]">
                 <Calendar className="w-4 h-4 text-[#16A34A]" />
-                <span>Next steps for already registered teams:</span>
+                <span>Next steps for registered participants:</span>
               </div>
               <ul className="text-xs text-slate-600 space-y-2 list-disc list-inside">
                 <li>Check your payment approval status and official registration record.</li>
@@ -558,25 +677,117 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                 </div>
               </div>
               <span className="hidden sm:inline-block text-[10px] font-black uppercase tracking-wider text-[#16A34A] bg-white px-2.5 py-0.5 rounded-md border border-emerald-200">
-                149 BDT / Team
+                149 BDT / Registration
               </span>
             </div>
 
-            {/* Action Bar: Reset Form if filled */}
-            {isFormPartiallyFilled && (
-              <div className="flex items-center justify-end mb-6 pb-4 border-b border-slate-100">
+            {/* Action Bar: Demo Fill, Sheet Setup & Reset Form */}
+            <div className="flex flex-wrap items-center justify-between gap-2.5 mb-6 pb-4 border-b border-slate-100">
+              <div className="flex flex-wrap items-center gap-2">
+                <motion.button
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                  type="button"
+                  onClick={handleFillDemoData}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 transition shadow-2xs cursor-pointer"
+                  title="Auto-fill complete sample data for testing"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-[#16A34A]" />
+                  <span>⚡ Fill Demo Data</span>
+                </motion.button>
+
+                {onOpenGoogleSheetModal && (
+                  <motion.button
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                    type="button"
+                    onClick={() => onOpenGoogleSheetModal()}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 hover:border-slate-300 transition shadow-2xs cursor-pointer"
+                    title="Connect or verify your Google Sheet Web App URL"
+                  >
+                    <Database className="w-3.5 h-3.5 text-[#16A34A]" />
+                    <span>Sheet Connection</span>
+                  </motion.button>
+                )}
+              </div>
+
+              {isFormPartiallyFilled && (
                 <motion.button
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.97 }}
                   type="button"
                   onClick={handleClearForm}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-500 hover:text-white hover:bg-red-600 hover:border-red-600 border border-slate-200 transition cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-500 hover:text-white hover:bg-rose-600 hover:border-rose-600 border border-slate-200 transition cursor-pointer"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
                   <span>Reset Form</span>
                 </motion.button>
+              )}
+            </div>
+
+            {/* Team Size Selector (1, 2, or 3 Students) */}
+            <div className="mb-6 p-4 sm:p-5 rounded-2xl bg-slate-50/80 border border-slate-200/90 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                <label className="text-xs font-black uppercase tracking-wider text-[#0A192F] flex items-center gap-1.5">
+                  <Users className="w-4 h-4 text-[#16A34A]" />
+                  <span>Select Team Size / দলের সদস্য সংখ্যা:</span>
+                  <span className="text-red-500 font-bold">*</span>
+                </label>
+                <span className="text-[11px] text-slate-500 font-semibold">
+                  {teamSize === 1
+                    ? 'Solo Registration: 1 Student'
+                    : teamSize === 2
+                    ? 'Duo Registration: 2 Students (Student 3 auto-set to N/A)'
+                    : 'Team Registration: 3 Students'}
+                </span>
               </div>
-            )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                {[
+                  { size: 1 as const, label: '1 Student', sub: 'Solo / একক', desc: 'Single presenter' },
+                  { size: 2 as const, label: '2 Students', sub: 'Duo / যুগল', desc: 'Leader + 1 Member' },
+                  { size: 3 as const, label: '3 Students', sub: 'Trio / দলগত', desc: 'Leader + 2 Members' }
+                ].map((item) => {
+                  const isSelected = teamSize === item.size;
+                  return (
+                    <motion.button
+                      key={item.size}
+                      type="button"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => handleTeamSizeChange(item.size)}
+                      className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                        isSelected
+                          ? 'bg-[#0A192F] text-white border-[#0A192F] shadow-md ring-2 ring-[#22C55E]/40'
+                          : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-100/60 shadow-2xs'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          {item.size === 1 ? (
+                            <User className={`w-4 h-4 ${isSelected ? 'text-[#22C55E]' : 'text-slate-400'}`} />
+                          ) : (
+                            <Users className={`w-4 h-4 ${isSelected ? 'text-[#22C55E]' : 'text-slate-400'}`} />
+                          )}
+                          <span className="text-xs font-black tracking-tight">{item.label}</span>
+                        </div>
+                        {isSelected && (
+                          <CheckCircle2 className="w-4 h-4 text-[#22C55E]" />
+                        )}
+                      </div>
+                      <div className="mt-1 flex items-center justify-between text-[10px]">
+                        <span className={`font-bold ${isSelected ? 'text-emerald-300' : 'text-slate-500'}`}>
+                          {item.sub}
+                        </span>
+                        <span className={isSelected ? 'text-slate-300' : 'text-slate-400'}>
+                          {item.desc}
+                        </span>
+                      </div>
+                    </motion.button>
+                  );
+                })}
+              </div>
+            </div>
 
             {/* Step Progress Bar */}
             <div className="mb-8 pb-6 border-b border-slate-100">
@@ -633,7 +844,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                     Step {currentStep + 1} of {steps.length}
                   </span>
                   <h3 className="text-base font-extrabold text-[#0A192F]">
-                    {steps[currentStep].label}
+                    {steps[currentStep]?.label}
                   </h3>
                 </div>
                 <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">
@@ -644,17 +855,20 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
 
             {/* Step Form Body */}
             <div>
-              {currentStep === 0 && (
+              {currentStepDef.type === 'leader' && (
                 <ParticipantStepForm
-                  title="Team & Group Leader Information"
-                  subtitle="Primary point of contact for the team and official representative."
-                  roleBadge="Team Leader"
+                  title={teamSize === 1 ? 'Solo Participant Information' : 'Team & Group Leader Information'}
+                  subtitle={teamSize === 1 ? 'Single presenter details and official student contact information.' : 'Primary point of contact for the team and official representative.'}
+                  roleBadge={teamSize === 1 ? 'Solo Presenter' : 'Team Leader'}
                   participant={formData.leader}
                   onChange={(updated) =>
                     setFormData((prev) => ({ ...prev, leader: { ...prev.leader, ...updated } }))
                   }
                   errors={stepErrors}
-                  otherRolls={[formData.member1.roll, formData.member2.roll].filter(Boolean)}
+                  otherRolls={[
+                    teamSize >= 2 ? formData.member1.roll : '',
+                    teamSize >= 3 ? formData.member2.roll : ''
+                  ].filter((r): r is string => Boolean(r && r !== 'N/A'))}
                   showEmail={true}
                   showTeamName={true}
                   teamName={formData.teamName}
@@ -671,35 +885,41 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                 />
               )}
 
-              {currentStep === 1 && (
+              {currentStepDef.type === 'member1' && teamSize >= 2 && (
                 <ParticipantStepForm
-                  title="Member 1 Information"
-                  subtitle="First team member details and student identification."
+                  title="Member 1 Information (Student 2)"
+                  subtitle="Second team member details and student identification."
                   roleBadge="Member 1"
                   participant={formData.member1}
                   onChange={(updated) =>
                     setFormData((prev) => ({ ...prev, member1: { ...prev.member1, ...updated } }))
                   }
                   errors={stepErrors}
-                  otherRolls={[formData.leader.roll, formData.member2.roll].filter(Boolean)}
+                  otherRolls={[
+                    formData.leader.roll,
+                    teamSize >= 3 ? formData.member2.roll : ''
+                  ].filter((r): r is string => Boolean(r && r !== 'N/A'))}
                 />
               )}
 
-              {currentStep === 2 && (
+              {currentStepDef.type === 'member2' && teamSize >= 3 && (
                 <ParticipantStepForm
-                  title="Member 2 Information"
-                  subtitle="Second team member details and student identification."
+                  title="Member 2 Information (Student 3)"
+                  subtitle="Third team member details and student identification."
                   roleBadge="Member 2"
                   participant={formData.member2}
                   onChange={(updated) =>
                     setFormData((prev) => ({ ...prev, member2: { ...prev.member2, ...updated } }))
                   }
                   errors={stepErrors}
-                  otherRolls={[formData.leader.roll, formData.member1.roll].filter(Boolean)}
+                  otherRolls={[
+                    formData.leader.roll,
+                    formData.member1.roll
+                  ].filter((r): r is string => Boolean(r && r !== 'N/A'))}
                 />
               )}
 
-              {currentStep === 3 && (
+              {currentStepDef.type === 'payment' && (
                 <PaymentStepForm
                   payment={formData.payment}
                   onChange={(updated) =>
@@ -710,13 +930,13 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                 />
               )}
 
-              {currentStep === 4 && (
+              {currentStepDef.type === 'review' && (
                 <ReviewConfirmStep
                   formData={formData}
                   onEditStep={(stepIdx) => {
                     setStepErrors({});
                     setSubmitError(null);
-                    setCurrentStep(stepIdx);
+                    setCurrentStep(Math.min(stepIdx, steps.length - 1));
                   }}
                   onConfirmSubmit={handleFinalSubmit}
                   isSubmitting={isSubmitting}
@@ -726,8 +946,8 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
               )}
             </div>
 
-            {/* Bottom Nav Controls (for steps 0 to 3) */}
-            {currentStep < 4 && (
+            {/* Bottom Nav Controls (for steps before Review) */}
+            {currentStepDef.type !== 'review' && (
               <div className="mt-8 pt-6 border-t border-slate-100 flex items-center justify-between">
                 {currentStep > 0 ? (
                   <motion.button

@@ -18,6 +18,7 @@ export interface PaymentDetails {
 
 export interface RegistrationFormData {
   teamName: string;
+  teamSize?: 1 | 2 | 3;
   leader: Participant;
   member1: Participant;
   member2: Participant;

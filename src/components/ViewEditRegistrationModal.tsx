@@ -34,7 +34,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { RegisteredTeamRecord, RegistrationFormData, Participant } from '../types';
-import { generateRegistrationPdf } from '../utils/pdfGenerator';
+import { generateRegistrationPdf, getRegistrationPdfBase64 } from '../utils/pdfGenerator';
 import { fireCelebrationConfetti } from '../utils/confetti';
 import { DEPARTMENTS, validateBangladeshPhone, validateEmail, processAndCompressImage } from '../utils/formUtils';
 
@@ -467,44 +467,49 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
       return;
     }
 
-    // Validate fields
+    // Validate active participant fields
     const roles: ('leader' | 'member1' | 'member2')[] = ['leader', 'member1', 'member2'];
-    const labels = { leader: 'Team Leader', member1: 'Member 1', member2: 'Member 2' };
+    const labels = { 
+      leader: 'Team Leader', 
+      member1: 'Member 1', 
+      member2: 'Member 2' 
+    };
 
     for (const r of roles) {
       const p = editFormData[r];
-      if (!p.name.trim()) {
+      if (!p || !p.name?.trim()) {
         setSaveError(`${labels[r]} name is required.`);
         return;
       }
-      if (!p.roll.trim()) {
+      if (!p.roll?.trim()) {
         setSaveError(`${labels[r]} roll number is required.`);
         return;
       }
       if (r === 'leader') {
-        if (!p.whatsapp.trim() || !validateBangladeshPhone(p.whatsapp)) {
+        if (!p.whatsapp?.trim() || !validateBangladeshPhone(p.whatsapp)) {
           setSaveError(`${labels[r]} requires a valid 11-digit Bangladesh mobile number (e.g. 017XXXXXXXX).`);
           return;
         }
         if (!p.facebook?.trim() || p.facebook.trim().toLowerCase() === 'blank') {
-          setSaveError('Team Leader Facebook profile link or ID is required.');
+          setSaveError(`${labels[r]} Facebook profile link or ID is required.`);
           return;
         }
       } else {
-        if (p.whatsapp.trim() && !validateBangladeshPhone(p.whatsapp)) {
+        if (p.whatsapp?.trim() && !validateBangladeshPhone(p.whatsapp)) {
           setSaveError(`${labels[r]} mobile number must be a valid 11-digit Bangladesh number (e.g. 017XXXXXXXX).`);
           return;
         }
       }
     }
 
-    // Check duplicate rolls among the 3 members
+    // Check duplicate rolls among members
     const rolls = [
       editFormData.leader.roll.trim(),
       editFormData.member1.roll.trim(),
       editFormData.member2.roll.trim()
-    ];
-    if (new Set(rolls).size !== rolls.length) {
+    ].filter(Boolean);
+
+    if (new Set(rolls).size !== 3) {
       setSaveError('All 3 team members must have unique student roll numbers.');
       return;
     }
@@ -521,13 +526,27 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
       },
       member1: {
         ...editFormData.member1,
-        facebook: editFormData.member1.facebook?.trim() || 'Blank'
+        facebook: editFormData.member1?.facebook?.trim() || 'Blank'
       },
       member2: {
         ...editFormData.member2,
-        facebook: editFormData.member2.facebook?.trim() || 'Blank'
+        facebook: editFormData.member2?.facebook?.trim() || 'Blank'
       }
     };
+
+    // Pre-generate updated official entry voucher PDF base64
+    let pdfBase64 = '';
+    try {
+      pdfBase64 = getRegistrationPdfBase64({
+        registrationId: record.registrationId,
+        submissionDate: record.submissionDate || new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' }),
+        paymentStatus: record.paymentStatus || 'Pending',
+        editCount: (record.editCount ?? 0) + 1,
+        formData: normalizedEditFormData
+      });
+    } catch (pdfErr) {
+      console.warn('Updated PDF Base64 generation warning:', pdfErr);
+    }
 
     const scriptUrl = localStorage.getItem('tpc2026_google_script_url') || 'https://script.google.com/macros/s/AKfycbxFVWAVQApNuw2g_zvbSEK_QhXIcso8MoDhne75A4L0ryUUeh2G4GEclUkMn8GY21VT2Q/exec';
 
@@ -545,7 +564,8 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
           },
           body: JSON.stringify({
             formData: normalizedEditFormData,
-            backupRegistration: record
+            backupRegistration: record,
+            pdfBase64
           })
         });
 
@@ -573,7 +593,8 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
           const updatePayload = JSON.stringify({
             action: 'updateRegistration',
             registrationId: record.registrationId,
-            formData: normalizedEditFormData
+            formData: normalizedEditFormData,
+            pdfBase64
           });
 
           // A) Try text/plain POST (bypasses browser CORS preflight check)
@@ -1141,14 +1162,20 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
                     </motion.div>
                   )}
 
-                  {/* 3 Participants Grid (Clean Layout without Participant Images) */}
+                  {/* Participants Grid (Clean Layout without Participant Images) */}
                   <div>
                     <div className="flex items-center justify-between mb-3">
                       <h4 className="text-xs font-extrabold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
                         <Users className="w-3.5 h-3.5 text-[#16A34A]" />
                         <span>Team Members Information</span>
                       </h4>
-                      <span className="text-[11px] font-semibold text-slate-400">3 Members Required</span>
+                      <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200">
+                        {record.formData?.member2?.name && record.formData.member2.name !== 'N/A'
+                          ? '3 Members (Trio Team)'
+                          : record.formData?.member1?.name && record.formData.member1.name !== 'N/A'
+                          ? '2 Members (Duo Team)'
+                          : '1 Member (Solo Presenter)'}
+                      </span>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1265,12 +1292,12 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
                           {/* Name & Roll */}
                           <div>
                             <h5 className="text-base font-extrabold text-[#0A192F] leading-tight break-words group-hover:text-[#16A34A] transition-colors">
-                              {record.formData.member1.name || '—'}
+                              {record.formData.member1?.name || '—'}
                             </h5>
                             <div className="mt-1.5 flex items-center gap-1.5 text-xs">
                               <span className="text-[10px] font-bold uppercase text-slate-400">Roll:</span>
                               <span className="font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded-md">
-                                {record.formData.member1.roll || '—'}
+                                {record.formData.member1?.roll || '—'}
                               </span>
                             </div>
                           </div>
@@ -1279,23 +1306,23 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
                           <div className="space-y-2 pt-2 border-t border-slate-100 text-xs text-slate-600">
                             <div>
                               <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">Department</span>
-                              <span className="font-semibold text-slate-800 block truncate">{record.formData.member1.department || '—'}</span>
+                              <span className="font-semibold text-slate-800 block truncate">{record.formData.member1?.department || '—'}</span>
                             </div>
 
                             <div>
                               <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">Mobile / WhatsApp</span>
                               <a
-                                href={`tel:${record.formData.member1.whatsapp || ''}`}
+                                href={`tel:${record.formData.member1?.whatsapp || ''}`}
                                 className="font-bold text-slate-800 hover:text-[#16A34A] transition inline-flex items-center gap-1.5"
                               >
                                 <Phone className="w-3 h-3 text-[#16A34A] shrink-0" />
-                                <span>{record.formData.member1.whatsapp || '—'}</span>
+                                <span>{record.formData.member1?.whatsapp || '—'}</span>
                               </a>
                             </div>
 
                             <div>
                               <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">Facebook Profile</span>
-                              {record.formData.member1.facebook && record.formData.member1.facebook.trim() !== 'Blank' ? (
+                              {record.formData.member1?.facebook && record.formData.member1.facebook.trim() !== 'Blank' ? (
                                 <a
                                   href={record.formData.member1.facebook.startsWith('http') ? record.formData.member1.facebook : `https://${record.formData.member1.facebook}`}
                                   target="_blank"
@@ -1339,12 +1366,12 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
                           {/* Name & Roll */}
                           <div>
                             <h5 className="text-base font-extrabold text-[#0A192F] leading-tight break-words group-hover:text-[#16A34A] transition-colors">
-                              {record.formData.member2.name || '—'}
+                              {record.formData.member2?.name || '—'}
                             </h5>
                             <div className="mt-1.5 flex items-center gap-1.5 text-xs">
                               <span className="text-[10px] font-bold uppercase text-slate-400">Roll:</span>
                               <span className="font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded-md">
-                                {record.formData.member2.roll || '—'}
+                                {record.formData.member2?.roll || '—'}
                               </span>
                             </div>
                           </div>
@@ -1353,23 +1380,23 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
                           <div className="space-y-2 pt-2 border-t border-slate-100 text-xs text-slate-600">
                             <div>
                               <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">Department</span>
-                              <span className="font-semibold text-slate-800 block truncate">{record.formData.member2.department || '—'}</span>
+                              <span className="font-semibold text-slate-800 block truncate">{record.formData.member2?.department || '—'}</span>
                             </div>
 
                             <div>
                               <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">Mobile / WhatsApp</span>
                               <a
-                                href={`tel:${record.formData.member2.whatsapp || ''}`}
+                                href={`tel:${record.formData.member2?.whatsapp || ''}`}
                                 className="font-bold text-slate-800 hover:text-[#16A34A] transition inline-flex items-center gap-1.5"
                               >
                                 <Phone className="w-3 h-3 text-[#16A34A] shrink-0" />
-                                <span>{record.formData.member2.whatsapp || '—'}</span>
+                                <span>{record.formData.member2?.whatsapp || '—'}</span>
                               </a>
                             </div>
 
                             <div>
                               <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">Facebook Profile</span>
-                              {record.formData.member2.facebook && record.formData.member2.facebook.trim() !== 'Blank' ? (
+                              {record.formData.member2?.facebook && record.formData.member2.facebook.trim() !== 'Blank' ? (
                                 <a
                                   href={record.formData.member2.facebook.startsWith('http') ? record.formData.member2.facebook : `https://${record.formData.member2.facebook}`}
                                   target="_blank"
@@ -1507,6 +1534,8 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
                     </div>
                   )}
 
+                  {/* Category / Team Size Selector Removed - Standard 3-member team */}
+
                   {/* Team Name Input */}
                   <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-50/90 to-teal-50/60 border-2 border-emerald-300 space-y-2">
                     <div className="flex items-center justify-between">
@@ -1516,7 +1545,7 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
                         <span className="text-red-500">*</span>
                       </label>
                       <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-full">
-                        Official Team Identity
+                        Official Identity
                       </span>
                     </div>
                     <input
@@ -1528,11 +1557,11 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
                     />
                   </div>
 
-                  {/* Edit Form - 3 Participant Sections */}
+                  {/* Edit Form - Participant Sections */}
                   <div className="space-y-5">
                     {(['leader', 'member1', 'member2'] as const).map((role, idx) => {
                       const title = role === 'leader' ? 'Group Leader' : `Team Member ${idx}`;
-                      const p = editFormData[role];
+                      const p = editFormData[role] || { name: '', roll: '', department: '', whatsapp: '', facebook: '' };
 
                       return (
                         <div key={role} className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-4">

@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import path from 'path';
 import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
+import { buildRegistrationPdfDoc, getRegistrationPdfBase64 } from './src/utils/pdfGenerator';
 
 interface StoredRegistration {
   registrationId: string;
@@ -93,6 +94,190 @@ async function startServer() {
     }
   });
 
+  // Official Website-Generated PDF Endpoint (Ensures 100% exact design and file for emails & downloads)
+  app.get('/api/registration-pdf/:regId', async (req: Request, res: Response) => {
+    const regId = String(req.params.regId || '').trim().toUpperCase();
+    if (!regId) return res.status(400).json({ success: false, error: 'Registration ID required' });
+
+    let reg = registrationsStore.find(r => r.registrationId.toUpperCase() === regId);
+    let formData = reg?.payload || null;
+    let paymentStatus = String(req.query.status || reg?.paymentStatus || 'Pending').trim();
+    let submissionDate = reg?.submissionDate || new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' });
+
+    if (!formData) {
+      // Query Google Sheet for team data
+      const activeScript = getActiveScriptUrl(req);
+      if (activeScript && activeScript.startsWith('http')) {
+        try {
+          const gRes = await fetch(`${activeScript}${activeScript.includes('?') ? '&' : '?'}action=get&regId=${encodeURIComponent(regId)}`, {
+            signal: AbortSignal.timeout(4500)
+          });
+          const gJson: any = await gRes.json();
+          if (gJson && (gJson.success || gJson.found) && gJson.registrationId) {
+            paymentStatus = gJson.paymentStatus || paymentStatus;
+            submissionDate = gJson.submissionDate || submissionDate;
+            formData = {
+              teamName: gJson.teamName || '',
+              leader: {
+                name: gJson.leaderName || '',
+                roll: gJson.leaderRoll || '',
+                department: gJson.leaderDepartment || 'Textile Engineering',
+                whatsapp: gJson.leaderWhatsApp || '',
+                facebook: gJson.leaderFacebook || 'Blank',
+                email: gJson.leaderEmail || gJson.email || '',
+                photoUrl: gJson.leaderPhotoUrl || ''
+              },
+              member1: {
+                name: gJson.member1Name || 'N/A',
+                roll: gJson.member1Roll || 'N/A',
+                department: gJson.member1Department || 'N/A',
+                whatsapp: gJson.member1WhatsApp || 'N/A',
+                facebook: gJson.member1Facebook || 'Blank',
+                photoUrl: gJson.member1PhotoUrl || 'N/A'
+              },
+              member2: {
+                name: gJson.member2Name || 'N/A',
+                roll: gJson.member2Roll || 'N/A',
+                department: gJson.member2Department || 'N/A',
+                whatsapp: gJson.member2WhatsApp || 'N/A',
+                facebook: gJson.member2Facebook || 'Blank',
+                photoUrl: gJson.member2PhotoUrl || 'N/A'
+              },
+              payment: {
+                bkashNumber: gJson.bkashNumber || '',
+                transactionId: gJson.transactionId || ''
+              }
+            };
+          }
+        } catch (_) {}
+      }
+    }
+
+    if (!formData) {
+      formData = {
+        teamName: reg?.teamName || 'Textile Innovators',
+        leader: { name: 'Participant', roll: reg?.leaderRoll || '12345', department: 'Textile Engineering', whatsapp: '01700000000', facebook: 'Blank' },
+        member1: { name: 'N/A', roll: 'N/A', department: 'N/A', whatsapp: 'N/A', facebook: 'Blank' },
+        member2: { name: 'N/A', roll: 'N/A', department: 'N/A', whatsapp: 'N/A', facebook: 'Blank' },
+        payment: { bkashNumber: '01XXXXXXXXX', transactionId: reg?.transactionId || 'TRX123456' }
+      };
+    }
+
+    try {
+      const pdfBase64 = getRegistrationPdfBase64({
+        registrationId: regId,
+        submissionDate,
+        paymentStatus,
+        editCount: reg?.editCount ?? 0,
+        formData
+      });
+
+      const format = String(req.query.format || '').toLowerCase();
+      if (format === 'base64' || format === 'json') {
+        return res.json({
+          success: true,
+          registrationId: regId,
+          paymentStatus,
+          base64: pdfBase64
+        });
+      }
+
+      const pdfBuffer = Buffer.from(pdfBase64, 'base64');
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="Registration_Voucher_${regId}.pdf"`);
+      return res.send(pdfBuffer);
+    } catch (e: any) {
+      return res.status(500).json({ success: false, error: 'Could not generate PDF: ' + e.message });
+    }
+  });
+
+  // Direct Website jsPDF Voucher Generator for Emails & Approvals (Exact match to website PDF)
+  app.post('/api/generate-voucher-pdf', (req: Request, res: Response) => {
+    try {
+      const {
+        registrationId,
+        teamName,
+        submissionDate,
+        paymentStatus,
+        editCount,
+        leaderName,
+        leaderRoll,
+        leaderDept,
+        leaderWhatsApp,
+        leaderFacebook,
+        leaderEmail,
+        leaderPhotoUrl,
+        m1Name,
+        m1Roll,
+        m1Dept,
+        m1Mobile,
+        m1Facebook,
+        m1PhotoUrl,
+        m2Name,
+        m2Roll,
+        m2Dept,
+        m2Mobile,
+        m2Facebook,
+        m2PhotoUrl,
+        bkashNum,
+        transactionId
+      } = req.body;
+
+      const regId = String(registrationId || '').trim();
+      const status = String(paymentStatus || 'Paid').trim();
+      
+      const formData: any = {
+        teamName: teamName || '',
+        leader: {
+          name: leaderName || 'Leader',
+          roll: leaderRoll || '',
+          department: leaderDept || 'Textile Engineering',
+          whatsapp: leaderWhatsApp || '',
+          facebook: leaderFacebook || 'Blank',
+          email: leaderEmail || '',
+          photoUrl: leaderPhotoUrl || ''
+        },
+        member1: {
+          name: m1Name || 'N/A',
+          roll: m1Roll || 'N/A',
+          department: m1Dept || 'N/A',
+          whatsapp: m1Mobile || 'N/A',
+          facebook: m1Facebook || 'Blank',
+          photoUrl: m1PhotoUrl || 'N/A'
+        },
+        member2: {
+          name: m2Name || 'N/A',
+          roll: m2Roll || 'N/A',
+          department: m2Dept || 'N/A',
+          whatsapp: m2Mobile || 'N/A',
+          facebook: m2Facebook || 'Blank',
+          photoUrl: m2PhotoUrl || 'N/A'
+        },
+        payment: {
+          bkashNumber: bkashNum || '',
+          transactionId: transactionId || ''
+        }
+      };
+
+      const pdfBase64 = getRegistrationPdfBase64({
+        registrationId: regId,
+        submissionDate: submissionDate || new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' }),
+        paymentStatus: status,
+        editCount: editCount ?? 0,
+        formData
+      });
+
+      return res.json({
+        success: true,
+        registrationId: regId,
+        paymentStatus: status,
+        base64: pdfBase64
+      });
+    } catch (e: any) {
+      return res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
   let configuredGoogleScriptUrl = sanitizeScriptUrl(process.env.GOOGLE_SCRIPT_URL || process.env.VITE_GOOGLE_SCRIPT_URL || DEFAULT_SCRIPT_URL);
 
   const getActiveScriptUrl = (req?: Request): string => {
@@ -107,6 +292,50 @@ async function startServer() {
       hasGoogleScript: !!configuredGoogleScriptUrl,
       configuredUrl: configuredGoogleScriptUrl
     });
+  });
+
+  // Registration Counter and Live Statistics API (Always Database Team Count + 3)
+  app.get('/api/registrations/count', async (req: Request, res: Response) => {
+    try {
+      let registeredCount = registrationsStore.length;
+      
+      // Query live row count from Google Sheet if script is active
+      const activeScript = getActiveScriptUrl(req);
+      if (activeScript && activeScript.startsWith('http')) {
+        try {
+          const healthRes = await fetch(`${activeScript}${activeScript.includes('?') ? '&' : '?'}action=health`, {
+            signal: AbortSignal.timeout(3500)
+          });
+          const json: any = await healthRes.json();
+          if (json && typeof json.totalRows === 'number') {
+            registeredCount = Math.max(registeredCount, json.totalRows);
+          }
+        } catch (_) {}
+      }
+
+      // Exact registered count from database
+      const totalActualCount = registeredCount;
+      
+      // Offset: always exactly 3 higher than actual registered teams in database (e.g. 2 in DB => shows 5)
+      const offset = 3;
+      const displayedCount = totalActualCount + offset;
+
+      res.json({
+        success: true,
+        actualCount: totalActualCount,
+        displayedCount,
+        badgeText: `🔥 ${displayedCount}+ Teams Registered`
+      });
+    } catch (e: any) {
+      const fallbackActual = registrationsStore.length;
+      const fallbackDisplay = fallbackActual + 3;
+      res.json({
+        success: true,
+        actualCount: fallbackActual,
+        displayedCount: fallbackDisplay,
+        badgeText: `🔥 ${fallbackDisplay}+ Teams Registered`
+      });
+    }
   });
 
   // Google Apps Script URL configuration endpoints
@@ -218,14 +447,36 @@ async function startServer() {
     }
   });
 
+  // Serve full Google Apps Script code for 1-click copy in UI modal
+  app.get('/api/script-code', (_req: Request, res: Response) => {
+    try {
+      const scriptPath = path.join(process.cwd(), 'google-apps-script.js');
+      if (fs.existsSync(scriptPath)) {
+        const code = fs.readFileSync(scriptPath, 'utf8');
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        return res.send(code);
+      }
+      return res.status(404).send('// google-apps-script.js not found');
+    } catch (err: any) {
+      return res.status(500).send('// Error loading script: ' + err.message);
+    }
+  });
+
+  const isDummyOrSampleValue = (val: any): boolean => {
+    const clean = String(val || '').trim().toLowerCase();
+    return !clean || ['demo', 'test', 'sample', 'dummy', 'none', 'n/a', 'blank', 'null', 'undefined', '-', '—', '0', '00'].includes(clean);
+  };
+
   // Pre-check for duplicate roll numbers or transaction ID
   app.post('/api/validate-duplicates', (req: Request, res: Response) => {
     const { rolls, transactionId } = req.body;
     const cleanTrx = String(transactionId || '').trim().toUpperCase();
-    const cleanRolls = Array.isArray(rolls) ? rolls.map((r: string) => String(r).trim()).filter(Boolean) : [];
+    const cleanRolls = Array.isArray(rolls)
+      ? rolls.map((r: string) => String(r).trim()).filter(r => !isDummyOrSampleValue(r))
+      : [];
 
     for (const reg of registrationsStore) {
-      if (cleanTrx && reg.transactionId && reg.transactionId.toUpperCase() === cleanTrx) {
+      if (cleanTrx && !isDummyOrSampleValue(cleanTrx) && reg.transactionId && reg.transactionId.toUpperCase() === cleanTrx) {
         return res.status(409).json({
           duplicate: true,
           field: 'transactionId',
@@ -234,7 +485,10 @@ async function startServer() {
       }
 
       for (const roll of cleanRolls) {
-        if ([reg.leaderRoll, reg.m1Roll, reg.m2Roll].includes(roll)) {
+        const storedRolls = [reg.leaderRoll, reg.m1Roll, reg.m2Roll]
+          .filter(r => !isDummyOrSampleValue(r))
+          .map(r => r.toUpperCase());
+        if (storedRolls.includes(roll.toUpperCase())) {
           return res.status(409).json({
             duplicate: true,
             field: 'roll',
@@ -266,41 +520,44 @@ async function startServer() {
       const member1 = data?.member1;
       const member2 = data?.member2;
       const payment = data?.payment;
+      const teamSize = Number(data?.teamSize) || (member2?.name?.trim() ? 3 : member1?.name?.trim() ? 2 : 1);
 
       // 1. Log: Request received
       console.log('[REGISTRATION] Request received:', {
         leaderName: leader?.name || 'Unknown',
         leaderRoll: leader?.roll || 'Unknown',
-        teamSize: 3,
-        hasPhotos: Boolean(leader?.photoBase64 && member1?.photoBase64 && member2?.photoBase64),
+        teamSize,
+        hasPhotos: Boolean(leader?.photoBase64 && (teamSize < 2 || member1?.photoBase64) && (teamSize < 3 || member2?.photoBase64)),
         transactionId: payment?.transactionId ? `${payment.transactionId.substring(0, 4)}***` : 'None',
         timestamp: new Date().toISOString()
       });
 
       // 2. Validation
       const leaderPhone = String(leader?.whatsapp || leader?.mobile || '').trim();
-      const leaderFb = String(leader?.facebook || '').trim();
       if (!leader?.name || !leader?.roll || !leaderPhone ||
-          !leaderFb || leaderFb.toLowerCase() === 'blank' ||
-          !member1?.name || !member1?.roll ||
-          !member2?.name || !member2?.roll ||
+          (teamSize >= 2 && (!member1?.name || !member1?.roll)) ||
+          (teamSize >= 3 && (!member2?.name || !member2?.roll)) ||
           !payment?.transactionId || !payment?.bkashNumber) {
-        console.warn('[REGISTRATION] Validation result: FAILED (Missing required participant, leader facebook or payment fields)');
+        console.warn('[REGISTRATION] Validation result: FAILED (Missing required participant or payment fields)');
         return res.status(400).json({
           success: false,
           error: 'Unable to submit registration',
-          details: 'Missing required participant fields. Team Leader Facebook profile link is mandatory.'
+          details: 'Missing required participant fields. Please ensure name, roll, mobile, and payment details are filled.'
         });
       }
 
       const leaderRoll = String(leader.roll).trim();
-      const m1Roll = String(member1.roll).trim();
-      const m2Roll = String(member2.roll).trim();
+      const m1Roll = teamSize >= 2 ? String(member1?.roll || '').trim() : '';
+      const m2Roll = teamSize >= 3 ? String(member2?.roll || '').trim() : '';
       const transactionId = String(payment.transactionId).trim().toUpperCase();
+
+      const activeFormRolls = [leaderRoll, m1Roll, m2Roll]
+        .filter(r => !isDummyOrSampleValue(r))
+        .map(r => r.toUpperCase());
 
       // Duplicate check against internal registry
       for (const reg of registrationsStore) {
-        if (reg.transactionId === transactionId) {
+        if (transactionId && !isDummyOrSampleValue(transactionId) && reg.transactionId && reg.transactionId.toUpperCase() === transactionId) {
           console.warn(`[REGISTRATION] Validation result: FAILED (Duplicate transaction ID "${transactionId}")`);
           return res.status(409).json({
             success: false,
@@ -308,35 +565,63 @@ async function startServer() {
             details: 'Duplicate transaction ID detected.'
           });
         }
-        if ([leaderRoll, m1Roll, m2Roll].some(r => [reg.leaderRoll, reg.m1Roll, reg.m2Roll].includes(r))) {
-          console.warn('[REGISTRATION] Validation result: FAILED (Duplicate student roll)');
-          return res.status(409).json({
-            success: false,
-            error: 'One or more student roll numbers are already registered with another team.',
-            details: 'Duplicate roll number detected.'
-          });
+        const storedRolls = [reg.leaderRoll, reg.m1Roll, reg.m2Roll]
+          .filter(r => !isDummyOrSampleValue(r))
+          .map(r => r.toUpperCase());
+        for (const r of activeFormRolls) {
+          if (storedRolls.includes(r)) {
+            console.warn('[REGISTRATION] Validation result: FAILED (Duplicate student roll)');
+            return res.status(409).json({
+              success: false,
+              error: `Student Roll "${r}" is already registered in team ${reg.registrationId}.`,
+              details: 'Duplicate roll number detected.'
+            });
+          }
         }
       }
 
       const teamName = String(data?.teamName || '').trim();
 
-      // Ensure Facebook fields default to "Blank" if empty
+      // Ensure unused members have "N/A" populated across every field
+      if (teamSize < 2) {
+        data.member1 = {
+          name: 'N/A',
+          roll: 'N/A',
+          department: 'N/A',
+          whatsapp: 'N/A',
+          facebook: 'N/A',
+          email: 'N/A',
+          photoUrl: 'N/A'
+        };
+      } else if (data?.member1) {
+        data.member1.facebook = String(data.member1.facebook || '').trim() || 'Blank';
+      }
+
+      if (teamSize < 3) {
+        data.member2 = {
+          name: 'N/A',
+          roll: 'N/A',
+          department: 'N/A',
+          whatsapp: 'N/A',
+          facebook: 'N/A',
+          email: 'N/A',
+          photoUrl: 'N/A'
+        };
+      } else if (data?.member2) {
+        data.member2.facebook = String(data.member2.facebook || '').trim() || 'Blank';
+      }
+
       if (data?.leader) {
         data.leader.facebook = String(data.leader.facebook || '').trim() || 'Blank';
       }
-      if (data?.member1) {
-        data.member1.facebook = String(data.member1.facebook || '').trim() || 'Blank';
-      }
-      if (data?.member2) {
-        data.member2.facebook = String(data.member2.facebook || '').trim() || 'Blank';
-      }
+      data.teamSize = teamSize;
 
       if (!data.websiteUrl) {
         const originHeader = (req.headers['origin'] || req.headers['referer'] || '').toString();
         data.websiteUrl = originHeader ? originHeader.replace(/\/+$/, '') : 'https://ais-pre-6zeawg7kx2bdfewoufqpj5-305877422476.asia-southeast1.run.app';
       }
 
-      console.log(`[REGISTRATION] Validation result: PASSED (Team: "${teamName}", Leader: ${leaderRoll}, Member 1: ${m1Roll}, Member 2: ${m2Roll}, Trx: ${transactionId})`);
+      console.log(`[REGISTRATION] Validation result: PASSED (Category: ${teamSize} member(s), Team: "${teamName}", Leader: ${leaderRoll}, Trx: ${transactionId})`);
 
       // Format last 2 digits of each participant roll for Registration ID: TPC-{last 2 digit of every student roll}-{serial from 01}
       const getLast2Digits = (roll: any): string => {
@@ -344,7 +629,10 @@ async function startServer() {
         if (digits.length >= 2) return digits.slice(-2);
         return (digits || String(roll || '').trim()).padStart(2, '0').slice(-2);
       };
-      const rollsLast2 = `${getLast2Digits(leaderRoll)}${getLast2Digits(m1Roll)}${getLast2Digits(m2Roll)}`;
+
+      let rollsLast2 = getLast2Digits(leaderRoll);
+      if (teamSize >= 2 && m1Roll) rollsLast2 += getLast2Digits(m1Roll);
+      if (teamSize >= 3 && m2Roll) rollsLast2 += getLast2Digits(m2Roll);
 
       // Compute serial counter starting from 01
       let maxRegisteredSeq = 0;
@@ -360,17 +648,17 @@ async function startServer() {
       const defaultRegId = `TPC-${rollsLast2}-${seqStr}`;
 
       // Check if Google Apps Script Web App URL is configured
-      const customScriptUrl = req.headers['x-google-script-url'] as string | undefined;
-      const targetScriptUrl = customScriptUrl || process.env.GOOGLE_SCRIPT_URL || process.env.VITE_GOOGLE_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbxFVWAVQApNuw2g_zvbSEK_QhXIcso8MoDhne75A4L0ryUUeh2G4GEclUkMn8GY21VT2Q/exec';
+      const customScriptUrl = (req.headers['x-google-script-url'] as string | undefined) || data?.scriptUrl;
+      const targetScriptUrl = customScriptUrl || process.env.GOOGLE_SCRIPT_URL || process.env.VITE_GOOGLE_SCRIPT_URL || configuredGoogleScriptUrl || 'https://script.google.com/macros/s/AKfycbxFVWAVQApNuw2g_zvbSEK_QhXIcso8MoDhne75A4L0ryUUeh2G4GEclUkMn8GY21VT2Q/exec';
 
       if (targetScriptUrl && targetScriptUrl.startsWith('http')) {
         try {
-          console.log('[REGISTRATION] Connecting to Google Apps Script for Google Sheets & Google Drive...');
+          console.log(`[REGISTRATION] Connecting to Google Apps Script (${targetScriptUrl.slice(0, 45)}...)...`);
           const scriptResponse = await fetch(targetScriptUrl, {
             method: 'POST',
             headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
+              'Content-Type': 'text/plain;charset=utf-8',
+              'Accept': 'application/json, text/plain, */*'
             },
             body: JSON.stringify(data),
             redirect: 'follow'
@@ -381,7 +669,7 @@ async function startServer() {
           try {
             scriptData = JSON.parse(rawText);
           } catch (e) {
-            console.warn('[REGISTRATION] Google Sheets returned raw response:', rawText.slice(0, 200));
+            console.warn('[REGISTRATION] Google Sheets raw response (first 250 chars):', rawText.slice(0, 250));
           }
 
           if (scriptData.status === 'error' || scriptData.success === false) {
@@ -402,7 +690,7 @@ async function startServer() {
             const regId = scriptData.registrationId || defaultRegId;
             const nowStr = scriptData.submissionDate || new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' });
 
-            console.log(`[REGISTRATION] Google Sheets sync result: SUCCESS, Drive photos uploaded: ${Boolean(scriptData.photos)}`);
+            console.log(`[REGISTRATION] Google Sheets sync result: SUCCESS (ID: ${regId}, Drive photos: ${Boolean(scriptData.photos)})`);
 
             registrationsStore.push({
               registrationId: regId,

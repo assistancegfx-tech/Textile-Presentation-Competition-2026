@@ -37,6 +37,9 @@ export const ReviewConfirmStep: React.FC<ReviewConfirmStepProps> = ({
   submitError,
   progressStage = 'idle'
 }) => {
+  const teamSize: 1 | 2 | 3 = formData.teamSize || 3;
+  const paymentStepIndex = teamSize === 1 ? 1 : teamSize === 2 ? 2 : 3;
+
   const getStageInfo = () => {
     switch (progressStage) {
       case 'validating':
@@ -52,7 +55,7 @@ export const ReviewConfirmStep: React.FC<ReviewConfirmStepProps> = ({
           stepIndex: 1,
           percentage: 55,
           title: 'Uploading Photos to Drive',
-          description: 'Optimizing and securely uploading 3 participant photos to Google Drive storage...',
+          description: `Optimizing and securely uploading ${teamSize} participant photo(s) to Google Drive storage...`,
           buttonLabel: 'Uploading Photos to Drive…'
         };
       case 'saving_sheets':
@@ -60,7 +63,7 @@ export const ReviewConfirmStep: React.FC<ReviewConfirmStepProps> = ({
           stepIndex: 2,
           percentage: 80,
           title: 'Saving to Google Sheets',
-          description: 'Recording team entry and generating official row in Google Sheets database...',
+          description: 'Recording registration entry and generating official row in Google Sheets database...',
           buttonLabel: 'Saving to Google Sheets…'
         };
       case 'finalizing':
@@ -211,8 +214,8 @@ export const ReviewConfirmStep: React.FC<ReviewConfirmStepProps> = ({
             Please review all information carefully. Click "Edit" on any section if changes are needed.
           </p>
         </div>
-        <span className="text-xs font-semibold text-slate-500">
-          Total: 3 Members + Payment Verification
+        <span className="text-xs font-bold px-3 py-1 rounded-full bg-slate-100 text-slate-700">
+          {teamSize === 1 ? '1 Solo Participant' : teamSize === 2 ? '2 Team Members (Duo)' : '3 Team Members (Trio)'}
         </span>
       </div>
 
@@ -238,7 +241,7 @@ export const ReviewConfirmStep: React.FC<ReviewConfirmStepProps> = ({
           </div>
           <div>
             <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-400 block">
-              Team Identity / দলের নাম
+              {teamSize === 1 ? 'Presentation / Project Title' : 'Team Identity / দলের নাম'}
             </span>
             <span className="text-lg sm:text-xl font-black text-white tracking-tight">
               {formData.teamName || 'Unnamed Team'}
@@ -249,18 +252,18 @@ export const ReviewConfirmStep: React.FC<ReviewConfirmStepProps> = ({
         <button
           type="button"
           onClick={() => onEditStep(0)}
-          className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-300 hover:text-white transition py-1.5 px-3 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10"
+          className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-300 hover:text-white transition py-1.5 px-3 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10 cursor-pointer"
         >
           <Edit3 className="w-3.5 h-3.5" />
-          <span>Edit Team Name</span>
+          <span>Edit Title/Name</span>
         </button>
       </div>
 
-      {/* 3 Members Review Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {renderParticipantSummary(formData.leader, 'Group Leader', 'Team Leader', 0)}
-        {renderParticipantSummary(formData.member1, 'Member 1', 'Team Member', 1)}
-        {renderParticipantSummary(formData.member2, 'Member 2', 'Team Member', 2)}
+      {/* Participants Review Grid (1, 2, or 3 cards based on teamSize) */}
+      <div className={`grid grid-cols-1 ${teamSize === 1 ? 'md:grid-cols-1 max-w-xl mx-auto' : teamSize === 2 ? 'md:grid-cols-2' : 'md:grid-cols-3'} gap-4`}>
+        {renderParticipantSummary(formData.leader, teamSize === 1 ? 'Solo Presenter' : 'Group Leader', teamSize === 1 ? 'Solo Participant' : 'Team Leader', 0)}
+        {teamSize >= 2 && renderParticipantSummary(formData.member1, 'Member 1', 'Team Member', 1)}
+        {teamSize >= 3 && renderParticipantSummary(formData.member2, 'Member 2', 'Team Member', 2)}
       </div>
 
       {/* Payment Information Review Card - bKash Pink Aesthetic */}
@@ -282,8 +285,8 @@ export const ReviewConfirmStep: React.FC<ReviewConfirmStepProps> = ({
           </div>
           <button
             type="button"
-            onClick={() => onEditStep(3)}
-            className="inline-flex items-center gap-1 text-xs font-bold text-[#E2136E] hover:text-[#C2105E] transition py-1 px-2.5 rounded-lg bg-white border border-pink-200 hover:bg-pink-50 shadow-2xs"
+            onClick={() => onEditStep(paymentStepIndex)}
+            className="inline-flex items-center gap-1 text-xs font-bold text-[#E2136E] hover:text-[#C2105E] transition py-1 px-2.5 rounded-lg bg-white border border-pink-200 hover:bg-pink-50 shadow-2xs cursor-pointer"
           >
             <Edit3 className="w-3.5 h-3.5" />
             <span>Edit Payment</span>

@@ -16,6 +16,7 @@ import { ViewEditRegistrationModal } from './components/ViewEditRegistrationModa
 import { GoogleSheetSettingsModal } from './components/GoogleSheetSettingsModal';
 import { SuccessView } from './components/SuccessView';
 import { TextileGridBackground } from './components/TextileMotifs';
+import { RegistrationTicker } from './components/RegistrationTicker';
 import { PageId } from './types';
 import { FileText, ArrowLeft } from 'lucide-react';
 
@@ -26,6 +27,19 @@ function parseHashToPage(): PageId {
   if (path === 'registration' || path === 'register') return 'registration';
   if (path === 'guidelines' || path === 'rules') return 'guidelines';
   if (path === 'contact' || path === 'support') return 'contact';
+
+  // If path is a voucher or registration lookup link, stay on home and trigger modal
+  if (
+    path === 'download-voucher' ||
+    path === 'download-entry-voucher' ||
+    path === 'download-your-entry-voucher' ||
+    path === 'entry-voucher' ||
+    path === 'voucher' ||
+    path === 'view-registration' ||
+    path === 'view-your-registration'
+  ) {
+    return 'home';
+  }
 
   const hash = window.location.hash.toLowerCase().replace(/^#\/?/, '');
   if (hash === 'registration-success' || hash === 'success') return 'registration-success';
@@ -121,12 +135,20 @@ export default function App() {
 
         const isViewAction = 
           action === 'view-registration' || 
+          action === 'view-your-registration' ||
           action === 'download-voucher' || 
+          action === 'download-entry-voucher' || 
+          action === 'download-your-entry-voucher' || 
+          action === 'entry-voucher' ||
           action === 'voucher' || 
           action === 'download' || 
           action === 'view' ||
           rawPath === 'view-registration' ||
+          rawPath === 'view-your-registration' ||
           rawPath === 'download-voucher' ||
+          rawPath === 'download-entry-voucher' ||
+          rawPath === 'download-your-entry-voucher' ||
+          rawPath === 'entry-voucher' ||
           rawPath === 'voucher';
 
         if (isViewAction || paramRegId || paramRoll) {
@@ -201,6 +223,11 @@ export default function App() {
         onOpenGoogleSheetModal={handleOpenGoogleSheet}
       />
 
+      {/* Infinite Scrolling Registration Counter Marquee Ticker (Displayed exclusively on Home Page) */}
+      {currentPage === 'home' && (
+        <RegistrationTicker onNavigate={navigateToPage} />
+      )}
+
       {/* Distinct Dedicated Page View with Subtle Fade-in Transition */}
       <main className="flex-1">
         <AnimatePresence mode="wait">
@@ -229,6 +256,9 @@ export default function App() {
                 onOpenGoogleSheetModal={handleOpenGoogleSheet}
                 onRegistrationSuccess={(result, formData) => {
                   setLatestRegistration({ result, formData });
+                  try {
+                    window.dispatchEvent(new CustomEvent('tpc_registration_success'));
+                  } catch (_) {}
                   navigateToPage('registration-success');
                 }}
               />

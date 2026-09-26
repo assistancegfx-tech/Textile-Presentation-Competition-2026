@@ -257,13 +257,17 @@ export function buildRegistrationPdfDoc(data: RegistrationPdfData): jsPDF {
   };
 
   // Section Header: Team Members
+  const hasM2 = data.formData?.member2?.name && data.formData.member2.name !== 'N/A';
+  const hasM1 = data.formData?.member1?.name && data.formData.member1.name !== 'N/A';
+  const pCount = hasM2 ? 3 : hasM1 ? 2 : 1;
+
   doc.setTextColor(10, 25, 47);
   doc.setFontSize(10.5);
   doc.setFont('helvetica', 'bold');
-  doc.text('TEAM PARTICIPANTS (3 MEMBERS)', margin, y - 2);
+  doc.text(`TEAM PARTICIPANTS (${pCount} ${pCount === 1 ? 'MEMBER - SOLO' : pCount === 2 ? 'MEMBERS - DUO' : 'MEMBERS - TRIO'})`, margin, y - 2);
 
-  // Participant 1: Group Leader
-  drawParticipantCard('1. Group Leader', 'Primary Contact', data.formData.leader, y);
+  // Participant 1: Group Leader / Solo
+  drawParticipantCard(pCount === 1 ? '1. Solo Presenter' : '1. Group Leader', pCount === 1 ? 'Primary Contact' : 'Team Leader', data.formData.leader, y);
   y += 38;
 
   // Participant 2: Member 1
