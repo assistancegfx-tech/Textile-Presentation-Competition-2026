@@ -2,7 +2,7 @@ import express, { Request, Response } from 'express';
 import path from 'path';
 import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
-import { buildRegistrationPdfDoc, getRegistrationPdfBase64 } from './src/utils/pdfGenerator';
+import { buildRegistrationPdfDoc, getRegistrationPdfBase64, buildBlitzPdfDoc, getBlitzPdfBase64 } from './src/utils/pdfGenerator';
 
 interface StoredRegistration {
   registrationId: string;
@@ -246,6 +246,11 @@ async function startServer() {
 
       const regId = String(registrationId || '').trim();
       const status = String(paymentStatus || 'Paid').trim();
+
+      // If Blitz Registration, generate specific Blitz Entry Pass PDF
+      if (regId.toUpperCase().startsWith('TBW-') || req.body.registrationType === 'blitz') {
+        return handleGenerateBlitzPdf(req, res);
+      }
       
       const formData: any = {
         teamName: teamName || '',
@@ -299,8 +304,99 @@ async function startServer() {
     }
   };
 
+  const handleGenerateBlitzPdf = (req: Request, res: Response) => {
+    try {
+      const {
+        registrationId,
+        regId,
+        submissionDate,
+        paymentStatus,
+        status,
+        editCount,
+        fullName,
+        batch,
+        department,
+        studentId,
+        whatsapp,
+        email,
+        senderBkash,
+        transactionId
+      } = req.body;
+
+      const targetId = String(registrationId || regId || '').trim();
+      const currentStatus = String(paymentStatus || status || 'Paid').trim();
+      const stored = blitzRegistrationsStore.find(b => b.registrationId.toUpperCase() === targetId.toUpperCase());
+
+      const data = {
+        registrationId: targetId || (stored?.registrationId || 'TBW-00-01'),
+        submissionDate: submissionDate || stored?.submissionDate || new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' }),
+        paymentStatus: currentStatus,
+        editCount: editCount ?? (stored?.editCount ?? 0),
+        fullName: String(fullName || stored?.fullName || 'Participant').trim(),
+        batch: String(batch || stored?.batch || '14').trim(),
+        department: String(department || stored?.department || 'YE').trim(),
+        studentId: String(studentId || stored?.studentId || '').trim(),
+        whatsapp: String(whatsapp || stored?.whatsapp || '').trim(),
+        email: String(email || stored?.email || '').trim(),
+        senderBkash: String(senderBkash || stored?.senderBkash || '').trim(),
+        transactionId: String(transactionId || stored?.transactionId || '').trim()
+      };
+
+      const pdfBase64 = getBlitzPdfBase64(data);
+
+      return res.json({
+        success: true,
+        registrationId: data.registrationId,
+        paymentStatus: data.paymentStatus,
+        base64: pdfBase64
+      });
+    } catch (e: any) {
+      return res.status(500).json({ success: false, error: e.message });
+    }
+  };
+
   app.post('/api/generate-entry-pass-pdf', handleGenerateEntryPassPdf);
   app.post('/api/generate-voucher-pdf', handleGenerateEntryPassPdf);
+  app.post('/api/generate-blitz-voucher-pdf', handleGenerateBlitzPdf);
+  app.post('/api/generate-blitz-entry-pass-pdf', handleGenerateBlitzPdf);
+
+  app.get('/api/blitz-pdf/:regId', (req: Request, res: Response) => {
+    try {
+      const targetId = String(req.params.regId || '').trim().toUpperCase();
+      const stored = blitzRegistrationsStore.find(b => b.registrationId.toUpperCase() === targetId);
+      const currentStatus = String(req.query.status || stored?.paymentStatus || 'Paid').trim();
+      const format = String(req.query.format || '').toLowerCase();
+
+      const data = {
+        registrationId: targetId || (stored?.registrationId || 'TBW-00-01'),
+        submissionDate: stored?.submissionDate || new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' }),
+        paymentStatus: currentStatus,
+        editCount: stored?.editCount ?? 0,
+        fullName: stored?.fullName || 'Participant',
+        batch: stored?.batch || '14',
+        department: stored?.department || 'YE',
+        studentId: stored?.studentId || '',
+        whatsapp: stored?.whatsapp || '',
+        email: stored?.email || '',
+        senderBkash: stored?.senderBkash || '',
+        transactionId: stored?.transactionId || ''
+      };
+
+      const base64 = getBlitzPdfBase64(data);
+
+      if (format === 'base64') {
+        return res.json({ success: true, base64, registrationId: targetId });
+      }
+
+      const doc = buildBlitzPdfDoc(data);
+      const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="Textile_Blitz_Writing_${targetId}_Entry_Pass.pdf"`);
+      return res.send(pdfBuffer);
+    } catch (e: any) {
+      return res.status(500).json({ success: false, error: e.message });
+    }
+  });
 
   let configuredGoogleScriptUrl = sanitizeScriptUrl(process.env.GOOGLE_SCRIPT_URL || process.env.VITE_GOOGLE_SCRIPT_URL || DEFAULT_SCRIPT_URL);
 
@@ -1477,6 +1573,11 @@ async function startServer() {
     const reg = registrationsStore.find(r => r.registrationId.trim().toUpperCase() === cleanId);
     if (reg) {
       reg.paymentStatus = newStatus as any;
+    }
+
+    const blitzReg = blitzRegistrationsStore.find(b => b.registrationId.trim().toUpperCase() === cleanId);
+    if (blitzReg) {
+      blitzReg.paymentStatus = newStatus as any;
     }
 
     // Also forward update to Google Apps Script if configured

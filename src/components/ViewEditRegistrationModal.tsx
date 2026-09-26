@@ -788,7 +788,9 @@ export const ViewEditRegistrationModal: React.FC<ViewEditRegistrationModalProps>
 
           {activeSegment === 'blitz' ? (
             <ViewEditBlitzSection
-              initialSearchQuery={initialRegId.toUpperCase().startsWith('TBW') ? initialRegId : ''}
+              initialSearchQuery={initialRegId.toUpperCase().startsWith('TBW') ? initialRegId : (activeSegment === 'blitz' ? initialRegId : '')}
+              initialStudentId={initialRoll}
+              autoVerify={autoSearch}
               onCloseModal={onClose}
             />
           ) : (

@@ -129,7 +129,8 @@ const BLITZ_HEADERS = [
   "WhatsApp Number",          // Col 8 (H)
   "Email Address",            // Col 9 (I)
   "Sender bKash Number",      // Col 10 (J)
-  "Transaction ID (TrxID)"    // Col 11 (K)
+  "Transaction ID (TrxID)",   // Col 11 (K)
+  "Email Sent"                // Col 12 (L)
 ];
 
 const BLITZ_COLUMN_WIDTHS = [
@@ -143,7 +144,8 @@ const BLITZ_COLUMN_WIDTHS = [
   150, // 8. WhatsApp Number
   220, // 9. Email Address
   150, // 10. Sender bKash Number
-  160  // 11. Transaction ID (TrxID)
+  160, // 11. Transaction ID (TrxID)
+  150  // 12. Email Sent
 ];
 
 /**
@@ -721,12 +723,14 @@ function onEdit(e) {
 
 /**
  * Handles Blitz payment approval email when admin marks Col C / 3 as Paid or Approved
+ * Sends the second email with the specifically generated Blitz Entry Pass PDF
  */
 function handleBlitzPaymentApprovalNotification(sheet, rowNum, newStatus) {
   try {
-    const rowValues = sheet.getRange(rowNum, 1, 1, Math.max(sheet.getLastColumn(), 12)).getValues()[0];
+    const rowValues = sheet.getRange(rowNum, 1, 1, Math.max(sheet.getLastColumn(), 13)).getValues()[0];
     const regId = String(rowValues[0] || "").trim();
     const submissionDate = String(rowValues[1] || "").trim();
+    const currentStatus = String(newStatus || rowValues[2] || "Paid").trim();
     const fullName = String(rowValues[3] || "").trim();
     const batch = String(rowValues[4] || "").trim();
     const department = String(rowValues[5] || "").trim();
@@ -736,21 +740,46 @@ function handleBlitzPaymentApprovalNotification(sheet, rowNum, newStatus) {
     const senderBkash = String(rowValues[9] || "").trim();
     const transactionId = String(rowValues[10] || "").trim();
 
-    if (email && email.includes("@")) {
-      sendBlitzConfirmationEmail({
-        registrationId: regId,
-        fullName: fullName,
-        batch: batch,
-        department: department,
-        studentId: studentId,
-        whatsapp: whatsapp,
-        email: email,
-        senderBkash: senderBkash,
-        transactionId: transactionId,
-        submissionDate: submissionDate,
-        isApproved: true
-      });
-      Logger.log("Blitz Payment Approval email dispatched to: " + email);
+    // Check Col 12 (L) for Email Sent tracking to prevent sending multiple times
+    const emailSentCol = 12;
+    const emailSentVal = String(rowValues[11] || "").trim().toUpperCase();
+
+    if (emailSentVal === "YES" || emailSentVal.indexOf("SENT") !== -1) {
+      Logger.log("[BLITZ APPROVAL NOTICE] Approval email already dispatched previously for " + regId);
+      return;
+    }
+
+    if (!email || email.indexOf("@") === -1) {
+      Logger.log("[BLITZ APPROVAL WARNING] No valid email found for " + regId + " (Row " + rowNum + ")");
+      return;
+    }
+
+    Logger.log("[BLITZ APPROVAL EMAIL TRIGGERED] Sending verified approval email with updated Blitz PDF to: " + email + " for " + regId);
+
+    const emailSent = sendBlitzPaymentApprovedEmail({
+      registrationId: regId,
+      fullName: fullName,
+      batch: batch,
+      department: department,
+      studentId: studentId,
+      whatsapp: whatsapp,
+      email: email,
+      senderBkash: senderBkash,
+      transactionId: transactionId,
+      submissionDate: submissionDate,
+      paymentStatus: currentStatus,
+      isApproved: true
+    });
+
+    if (emailSent) {
+      // Ensure header for Column 12 exists
+      const headerVal = sheet.getRange(1, emailSentCol).getValue();
+      if (!headerVal) {
+        sheet.getRange(1, emailSentCol).setValue("Email Sent");
+        sheet.getRange(1, emailSentCol).setBackground("#0066CC").setFontColor("#FFFFFF").setFontWeight("bold");
+      }
+      sheet.getRange(rowNum, emailSentCol).setValue("YES (" + Utilities.formatDate(new Date(), "Asia/Dhaka", "dd MMM HH:mm") + ")");
+      Logger.log("[BLITZ APPROVAL SUCCESS] Approval confirmation & updated Blitz Entry Pass email sent to " + email);
     }
   } catch (err) {
     Logger.log("handleBlitzPaymentApprovalNotification error: " + err.toString());
@@ -1005,6 +1034,131 @@ function buildEntryPassPdf(details) {
 const buildEntryVoucherPdf = buildEntryPassPdf;
 
 /**
+ * 📄 BLITZ ENTRY PASS PDF RETRIEVER & GENERATOR
+ * Strictly retrieves and attaches the Payment Approved PDF generated specifically for Textile Blitz Writing.
+ * Uses exact participant info from Textile Blitz Writing registration.
+ */
+function buildBlitzEntryPassPdf(details) {
+  const regId = String(details.registrationId || "").trim();
+  const pdfFilename = "Textile_Blitz_Writing_" + regId + "_Entry_Pass.pdf";
+  const paymentStatus = String(details.paymentStatus || "Paid").trim();
+  const isApproved = /^(paid|verified|approved|success|completed)/i.test(paymentStatus);
+  const targetStatus = isApproved ? "Paid" : "Pending";
+
+  const candidateUrls = [
+    getWebsiteBaseUrl(details.websiteUrl),
+    "https://ais-pre-6zeawg7kx2bdfewoufqpj5-305877422476.asia-southeast1.run.app",
+    "https://ais-dev-6zeawg7kx2bdfewoufqpj5-305877422476.asia-southeast1.run.app"
+  ].filter(Boolean);
+
+  const postPayload = JSON.stringify({
+    registrationId: regId,
+    submissionDate: details.submissionDate || "",
+    paymentStatus: targetStatus,
+    status: targetStatus,
+    fullName: details.fullName || "",
+    batch: details.batch || "",
+    department: details.department || "",
+    studentId: details.studentId || "",
+    whatsapp: details.whatsapp || "",
+    email: details.email || "",
+    senderBkash: details.senderBkash || "",
+    transactionId: details.transactionId || ""
+  });
+
+  // 1. Fetch exact website jsPDF Payment Approved Blitz PDF via POST endpoint
+  for (let i = 0; i < candidateUrls.length; i++) {
+    const baseUrl = candidateUrls[i];
+    try {
+      if (baseUrl && baseUrl.startsWith("http")) {
+        const resp = UrlFetchApp.fetch(baseUrl + "/api/generate-blitz-voucher-pdf", {
+          method: "post",
+          contentType: "application/json",
+          payload: postPayload,
+          muteHttpExceptions: true,
+          followRedirects: true
+        });
+
+        if (resp.getResponseCode() === 200) {
+          const text = resp.getContentText();
+          let parsed = null;
+          try { parsed = JSON.parse(text); } catch (_) {}
+          if (parsed && parsed.base64 && parsed.base64.length > 100) {
+            const decoded = Utilities.base64Decode(parsed.base64.replace(/\s+/g, ""));
+            if (decoded && decoded.length > 0) {
+              const pdfBlob = Utilities.newBlob(decoded, "application/pdf", pdfFilename);
+              try {
+                const folder = getOrCreateDriveFolder(DRIVE_FOLDER_NAME);
+                if (folder) {
+                  const existing = folder.getFilesByName(pdfFilename);
+                  while (existing.hasNext()) existing.next().setTrashed(true);
+                  folder.createFile(pdfBlob);
+                }
+              } catch (_) {}
+              Logger.log("[WEBSITE BLITZ jsPDF SUCCESS] Attached fresh Blitz " + targetStatus + " entry pass for " + regId);
+              return pdfBlob;
+            }
+          }
+        }
+      }
+    } catch (postErr) {
+      Logger.log("[WEBSITE BLITZ PDF POST NOTICE] " + baseUrl + " : " + postErr.toString());
+    }
+  }
+
+  // 2. Fetch the latest exact website-generated PDF via GET endpoint
+  for (let i = 0; i < candidateUrls.length; i++) {
+    const baseUrl = candidateUrls[i];
+    try {
+      if (baseUrl && baseUrl.startsWith("http")) {
+        const pdfEndpoint = baseUrl + "/api/blitz-pdf/" + encodeURIComponent(regId) + "?status=" + encodeURIComponent(targetStatus) + "&format=base64";
+        const resp = UrlFetchApp.fetch(pdfEndpoint, { muteHttpExceptions: true, followRedirects: true });
+        if (resp.getResponseCode() === 200) {
+          const text = resp.getContentText();
+          let parsed = null;
+          try { parsed = JSON.parse(text); } catch (_) {}
+          if (parsed && parsed.base64 && parsed.base64.length > 100) {
+            const decoded = Utilities.base64Decode(parsed.base64.replace(/\s+/g, ""));
+            if (decoded && decoded.length > 0) {
+              const pdfBlob = Utilities.newBlob(decoded, "application/pdf", pdfFilename);
+              try {
+                const folder = getOrCreateDriveFolder(DRIVE_FOLDER_NAME);
+                if (folder) {
+                  const existing = folder.getFilesByName(pdfFilename);
+                  while (existing.hasNext()) existing.next().setTrashed(true);
+                  folder.createFile(pdfBlob);
+                }
+              } catch (_) {}
+              Logger.log("[WEBSITE BLITZ GET PDF SUCCESS] Attached fresh Blitz " + targetStatus + " entry pass for " + regId);
+              return pdfBlob;
+            }
+          }
+        }
+      }
+    } catch (fetchErr) {
+      Logger.log("[WEBSITE BLITZ PDF FETCH NOTICE] " + baseUrl + " : " + fetchErr.toString());
+    }
+  }
+
+  // 3. Fallback: check if client passed pre-generated website PDF Base64
+  if (details.pdfBase64 && typeof details.pdfBase64 === "string" && details.pdfBase64.trim().length > 100) {
+    try {
+      let rawBase64 = String(details.pdfBase64).trim();
+      if (rawBase64.indexOf(",") !== -1) rawBase64 = rawBase64.split(",")[1];
+      rawBase64 = rawBase64.replace(/\s+/g, "");
+      const decodedBytes = Utilities.base64Decode(rawBase64);
+      if (decodedBytes && decodedBytes.length > 0) {
+        return Utilities.newBlob(decodedBytes, "application/pdf", pdfFilename);
+      }
+    } catch (e) {
+      Logger.log("[BLITZ PDF BASE64 NOTICE] " + e.toString());
+    }
+  }
+
+  return null;
+}
+
+/**
  * Specialized email generator for Payment Approved with verified PDF Voucher attachment
  */
 function sendPaymentApprovedEmail(details) {
@@ -1135,6 +1289,147 @@ function sendPaymentApprovedEmail(details) {
       return true;
     } catch (err2) {
       Logger.log("[EMAIL ERROR] Could not send approval email: " + err2.toString());
+      return false;
+    }
+  }
+}
+
+/**
+ * 📩 SECOND EMAIL: Textile Blitz Writing Payment Approval & Entry Pass Delivery
+ * Dispatched automatically when Textile Blitz Writing payment is approved.
+ * Consistent with Career Club BTEC branding/style as Textile Presentation registration emails.
+ * Sender / Title: "Textile Blitz Writing — Career Club BTEC"
+ */
+function sendBlitzPaymentApprovedEmail(details) {
+  if (!details || !details.email || details.email.indexOf("@") === -1) return false;
+
+  const regId = String(details.registrationId || "").trim();
+  const fullName = String(details.fullName || "Participant").trim();
+  const studentId = String(details.studentId || "").trim();
+  const batch = String(details.batch || "").trim();
+  const department = String(details.department || "").trim();
+  const whatsapp = String(details.whatsapp || "").trim();
+
+  const baseUrl = getWebsiteBaseUrl(details.websiteUrl);
+  const viewParams = [
+    "action=view-registration",
+    "segment=blitz",
+    "regId=" + encodeURIComponent(regId),
+    "studentId=" + encodeURIComponent(studentId)
+  ].join("&");
+  const viewRegistrationUrl = baseUrl + "/?" + viewParams;
+
+  const subject = "Payment Approved & Registration Confirmed – Textile Blitz Writing | " + regId;
+
+  const plainBody = 
+    "Dear " + fullName + ",\n\n" +
+    "We are pleased to inform you that your payment has been successfully verified and your registration for Textile Blitz Writing 2026 has been officially approved.\n\n" +
+    "Registration Details:\n" +
+    "• Registration ID  : " + regId + "\n" +
+    "• Student ID       : " + studentId + "\n" +
+    "• Batch & Dept     : " + (batch ? batch + "th Batch • " : "") + (department || "N/A") + "\n" +
+    "• WhatsApp No      : " + whatsapp + "\n\n" +
+    "Download Entry Pass:\n" + viewRegistrationUrl + "\n\n" +
+    "Event Date & Venue:\n" +
+    "10 October 2026 at BTEC Campus\n\n" +
+    "Sincerely,\n" +
+    "Career Club BTEC\n" +
+    "Barishal Textile Engineering College (BTEC)";
+
+  const htmlBody = 
+    '<!DOCTYPE html>' +
+    '<html>' +
+    '<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>' +
+    '<body style="margin: 0; padding: 24px 12px; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Helvetica, Arial, sans-serif;">' +
+      '<table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 580px; margin: 0 auto; background-color: #ffffff; border-radius: 14px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);">' +
+        
+        // Brand Header (Dodger Blue #1E90FF bottom border)
+        '<tr>' +
+          '<td style="background-color: #0A192F; padding: 24px 20px; text-align: center; border-bottom: 3px solid #1E90FF;">' +
+            '<h1 style="color: #ffffff; margin: 0; font-size: 19px; font-weight: 800; letter-spacing: -0.3px;">' +
+              'Textile Blitz Writing 2026' +
+            '</h1>' +
+            '<p style="color: #38BDF8; margin: 4px 0 0 0; font-size: 12px; font-weight: 700;">' +
+              'Career Club BTEC • Barishal Textile Engineering College' +
+            '</p>' +
+          '</td>' +
+        '</tr>' +
+
+        // Main Body Content
+        '<tr>' +
+          '<td style="padding: 24px 22px;">' +
+            '<p style="font-size: 15px; margin: 0 0 8px 0; color: #0f172a;">' +
+              'Dear <strong>' + escapeHtml(fullName) + '</strong>,' +
+            '</p>' +
+            '<p style="font-size: 13.5px; margin: 0 0 18px 0; color: #334155; line-height: 1.5;">' +
+              'Your payment has been successfully verified and your registration for Textile Blitz Writing is now <strong>officially approved and confirmed</strong>.' +
+            '</p>' +
+
+            // Registration Details Box (Strictly clean and minimal)
+            '<div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 14px 18px; margin-bottom: 20px;">' +
+              '<table style="width: 100%; border-collapse: collapse; font-size: 13.5px;">' +
+                '<tr><td style="padding: 5px 0; color: #64748b; font-weight: 600; width: 140px;">Registration ID:</td><td style="padding: 5px 0; color: #1E90FF; font-weight: 800; font-family: monospace; font-size: 14.5px;">' + escapeHtml(regId) + '</td></tr>' +
+                '<tr><td style="padding: 5px 0; color: #64748b; font-weight: 600;">Student ID:</td><td style="padding: 5px 0; color: #0A192F; font-weight: 700; font-family: monospace;">' + escapeHtml(studentId || "N/A") + '</td></tr>' +
+                '<tr><td style="padding: 5px 0; color: #64748b; font-weight: 600;">Batch &amp; Dept:</td><td style="padding: 5px 0; color: #0A192F; font-weight: 700;">' + escapeHtml(batch ? batch + "th Batch • " + department : department || "N/A") + '</td></tr>' +
+                '<tr><td style="padding: 5px 0; color: #64748b; font-weight: 600;">WhatsApp No:</td><td style="padding: 5px 0; color: #0A192F; font-weight: 700;">' + escapeHtml(whatsapp || "N/A") + '</td></tr>' +
+              '</table>' +
+            '</div>' +
+
+            // Action Button: Download Entry Pass (Dodger Blue #1E90FF)
+            '<div style="margin-bottom: 20px; text-align: center;">' +
+              '<a href="' + escapeHtml(viewRegistrationUrl) + '" target="_blank" style="display: block; background-color: #1E90FF; color: #ffffff; text-decoration: none; font-weight: 800; font-size: 14.5px; padding: 13px 18px; border-radius: 10px; border: 2px solid #1c86ee; box-shadow: 0 3px 6px rgba(30, 144, 255, 0.25); text-align: center;">' +
+                '📥 Download Entry Pass' +
+              '</a>' +
+            '</div>' +
+
+            '<div style="background-color: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 10px 14px; margin-bottom: 18px; font-size: 12px; color: #0369a1; line-height: 1.4;">' +
+              '📍 <strong>Event Date &amp; Venue:</strong> 10 October 2026 at BTEC Campus.' +
+            '</div>' +
+
+            // Signature
+            '<div style="border-top: 1px solid #e2e8f0; padding-top: 14px; font-size: 12.5px; color: #475569; line-height: 1.4;">' +
+              '<p style="margin: 0; font-weight: 700; color: #0A192F;">Career Club BTEC</p>' +
+              '<p style="margin: 2px 0 0 0; color: #64748b;">Barishal Textile Engineering College (BTEC)</p>' +
+              '<p style="margin: 4px 0 0 0; font-size: 11.5px; color: #94a3b8;">Helpline: +880 1305-912237 | Email: careerclubbtec@gmail.com</p>' +
+            '</div>' +
+          '</td>' +
+        '</tr>' +
+      '</table>' +
+    '</body>' +
+    '</html>';
+
+  const mailOptions = {
+    to: details.email,
+    subject: subject,
+    body: plainBody,
+    htmlBody: htmlBody,
+    name: "Textile Blitz Writing — Career Club BTEC"
+  };
+
+  // Generate and attach specifically generated Textile Blitz Writing Entry Pass PDF
+  const pdfBlob = buildBlitzEntryPassPdf(details);
+  if (pdfBlob) {
+    mailOptions.attachments = [pdfBlob];
+  }
+
+  try {
+    MailApp.sendEmail(mailOptions);
+    Logger.log("[BLITZ EMAIL SUCCESS] Approved email sent to: " + details.email);
+    return true;
+  } catch (err1) {
+    try {
+      const gmailAdvanced = {
+        htmlBody: htmlBody,
+        name: "Textile Blitz Writing — Career Club BTEC"
+      };
+      if (pdfBlob) {
+        gmailAdvanced.attachments = [pdfBlob];
+      }
+      GmailApp.sendEmail(details.email, subject, plainBody, gmailAdvanced);
+      Logger.log("[BLITZ EMAIL SUCCESS] Approved email sent via GmailApp to: " + details.email);
+      return true;
+    } catch (err2) {
+      Logger.log("[BLITZ EMAIL ERROR] Could not send Blitz approval email: " + err2.toString());
       return false;
     }
   }
@@ -1581,6 +1876,33 @@ function doPost(e) {
         });
       }
 
+      // Check if target is Blitz Writing
+      if (targetId.startsWith("TBW-")) {
+        const blitzSheet = ss.getSheetByName(BLITZ_SHEET_NAME);
+        if (blitzSheet) {
+          const rows = blitzSheet.getDataRange().getValues();
+          let foundIndex = -1;
+          for (let i = 1; i < rows.length; i++) {
+            if (String(rows[i][0] || "").trim().toUpperCase() === targetId) {
+              foundIndex = i + 1;
+              break;
+            }
+          }
+          if (foundIndex > 0) {
+            blitzSheet.getRange(foundIndex, 3).setValue(newStatus);
+            if (newStatus.toLowerCase() === "paid" || newStatus.toLowerCase() === "approved") {
+              handleBlitzPaymentApprovalNotification(blitzSheet, foundIndex, newStatus);
+            }
+            return createResponse({
+              success: true,
+              message: "Payment status updated to " + newStatus + " for " + targetId,
+              registrationId: targetId,
+              paymentStatus: newStatus
+            });
+          }
+        }
+      }
+
       const rows = sheet.getDataRange().getValues();
       let foundIndex = -1;
       for (let i = 1; i < rows.length; i++) {
@@ -1592,6 +1914,9 @@ function doPost(e) {
 
       if (foundIndex > 0) {
         sheet.getRange(foundIndex, 3).setValue(newStatus); // Column 3: Payment Status
+        if (newStatus.toLowerCase() === "paid" || newStatus.toLowerCase() === "approved") {
+          handlePaymentApprovalNotification(sheet, foundIndex, newStatus);
+        }
         return createResponse({
           success: true,
           message: "Payment status updated to " + newStatus + " for " + targetId,

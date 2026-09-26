@@ -152,7 +152,7 @@ export default function App() {
 
         const action = (searchParams.get('action') || hashParams?.get('action') || '').toLowerCase();
         const paramRegId = searchParams.get('regId') || searchParams.get('reg') || hashParams?.get('regId') || hashParams?.get('reg');
-        const paramRoll = searchParams.get('roll') || searchParams.get('leaderRoll') || hashParams?.get('roll');
+        const paramRoll = searchParams.get('roll') || searchParams.get('leaderRoll') || searchParams.get('studentId') || searchParams.get('student') || hashParams?.get('roll') || hashParams?.get('studentId') || hashParams?.get('student');
         const paramMobile = searchParams.get('mobile') || searchParams.get('phone') || searchParams.get('leaderMobile') || hashParams?.get('mobile');
 
         const isViewAction = 

@@ -29,16 +29,20 @@ import { validateBangladeshPhone, validateEmail } from '../utils/formUtils';
 
 interface ViewEditBlitzSectionProps {
   initialSearchQuery?: string;
+  initialStudentId?: string;
+  autoVerify?: boolean;
   onCloseModal?: () => void;
 }
 
 export const ViewEditBlitzSection: React.FC<ViewEditBlitzSectionProps> = ({
   initialSearchQuery = '',
+  initialStudentId = '',
+  autoVerify = false,
   onCloseModal
 }) => {
   // Verification states: strictly 2 boxes (Registration No & Student ID)
   const [searchRegNo, setSearchRegNo] = useState(initialSearchQuery);
-  const [searchStudentId, setSearchStudentId] = useState('');
+  const [searchStudentId, setSearchStudentId] = useState(initialStudentId);
   const [isLoading, setIsLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [record, setRecord] = useState<RegisteredBlitzRecord | null>(null);
@@ -70,12 +74,18 @@ export const ViewEditBlitzSection: React.FC<ViewEditBlitzSectionProps> = ({
     } catch (_) {}
   }, []);
 
-  // If initial query provided, set it in searchRegNo
+  // Sync initial query & student id, auto-verify if both are present
   useEffect(() => {
     if (initialSearchQuery && initialSearchQuery.trim()) {
       setSearchRegNo(initialSearchQuery.trim());
     }
-  }, [initialSearchQuery]);
+    if (initialStudentId && initialStudentId.trim()) {
+      setSearchStudentId(initialStudentId.trim());
+    }
+    if (autoVerify && initialSearchQuery && initialStudentId) {
+      handleVerify(initialSearchQuery.trim(), initialStudentId.trim());
+    }
+  }, [initialSearchQuery, initialStudentId, autoVerify]);
 
   const handleCopyId = (id: string) => {
     navigator.clipboard.writeText(id);
