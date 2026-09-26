@@ -119,15 +119,52 @@ export const ViewEditBlitzSection: React.FC<ViewEditBlitzSectionProps> = ({
     try {
       let verifiedData: any = null;
 
-      // 1. DIRECT LIVE QUERY to Google Apps Script tab "Textile Blitz Writing" (cache: 'no-store', timestamped)
-      // This guarantees the absolute freshest live data directly from the Sheet, bypassing any stale server/browser cache!
-      if (scriptUrl && scriptUrl.startsWith('http')) {
+      // 1. Query Backend API endpoint /api/blitz/verify (fetches live Google Sheet row server-side)
+      try {
+        const res = await fetch('/api/blitz/verify', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store',
+            'x-google-script-url': scriptUrl
+          },
+          body: JSON.stringify({
+            registrationId: regNo,
+            studentId: studentId,
+            scriptUrl: scriptUrl
+          })
+        });
+
+        const rawText = await res.text();
+        if (rawText && rawText.trim().length > 0) {
+          try {
+            const data = JSON.parse(rawText);
+            if (data && data.success && data.registration) {
+              verifiedData = data.registration;
+            } else if (res.status === 403) {
+              throw new Error(data.error || 'Student ID does not match this Registration No.');
+            }
+          } catch (pErr: any) {
+            if (pErr.message && pErr.message.includes('does not match')) throw pErr;
+          }
+        }
+      } catch (srvErr: any) {
+        if (srvErr.message && srvErr.message.includes('does not match')) throw srvErr;
+        console.warn('[BLITZ VERIFY] Backend API notice, proceeding to direct Google Sheet fallback:', srvErr);
+      }
+
+      // 2. Direct Google Apps Script Client Fallback if backend API didn't return record
+      if (!verifiedData && scriptUrl && scriptUrl.startsWith('http')) {
         try {
           const directUrl = `${scriptUrl}${scriptUrl.includes('?') ? '&' : '?'}action=get_blitz&query=${encodeURIComponent(regNo)}&_t=${Date.now()}`;
           const gRes = await fetch(directUrl, { 
             cache: 'no-store', 
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache'
+            },
             redirect: 'follow',
-            signal: AbortSignal.timeout(8000)
+            signal: AbortSignal.timeout(9000)
           });
           if (gRes.ok) {
             const gText = await gRes.text();
@@ -169,71 +206,8 @@ export const ViewEditBlitzSection: React.FC<ViewEditBlitzSectionProps> = ({
             }
           }
         } catch (gErr: any) {
-          if (gErr.message && gErr.message.includes('Student ID does not match')) throw gErr;
+          if (gErr.message && gErr.message.includes('does not match')) throw gErr;
           console.warn('[BLITZ VERIFY] Direct Google Sheet query notice:', gErr);
-        }
-      }
-
-      // 2. Query server endpoint /api/blitz/verify if direct sheet query was blocked by CORS/network
-      if (!verifiedData) {
-        try {
-          const res = await fetch('/api/blitz/verify', {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              'x-google-script-url': scriptUrl
-            },
-            body: JSON.stringify({
-              registrationId: regNo,
-              studentId: studentId,
-              scriptUrl: scriptUrl
-            })
-          });
-
-          const rawText = await res.text();
-          if (rawText && rawText.trim().length > 0) {
-            try {
-              const data = JSON.parse(rawText);
-              if (data && data.success && data.registration) {
-                verifiedData = data.registration;
-              } else if (res.status === 403) {
-                throw new Error(data.error || 'Student ID does not match this Registration No.');
-              }
-            } catch (pErr: any) {
-              if (pErr.message && pErr.message.includes('Student ID does not match')) throw pErr;
-            }
-          }
-        } catch (srvErr: any) {
-          if (srvErr.message && srvErr.message.includes('Student ID does not match')) throw srvErr;
-        }
-      }
-
-      // 3. Fallback check in local storage if offline/server cache restarted
-      if (!verifiedData) {
-        let localMatch: any = null;
-        try {
-          const localList = JSON.parse(localStorage.getItem('tbw2026_submissions') || '[]');
-          localMatch = localList.find((item: any) => {
-            const matchReg = item.result?.registrationId?.toUpperCase() === regNo.toUpperCase() ||
-                             item.formData?.transactionId?.toUpperCase() === regNo.toUpperCase();
-            const storedStudent = String(item.formData?.studentId || '').toUpperCase();
-            const storedClean = storedStudent.replace(/[\s\-_]/g, '');
-            const inputClean = studentId.toUpperCase().replace(/[\s\-_]/g, '');
-            const matchStudent = storedStudent === studentId.toUpperCase() || (inputClean.length >= 2 && storedClean === inputClean);
-            return matchReg && matchStudent;
-          });
-        } catch (_) {}
-
-        if (localMatch && localMatch.result && localMatch.formData) {
-          verifiedData = {
-            registrationId: localMatch.result.registrationId,
-            submissionDate: localMatch.result.submissionDate,
-            paymentStatus: localMatch.result.paymentStatus || 'Pending',
-            editCount: localMatch.result.editCount || 0,
-            maxEdits: localMatch.result.maxEdits || 3,
-            remainingEdits: localMatch.result.remainingEdits || 3,
-            formData: localMatch.formData
-          };
         }
       }
 
@@ -241,7 +215,7 @@ export const ViewEditBlitzSection: React.FC<ViewEditBlitzSectionProps> = ({
         setRecord(verifiedData);
         setShowSearchBox(false);
 
-        // Update local storage cache with latest verified data from Sheet
+        // Keep local storage synced with latest verified row from Google Sheet
         try {
           const localList = JSON.parse(localStorage.getItem('tbw2026_submissions') || '[]');
           const updatedList = localList.map((item: any) => {
@@ -266,7 +240,7 @@ export const ViewEditBlitzSection: React.FC<ViewEditBlitzSectionProps> = ({
           localStorage.setItem('tbw2026_latest_submission', JSON.stringify({ result: verifiedData, formData: verifiedData.formData }));
         } catch (_) {}
       } else {
-        throw new Error('Verification failed. Please check both your Registration No and Student ID.');
+        throw new Error(`No registration record found for Registration No "${regNo}". Please check your Registration No and Student ID.`);
       }
     } catch (err: any) {
       setSearchError(err.message || 'Unable to verify registration. Please check your Registration No and Student ID.');

@@ -95,36 +95,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (gData && gData.success && gData.registration) {
           const sheetRec = gData.registration;
           liveSynced = true;
-          if (found) {
-            found.paymentStatus = sheetRec.paymentStatus || 'Pending';
-            found.fullName = sheetRec.fullName || found.fullName;
-            found.batch = sheetRec.batch || found.batch;
-            found.department = sheetRec.department || found.department;
-            found.studentId = sheetRec.studentId || found.studentId;
-            found.whatsapp = sheetRec.whatsapp || found.whatsapp;
-            found.email = sheetRec.email || found.email;
-            found.senderBkash = sheetRec.senderBkash || found.senderBkash;
-            found.transactionId = sheetRec.transactionId || found.transactionId;
-            if (sheetRec.submissionDate) found.submissionDate = sheetRec.submissionDate;
-          } else {
-            found = {
-              registrationId: sheetRec.registrationId || cleanRegId,
-              submissionDate: sheetRec.submissionDate || new Date().toISOString(),
-              paymentStatus: sheetRec.paymentStatus || 'Pending',
-              fullName: sheetRec.fullName || '',
-              batch: sheetRec.batch || '',
-              department: sheetRec.department || '',
-              studentId: sheetRec.studentId || cleanStudentId,
-              whatsapp: sheetRec.whatsapp || '',
-              email: sheetRec.email || '',
-              senderBkash: sheetRec.senderBkash || '',
-              transactionId: sheetRec.transactionId || '',
-              editCount: sheetRec.editCount || 0,
-              maxEdits: 3,
-              payload: sheetRec
-            };
-            store.push(found);
-          }
+          found = {
+            registrationId: sheetRec.registrationId || cleanRegId,
+            submissionDate: sheetRec.submissionDate || (found ? found.submissionDate : new Date().toISOString()),
+            paymentStatus: sheetRec.paymentStatus || 'Pending',
+            fullName: sheetRec.fullName || (found ? found.fullName : ''),
+            batch: sheetRec.batch || (found ? found.batch : ''),
+            department: sheetRec.department || (found ? found.department : ''),
+            studentId: sheetRec.studentId || cleanStudentId,
+            whatsapp: sheetRec.whatsapp || (found ? found.whatsapp : ''),
+            email: sheetRec.email || (found ? found.email : ''),
+            senderBkash: sheetRec.senderBkash || (found ? found.senderBkash : ''),
+            transactionId: sheetRec.transactionId || (found ? found.transactionId : ''),
+            editCount: sheetRec.editCount !== undefined ? sheetRec.editCount : (found ? found.editCount : 0),
+            maxEdits: 3,
+            payload: sheetRec
+          };
+          const existingIdx = store.findIndex((b: any) => b && b.registrationId && String(b.registrationId).toUpperCase() === cleanRegId);
+          if (existingIdx !== -1) store[existingIdx] = found;
+          else store.push(found);
           break;
         }
       }
