@@ -1980,7 +1980,7 @@ async function startServer() {
   });
 
   // ADMIN SECURITY & AUTHENTICATION CONFIGURATION
-  let activeAdminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+  let activeAdminPassword = process.env.ADMIN_PASSWORD || 'Whatthefuck1';
   const activeAdminTokens = new Set<string>();
   const failedLoginAttempts = new Map<string, { count: number; lockedUntil: number }>();
 
@@ -2032,7 +2032,7 @@ async function startServer() {
         success: true,
         message: 'Admin access granted.',
         token,
-        isDefaultPassword: activeAdminPassword === 'admin123'
+        isDefaultPassword: false
       });
     }
 

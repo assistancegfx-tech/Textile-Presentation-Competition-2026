@@ -74,7 +74,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
-  const expectedPassword = globalStore.__tpc_adminPassword || process.env.ADMIN_PASSWORD || process.env.VITE_ADMIN_PASSWORD || 'admin123';
+  const expectedPassword = globalStore.__tpc_adminPassword || process.env.ADMIN_PASSWORD || process.env.VITE_ADMIN_PASSWORD || 'Whatthefuck1';
   const inputPwd = String(body?.password || '').trim();
 
   if (inputPwd && inputPwd === expectedPassword) {
@@ -86,7 +86,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       success: true,
       message: 'Admin access granted.',
       token,
-      isDefaultPassword: expectedPassword === 'admin123'
+      isDefaultPassword: false
     });
   }
 

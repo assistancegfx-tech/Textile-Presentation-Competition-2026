@@ -55,7 +55,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const currentPassword = String(body?.currentPassword || '').trim();
   const newPassword = String(body?.newPassword || '').trim();
-  const currentExpected = globalStore.__tpc_adminPassword || process.env.ADMIN_PASSWORD || process.env.VITE_ADMIN_PASSWORD || 'admin123';
+  const currentExpected = globalStore.__tpc_adminPassword || process.env.ADMIN_PASSWORD || process.env.VITE_ADMIN_PASSWORD || 'Whatthefuck1';
 
   if (currentPassword !== currentExpected) {
     return res.status(400).json({ success: false, error: 'Current admin password is incorrect.' });
