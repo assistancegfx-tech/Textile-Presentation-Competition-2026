@@ -85,6 +85,14 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenGoogleSheetMod
               Contact
             </motion.button>
             <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => onNavigate('admin')}
+              className="hover:text-[#22C55E] text-slate-400 font-bold transition cursor-pointer flex items-center gap-1"
+            >
+              <span>Admin Panel</span>
+            </motion.button>
+            <motion.button
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               type="button"

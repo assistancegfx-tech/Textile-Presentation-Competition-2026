@@ -1639,6 +1639,78 @@ function doGet(e) {
       });
     }
 
+    // Admin action: Fetch all registrations from both tabs
+    if (action === "get_all" || action === "get_all_registrations" || action === "getAll") {
+      const ss = getSpreadsheet();
+      const presentationSheet = setupNewSheet(ss);
+      const blitzSheet = setupBlitzSheet(ss);
+
+      const pData = presentationSheet.getDataRange().getValues();
+      const bData = blitzSheet.getDataRange().getValues();
+
+      const presentationList = [];
+      if (pData && pData.length > 1) {
+        for (let i = 1; i < pData.length; i++) {
+          const row = pData[i];
+          if (!row[0]) continue;
+          presentationList.push({
+            registrationId: String(row[0] || "").trim(),
+            submissionDate: row[1] instanceof Date ? Utilities.formatDate(row[1], "Asia/Dhaka", "yyyy-MM-dd HH:mm:ss") : String(row[1] || ""),
+            paymentStatus: String(row[2] || "Pending").trim(),
+            teamName: String(row[3] || "").trim(),
+            leaderName: String(row[4] || "").trim(),
+            leaderRoll: String(row[5] || "").trim(),
+            leaderDepartment: String(row[6] || "").trim(),
+            leaderWhatsApp: String(row[7] || "").trim(),
+            leaderFacebook: String(row[8] || "").trim(),
+            leaderEmail: String(row[9] || "").trim(),
+            leaderPhotoUrl: String(row[10] || "").trim(),
+            member1Name: String(row[11] || "").trim(),
+            member1Roll: String(row[12] || "").trim(),
+            member1Department: String(row[13] || "").trim(),
+            member1WhatsApp: String(row[14] || "").trim(),
+            member1Facebook: String(row[15] || "").trim(),
+            member1PhotoUrl: String(row[16] || "").trim(),
+            member2Name: String(row[17] || "").trim(),
+            member2Roll: String(row[18] || "").trim(),
+            member2Department: String(row[19] || "").trim(),
+            member2WhatsApp: String(row[20] || "").trim(),
+            member2Facebook: String(row[21] || "").trim(),
+            member2PhotoUrl: String(row[22] || "").trim(),
+            bkashNumber: String(row[23] || "").trim(),
+            transactionId: String(row[24] || "").trim()
+          });
+        }
+      }
+
+      const blitzList = [];
+      if (bData && bData.length > 1) {
+        for (let i = 1; i < bData.length; i++) {
+          const row = bData[i];
+          if (!row[0]) continue;
+          blitzList.push({
+            registrationId: String(row[0] || "").trim(),
+            submissionDate: row[1] instanceof Date ? Utilities.formatDate(row[1], "Asia/Dhaka", "yyyy-MM-dd HH:mm:ss") : String(row[1] || ""),
+            paymentStatus: String(row[2] || "Pending").trim(),
+            fullName: String(row[3] || "").trim(),
+            batch: String(row[4] || "").trim(),
+            department: String(row[5] || "").trim(),
+            studentId: String(row[6] || "").trim(),
+            whatsapp: String(row[7] || "").trim(),
+            email: String(row[8] || "").trim(),
+            senderBkash: String(row[9] || "").trim(),
+            transactionId: String(row[10] || "").trim()
+          });
+        }
+      }
+
+      return createResponse({
+        success: true,
+        presentationRegistrations: presentationList,
+        blitzRegistrations: blitzList
+      });
+    }
+
     // Update registration from GET query (supports environments where POST/CORS is restricted)
     if (action === "updateRegistration" || action === "update" || action === "editRegistration") {
       const ss = getSpreadsheet();

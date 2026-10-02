@@ -144,7 +144,7 @@ export interface RegisteredBlitzRecord {
   formData: BlitzRegistrationFormData;
 }
 
-export type PageId = 'home' | 'event' | 'registration' | 'guidelines' | 'contact' | 'registration-success';
+export type PageId = 'home' | 'event' | 'registration' | 'guidelines' | 'contact' | 'registration-success' | 'admin';
 
 export type SubmissionProgressStage = 
   | 'idle'

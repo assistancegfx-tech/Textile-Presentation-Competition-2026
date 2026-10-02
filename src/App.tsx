@@ -20,11 +20,13 @@ import { RegistrationTicker } from './components/RegistrationTicker';
 import { RegistrationSegmentSelector } from './components/RegistrationSegmentSelector';
 import { BlitzWritingForm } from './components/BlitzWritingForm';
 import { BlitzSuccessView } from './components/BlitzSuccessView';
+import { AdminPanel } from './components/AdminPanel';
 import { PageId, RegistrationSegment, BlitzRegistrationFormData, BlitzSubmissionResponse } from './types';
 import { FileText, ArrowLeft } from 'lucide-react';
 
 function parseHashToPage(): PageId {
   const path = window.location.pathname.toLowerCase().replace(/^\/+/, '');
+  if (path === 'admin' || path === 'admin-panel') return 'admin';
   if (path === 'registration-success' || path === 'success') return 'registration-success';
   if (path === 'event') return 'event';
   if (path === 'registration' || path === 'register') return 'registration';
@@ -45,6 +47,7 @@ function parseHashToPage(): PageId {
   }
 
   const hash = window.location.hash.toLowerCase().replace(/^#\/?/, '');
+  if (hash === 'admin' || hash === 'admin-panel') return 'admin';
   if (hash === 'registration-success' || hash === 'success') return 'registration-success';
   if (hash === 'event') return 'event';
   if (hash === 'registration' || hash === 'register') return 'registration';
@@ -365,6 +368,13 @@ export default function App() {
 
             {currentPage === 'contact' && (
               <ContactSection />
+            )}
+
+            {currentPage === 'admin' && (
+              <AdminPanel
+                onNavigateHome={() => navigateToPage('home')}
+                onOpenGoogleSheetModal={handleOpenGoogleSheet}
+              />
             )}
           </motion.div>
         </AnimatePresence>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Menu, X, ArrowRight, Search, Database, Lock } from 'lucide-react';
+import { Menu, X, ArrowRight, Search, Database, Lock, ShieldCheck } from 'lucide-react';
 import { BrandHeaderCombo } from './Logos';
 import { PageId } from '../types';
 import { isRegistrationClosed } from '../utils/deadline';
@@ -87,6 +87,23 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Action CTAs */}
           <div className="hidden lg:flex items-center gap-2">
+            {/* Admin Panel CTA */}
+            <motion.button
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              type="button"
+              onClick={() => handleNavClick('admin')}
+              title="Open CCB Admin Panel"
+              className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl transition cursor-pointer ${
+                currentPage === 'admin'
+                  ? 'bg-[#22C55E] text-slate-900 font-extrabold shadow-xs'
+                  : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+              }`}
+            >
+              <ShieldCheck className={`w-3.5 h-3.5 ${currentPage === 'admin' ? 'text-slate-900' : 'text-[#16A34A]'}`} />
+              <span>Admin</span>
+            </motion.button>
+
             {/* View Your Registration CTA */}
             <motion.button
               whileHover={{ scale: 1.03 }}
@@ -180,6 +197,19 @@ export const Navbar: React.FC<NavbarProps> = ({
           </nav>
 
           <div className="pt-2 border-t border-slate-100 flex flex-col gap-2.5">
+            <motion.button
+              whileTap={{ scale: 0.98 }}
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                handleNavClick('admin');
+              }}
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-3 text-xs font-bold rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800"
+            >
+              <ShieldCheck className="w-4 h-4 text-[#16A34A]" />
+              <span>Admin Panel</span>
+            </motion.button>
+
             <motion.button
               whileTap={{ scale: 0.98 }}
               type="button"

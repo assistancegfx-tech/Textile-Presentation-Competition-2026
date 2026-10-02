@@ -67,14 +67,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   });
 
   // Multi-candidate URLs with cache-busting
-  const candidateUrls: string[] = Array.from(new Set([
+  const rawUrls = [
     req.headers['x-google-script-url'] as string,
     body?.scriptUrl as string,
     req.query?.scriptUrl as string,
     process.env.GOOGLE_SCRIPT_URL,
     process.env.VITE_GOOGLE_SCRIPT_URL,
     DEFAULT_SCRIPT_URL
-  ].filter(u => u && typeof u === 'string' && u.startsWith('http'))));
+  ];
+  const candidateUrls: string[] = Array.from(new Set(rawUrls.filter((u): u is string => typeof u === 'string' && u.startsWith('http'))));
 
   let liveSynced = false;
 

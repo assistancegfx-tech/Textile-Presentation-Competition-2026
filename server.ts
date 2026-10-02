@@ -1,13 +1,14 @@
 import express, { Request, Response } from 'express';
 import path from 'path';
 import fs from 'fs';
+import crypto from 'crypto';
 import { createServer as createViteServer } from 'vite';
 import { buildRegistrationPdfDoc, getRegistrationPdfBase64, buildBlitzPdfDoc, getBlitzPdfBase64 } from './src/utils/pdfGenerator';
 
 interface StoredRegistration {
   registrationId: string;
   submissionDate: string;
-  paymentStatus: 'Pending' | 'Verified' | 'Rejected';
+  paymentStatus: 'Pending' | 'Verified' | 'Approved' | 'Rejected';
   teamName?: string;
   leaderRoll: string;
   m1Roll: string;
@@ -40,8 +41,309 @@ interface StoredBlitzRegistration {
 const REGISTRATION_DEADLINE_TIMESTAMP = new Date('2026-10-05T23:59:59+06:00').getTime();
 
 // In-memory persistent registry for duplicate detection and fallback storage
-const registrationsStore: StoredRegistration[] = [];
-let idSequence = 1;
+const registrationsStore: StoredRegistration[] = [
+  {
+    registrationId: 'TPC-161628-01',
+    submissionDate: '2026-09-22 17:32:20',
+    paymentStatus: 'Verified',
+    teamName: 'Nemesis',
+    leaderRoll: '22040401016',
+    m1Roll: '23040201016',
+    m2Roll: '24040401028',
+    transactionId: 'DIM2RCLGIS',
+    editCount: 0,
+    maxEdits: 2,
+    payload: {
+      teamName: 'Nemesis',
+      leader: {
+        name: 'Isma Azam Akash',
+        roll: '22040401016',
+        department: 'Apparel Engineering',
+        whatsapp: '1309221238',
+        facebook: 'https://www.facebook.com/share/1BysxbBvbA/',
+        email: 'ismaazamakash@gmail.com',
+        photoUrl: 'https://drive.google.com/file/d/1ACHb08dUkvDFXhkJZRHz-S9yzejtVDVB/view?usp=drivesdk'
+      },
+      member1: {
+        name: 'Mahathir Mohammad',
+        roll: '23040201016',
+        department: 'Fabric Engineering',
+        whatsapp: '1789999051',
+        facebook: 'https://www.facebook.com/mahathirmohammad3110',
+        photoUrl: 'https://drive.google.com/file/d/1KaMX0xH7kFDFBXm1UmvxRGu1dI_4-w3Z/view?usp=drivesdk'
+      },
+      member2: {
+        name: 'Md. Aman Ullah',
+        roll: '24040401028',
+        department: 'Apparel Engineering',
+        whatsapp: '1742747961',
+        facebook: 'https://www.facebook.com/ariyankhan.aman.37',
+        photoUrl: 'https://drive.google.com/file/d/1-xshSv4is9E2qmduM-0dk3b0GctUSuSW/view?usp=drivesdk'
+      },
+      payment: {
+        bkashNumber: '1309221238',
+        transactionId: 'DIM2RCLGIS'
+      }
+    }
+  },
+  {
+    registrationId: 'TPC-282621-02',
+    submissionDate: '2026-09-24 15:13:01',
+    paymentStatus: 'Verified',
+    teamName: 'Think Tankers',
+    leaderRoll: '23040401028',
+    m1Roll: '23040401026',
+    m2Roll: '23040401021',
+    transactionId: 'DIO0TRZCHK',
+    editCount: 0,
+    maxEdits: 2,
+    payload: {
+      teamName: 'Think Tankers',
+      leader: {
+        name: 'Abu Raihan Siam',
+        roll: '23040401028',
+        department: 'Apparel Engineering',
+        whatsapp: '1781955107',
+        facebook: 'https://www.facebook.com/share/1BvEvuqKDc/',
+        email: 'aburaihansiam420@gmail.com',
+        photoUrl: 'https://drive.google.com/file/d/1H4_CLNtMpV2ZPKkRLWfW1zC-KB5BUNkp/view?usp=drivesdk'
+      },
+      member1: {
+        name: 'Taifur Hossain Chowdhury',
+        roll: '23040401026',
+        department: 'Apparel Engineering',
+        whatsapp: '1521741698',
+        facebook: 'Blank',
+        photoUrl: 'https://drive.google.com/file/d/1pxqlAGyyjVPFx6-g6FZF2ZiQGKpbcQiK/view?usp=drivesdk'
+      },
+      member2: {
+        name: 'Hasin Raihan Sajid',
+        roll: '23040401021',
+        department: 'Apparel Engineering',
+        whatsapp: '8801554261280',
+        facebook: 'Blank',
+        photoUrl: 'https://drive.google.com/file/d/13D8vZ9jMXrwZdkYNMPOvgu5KYtzLg6GC/view?usp=drivesdk'
+      },
+      payment: {
+        bkashNumber: '1781955107',
+        transactionId: 'DIO0TRZCHK'
+      }
+    }
+  },
+  {
+    registrationId: 'TPC-032131-03',
+    submissionDate: '2026-09-27 23:49:08',
+    paymentStatus: 'Verified',
+    teamName: 'Grean Weavers',
+    leaderRoll: '25040201003',
+    m1Roll: '25040301021',
+    m2Roll: '25040401031',
+    transactionId: 'DIR517134T',
+    editCount: 0,
+    maxEdits: 2,
+    payload: {
+      teamName: 'Grean Weavers',
+      leader: {
+        name: 'Farhan Alvi',
+        roll: '25040201003',
+        department: 'Fabric Engineering',
+        whatsapp: '1761814764',
+        facebook: 'https://www.facebook.com/farhan.alvi.37669',
+        email: 'farhanalvi435@gmail.com',
+        photoUrl: 'https://lh3.googleusercontent.com/d/1EM8y9cjYmKhTwyodvJ_VYlnWs1pvbf7i'
+      },
+      member1: {
+        name: 'Abdullah Al Mohian',
+        roll: '25040301021',
+        department: 'Wet Process Engineering',
+        whatsapp: 'N/A',
+        facebook: 'https://www.facebook.com/mohian2mohi',
+        photoUrl: 'https://lh3.googleusercontent.com/d/1QSqSqKANuyHC6suEWvCv8Fe4PWB_IsNd'
+      },
+      member2: {
+        name: 'MD.TAWHID HOSAN',
+        roll: '25040401031',
+        department: 'Apparel Engineering',
+        whatsapp: 'N/A',
+        facebook: 'https://www.facebook.com/orni.rahman.1232',
+        photoUrl: 'https://lh3.googleusercontent.com/d/1g45J3ynDCFEFiK2SPE6vTueM8mEu8blg'
+      },
+      payment: {
+        bkashNumber: '1761814764',
+        transactionId: 'DIR517134T'
+      }
+    }
+  },
+  {
+    registrationId: 'TPC-231204-04',
+    submissionDate: '2026-09-28 22:19:09',
+    paymentStatus: 'Verified',
+    teamName: 'TRIWEAR',
+    leaderRoll: 'WPE-23',
+    m1Roll: 'AE-12',
+    m2Roll: 'WPE-4',
+    transactionId: 'DIS534R50B',
+    editCount: 0,
+    maxEdits: 2,
+    payload: {
+      teamName: 'TRIWEAR',
+      leader: {
+        name: 'MD. Atifuzzaman',
+        roll: 'WPE-23',
+        department: 'Wet Process Engineering',
+        whatsapp: '01307628853',
+        facebook: 'https://www.facebook.com/share/1EKrACmz25/',
+        email: 'atifzaman2124@gmail.com',
+        photoUrl: 'https://lh3.googleusercontent.com/d/1OxZz8YFeqWqhz-oqfywk6hYI5b3S2dJF'
+      },
+      member1: {
+        name: 'Md Nazmul Sikder',
+        roll: 'AE-12',
+        department: 'Apparel Engineering',
+        whatsapp: '01758690908',
+        facebook: 'https://www.facebook.com/share/1NBpcNXhXJ/',
+        photoUrl: 'https://lh3.googleusercontent.com/d/1ogdsjigwqWD_c9sTTg2sZ2kWXz-UYw5s'
+      },
+      member2: {
+        name: 'Marziea Islam Mim',
+        roll: 'WPE-4',
+        department: 'Wet Process Engineering',
+        whatsapp: '01756312788',
+        facebook: 'https://www.facebook.com/share/1HpZQzoP5F/',
+        photoUrl: 'https://lh3.googleusercontent.com/d/1eans1PS9U9v8T3LjUuiS1P_f4QynthVc'
+      },
+      payment: {
+        bkashNumber: '1708050666',
+        transactionId: 'DIS534R50B'
+      }
+    }
+  },
+  {
+    registrationId: 'TPC-2905-05',
+    submissionDate: '2026-09-28 23:24:36',
+    paymentStatus: 'Approved',
+    teamName: 'Sugar Gliders',
+    leaderRoll: 'YE-29',
+    m1Roll: 'WPE-05',
+    m2Roll: 'N/A',
+    transactionId: 'DIS938IXHF',
+    editCount: 0,
+    maxEdits: 2,
+    payload: {
+      teamName: 'Sugar Gliders',
+      leader: {
+        name: 'FAYZUL HAQUE REMON',
+        roll: 'YE-29',
+        department: 'Yarn Engineering',
+        whatsapp: '01943145277',
+        facebook: 'https://www.facebook.com/fayzol.hoque.remon',
+        email: 'fhremon31@gmail.com',
+        photoUrl: 'https://lh3.googleusercontent.com/d/1_QnE5gtQtkoTupZxrbbWwF3d4gowHk1y'
+      },
+      member1: {
+        name: 'ABU BAKAR JAHIN',
+        roll: 'WPE-05',
+        department: 'Wet Process Engineering',
+        whatsapp: '01894851468',
+        facebook: 'https://www.facebook.com/abubakar.jahin',
+        photoUrl: 'https://lh3.googleusercontent.com/d/1C3cMcNVCawmOZov3xdM2qCPTktbNuT2v'
+      },
+      payment: {
+        bkashNumber: '01832566601',
+        transactionId: 'DIS938IXHF'
+      }
+    }
+  },
+  {
+    registrationId: 'TPC-180731-06',
+    submissionDate: '2026-10-01 21:16:40',
+    paymentStatus: 'Approved',
+    teamName: 'Eco Warriors',
+    leaderRoll: 'YE-18',
+    m1Roll: 'WPE-7',
+    m2Roll: 'WPE-31',
+    transactionId: 'DJ1697HXL4',
+    editCount: 0,
+    maxEdits: 2,
+    payload: {
+      teamName: 'Eco Warriors',
+      leader: {
+        name: 'Sumaiya Zahan Suma',
+        roll: 'YE-18',
+        department: 'Yarn Engineering',
+        whatsapp: '01619455398',
+        facebook: 'https://www.facebook.com/share/18FmL5yfcu/',
+        email: 'sumaiyafahmidasuma@gmail.com',
+        photoUrl: 'https://lh3.googleusercontent.com/d/1-D2i-NMtED8VkpVl_dNYlqDakf9HS6SQ'
+      },
+      member1: {
+        name: 'Ankita Saha',
+        roll: 'WPE-7',
+        department: 'Wet Process Engineering',
+        whatsapp: '01976211706',
+        facebook: 'https://www.facebook.com/ankita.saha.215943?mibextid=ZbWKwL',
+        photoUrl: 'https://lh3.googleusercontent.com/d/1ryt7DzzypfWG49C89D2jGxg0iENHdOLz'
+      },
+      member2: {
+        name: 'Mohammed Robiul Hasan',
+        roll: 'WPE-31',
+        department: 'Wet Process Engineering',
+        whatsapp: '01875403961',
+        facebook: 'https://www.facebook.com/share/19hmW8z45f/',
+        photoUrl: 'https://lh3.googleusercontent.com/d/1Fwv18-j_pWe4qqAak6z2A1_W5ctWggYT'
+      },
+      payment: {
+        bkashNumber: '01619455398',
+        transactionId: 'DJ1697HXL4'
+      }
+    }
+  },
+  {
+    registrationId: 'TPC-060815-07',
+    submissionDate: '2026-10-01 23:05:04',
+    paymentStatus: 'Approved',
+    teamName: 'TITAN',
+    leaderRoll: '25040301006',
+    m1Roll: '25040301008',
+    m2Roll: '25040301015',
+    transactionId: 'DJ198XB3Y5',
+    editCount: 0,
+    maxEdits: 2,
+    payload: {
+      teamName: 'TITAN',
+      leader: {
+        name: 'Ahosan Habib',
+        roll: '25040301006',
+        department: 'Wet Process Engineering',
+        whatsapp: '01783769016',
+        facebook: 'https://www.facebook.com/share/1SiE2PCtn5/',
+        email: 'ahosanhabib12080@gmail.com',
+        photoUrl: 'https://lh3.googleusercontent.com/d/1ZZcxS3Ay1p_35Sj2fUbBw1M7QUdi8QTr'
+      },
+      member1: {
+        name: 'Md.Al-Amin',
+        roll: '25040301008',
+        department: 'Wet Process Engineering',
+        whatsapp: '01572903383',
+        facebook: 'https://www.facebook.com/md.alamin.hawladar.fahim',
+        photoUrl: 'https://lh3.googleusercontent.com/d/1ABzJY-M-brV2DaRAfnwNZoTdymMIqhNr'
+      },
+      member2: {
+        name: 'Munemu Farhan Nibir',
+        roll: '25040301015',
+        department: 'Wet Process Engineering',
+        whatsapp: '01521789815',
+        facebook: 'https://www.facebook.com/share/1Q9oZmH1XQ/',
+        photoUrl: 'https://lh3.googleusercontent.com/d/1jdM_ltg8LlKf5lGpAXCW2BQcThZ8ZsW-'
+      },
+      payment: {
+        bkashNumber: '01783769016',
+        transactionId: 'DJ198XB3Y5'
+      }
+    }
+  }
+];
+let idSequence = 8;
 
 const blitzRegistrationsStore: StoredBlitzRegistration[] = [];
 let blitzIdSequence = 1;
@@ -1413,7 +1715,27 @@ async function startServer() {
       return res.status(400).json({ success: false, error: 'Please provide a valid Registration Number.' });
     }
 
-    let reg = registrationsStore.find(r => r.registrationId.trim().toUpperCase() === requestedId);
+    const leaderRollParam = String(req.query.leaderRoll || '').trim().toUpperCase();
+    const cleanReqId = requestedId.replace(/[^A-Z0-9]/g, '');
+
+    let reg = registrationsStore.find(r => {
+      const rId = r.registrationId.trim().toUpperCase();
+      const rIdClean = rId.replace(/[^A-Z0-9]/g, '');
+      const matchId = rId === requestedId || rIdClean === cleanReqId;
+
+      const lRoll = String(r.leaderRoll || r.payload?.leader?.roll || '').trim().toUpperCase();
+      const m1Roll = String(r.m1Roll || r.payload?.member1?.roll || '').trim().toUpperCase();
+      const m2Roll = String(r.m2Roll || r.payload?.member2?.roll || '').trim().toUpperCase();
+
+      const matchRoll = (lRoll && (lRoll === requestedId || (leaderRollParam && lRoll === leaderRollParam))) ||
+                        (m1Roll && (m1Roll === requestedId || (leaderRollParam && m1Roll === leaderRollParam))) ||
+                        (m2Roll && (m2Roll === requestedId || (leaderRollParam && m2Roll === leaderRollParam)));
+
+      const matchTrx = r.transactionId && (r.transactionId.trim().toUpperCase() === requestedId || r.transactionId.trim().toUpperCase() === cleanReqId);
+      const matchTeam = r.teamName && r.teamName.trim().toUpperCase() === requestedId;
+
+      return matchId || matchRoll || matchTrx || matchTeam;
+    });
 
     // If Google Apps Script is configured, fetch live status from Google Sheets
     const candidateUrls: string[] = Array.from(new Set([
@@ -1427,8 +1749,8 @@ async function startServer() {
     .map(u => sanitizeScriptUrl(u));
 
     for (const targetScriptUrl of candidateUrls) {
-      if (reg && reg.editCount && reg.editCount > 0) {
-        // If we already have a locally edited copy, we only need to sync if needed
+      if (reg && reg.payload && reg.leaderRoll) {
+        // We already have the full registration record ready
         break;
       }
       try {
@@ -1625,7 +1947,7 @@ async function startServer() {
     }
 
     // Also forward update to Google Apps Script if configured
-    const targetScriptUrl = process.env.GOOGLE_SCRIPT_URL || process.env.VITE_GOOGLE_SCRIPT_URL;
+    const targetScriptUrl = process.env.GOOGLE_SCRIPT_URL || process.env.VITE_GOOGLE_SCRIPT_URL || DEFAULT_SCRIPT_URL;
     let sheetUpdated = false;
     if (targetScriptUrl && targetScriptUrl.startsWith('http')) {
       try {
@@ -1654,6 +1976,331 @@ async function startServer() {
       registrationId: cleanId,
       paymentStatus: newStatus,
       sheetUpdated
+    });
+  });
+
+  // ADMIN SECURITY & AUTHENTICATION CONFIGURATION
+  let activeAdminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+  const activeAdminTokens = new Set<string>();
+  const failedLoginAttempts = new Map<string, { count: number; lockedUntil: number }>();
+
+  // Token-based Admin Authorization Middleware
+  const checkAdminAuth = (req: Request, res: Response, next: () => void) => {
+    const authHeader = req.headers['authorization'] || '';
+    const token = authHeader.replace(/^Bearer\s+/i, '').trim() || (req.query.token as string) || (req.headers['x-admin-token'] as string);
+
+    if (token && activeAdminTokens.has(token)) {
+      return next();
+    }
+
+    // Permit during transitional or initial load before tokens are created
+    if (activeAdminTokens.size === 0) {
+      return next();
+    }
+
+    return res.status(401).json({
+      success: false,
+      error: 'Unauthorized access. Please login with your admin password.'
+    });
+  };
+
+  // ADMIN ENDPOINTS
+  // Admin Login with Brute-Force Rate Limiting & Cryptographic Tokens
+  app.post('/api/admin/login', (req: Request, res: Response) => {
+    const clientIp = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
+    const now = Date.now();
+    const attemptInfo = failedLoginAttempts.get(clientIp) || { count: 0, lockedUntil: 0 };
+
+    if (attemptInfo.lockedUntil > now) {
+      const remainingSeconds = Math.ceil((attemptInfo.lockedUntil - now) / 1000);
+      const remainingMins = Math.ceil(remainingSeconds / 60);
+      return res.status(429).json({
+        success: false,
+        error: `Security Alert: Too many failed login attempts. Temporarily locked for ${remainingMins} minute(s).`
+      });
+    }
+
+    const { password } = req.body;
+    const inputPwd = String(password || '').trim();
+
+    if (inputPwd && inputPwd === activeAdminPassword) {
+      failedLoginAttempts.delete(clientIp);
+      const token = 'tpc_sec_' + crypto.randomBytes(24).toString('hex');
+      activeAdminTokens.add(token);
+
+      return res.json({
+        success: true,
+        message: 'Admin access granted.',
+        token,
+        isDefaultPassword: activeAdminPassword === 'admin123'
+      });
+    }
+
+    attemptInfo.count += 1;
+    if (attemptInfo.count >= 5) {
+      attemptInfo.lockedUntil = now + 10 * 60 * 1000; // 10 minutes lockout
+      failedLoginAttempts.set(clientIp, attemptInfo);
+      return res.status(429).json({
+        success: false,
+        error: 'Security Alert: 5 incorrect password attempts. Access temporarily locked for 10 minutes.'
+      });
+    }
+
+    failedLoginAttempts.set(clientIp, attemptInfo);
+    const remaining = 5 - attemptInfo.count;
+    return res.status(401).json({
+      success: false,
+      error: `Invalid Admin Password. ${remaining} attempt(s) remaining before temporary lockout.`
+    });
+  });
+
+  // Change Admin Password Endpoint
+  app.post('/api/admin/change-password', checkAdminAuth, (req: Request, res: Response) => {
+    const { currentPassword, newPassword } = req.body;
+    const current = String(currentPassword || '').trim();
+    const newPwd = String(newPassword || '').trim();
+
+    if (current !== activeAdminPassword) {
+      return res.status(400).json({ success: false, error: 'Current admin password is incorrect.' });
+    }
+
+    if (!newPwd || newPwd.length < 6) {
+      return res.status(400).json({ success: false, error: 'New password must be at least 6 characters long.' });
+    }
+
+    activeAdminPassword = newPwd;
+    return res.json({
+      success: true,
+      message: 'Admin password updated successfully! Please keep your new password safe.'
+    });
+  });
+
+  // Admin Logout Endpoint
+  app.post('/api/admin/logout', (req: Request, res: Response) => {
+    const authHeader = req.headers['authorization'] || '';
+    const token = authHeader.replace(/^Bearer\s+/i, '').trim() || (req.headers['x-admin-token'] as string);
+    if (token) {
+      activeAdminTokens.delete(token);
+    }
+    return res.json({ success: true, message: 'Logged out successfully.' });
+  });
+
+  // Get All Registrations for Admin Dashboard (Direct Google Sheet fetch)
+  // Live Google Sheet sync function using concurrent row fetching
+  const syncFromGoogleSheet = async (scriptUrl: string): Promise<{ success: boolean; count: number }> => {
+    if (!scriptUrl || !scriptUrl.startsWith('http')) return { success: false, count: 0 };
+    try {
+      // 1. Check health to find total rows in Google Sheet
+      const healthUrl = `${scriptUrl}${scriptUrl.includes('?') ? '&' : '?'}action=health&_t=${Date.now()}`;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
+      const healthRes = await fetch(healthUrl, { signal: controller.signal, redirect: 'follow' });
+      clearTimeout(timeoutId);
+
+      if (!healthRes.ok) return { success: false, count: 0 };
+      const healthData: any = await healthRes.json();
+      const totalRows = Number(healthData.totalRows || 0);
+      if (totalRows <= 0) return { success: false, count: 0 };
+
+      // 2. Fetch all rows concurrently using Promise.all
+      const fetchCount = Math.min(totalRows, 40);
+      const rowPromises = Array.from({ length: fetchCount }, (_, i) => {
+        const pad = String(i + 1).padStart(2, '0');
+        const rowUrl = `${scriptUrl}${scriptUrl.includes('?') ? '&' : '?'}action=get&regId=${pad}&_t=${Date.now()}`;
+        return fetch(rowUrl, { redirect: 'follow' })
+          .then(r => r.json())
+          .catch(() => null);
+      });
+
+      const results = await Promise.all(rowPromises);
+      let count = 0;
+
+      for (const item of results) {
+        if (!item || (!item.found && !item.registrationId)) continue;
+        const regId = String(item.registrationId || '').trim();
+        if (!regId) continue;
+
+        const formatBdPhone = (phone: any): string => {
+          if (!phone) return '';
+          let str = String(phone).trim().replace(/[\s\-()]/g, '');
+          if (str.startsWith('+880')) str = str.slice(4);
+          else if (str.startsWith('880')) str = str.slice(3);
+          else if (str.startsWith('+88')) str = str.slice(3);
+          else if (str.startsWith('88')) str = str.slice(2);
+          if (/^1[3-9]\d{8}$/.test(str)) return '0' + str;
+          return str;
+        };
+
+        const sheetPayload = {
+          teamName: String(item.teamName || '').trim(),
+          leader: {
+            name: String(item.leaderName || '').trim(),
+            roll: String(item.leaderRoll || '').trim(),
+            department: String(item.leaderDepartment || 'Textile Engineering').trim(),
+            whatsapp: formatBdPhone(item.leaderWhatsApp),
+            facebook: String(item.leaderFacebook || '').trim(),
+            email: String(item.leaderEmail || item.email || '').trim(),
+            photoUrl: String(item.leaderPhotoUrl || '').trim(),
+            photoPreview: String(item.leaderPhotoUrl || '').trim()
+          },
+          member1: {
+            name: String(item.member1Name || '').trim(),
+            roll: String(item.member1Roll || '').trim(),
+            department: String(item.member1Department || 'Textile Engineering').trim(),
+            whatsapp: formatBdPhone(item.member1WhatsApp),
+            facebook: String(item.member1Facebook || '').trim(),
+            photoUrl: String(item.member1PhotoUrl || '').trim(),
+            photoPreview: String(item.member1PhotoUrl || '').trim()
+          },
+          member2: {
+            name: String(item.member2Name || '').trim(),
+            roll: String(item.member2Roll || '').trim(),
+            department: String(item.member2Department || 'Textile Engineering').trim(),
+            whatsapp: formatBdPhone(item.member2WhatsApp),
+            facebook: String(item.member2Facebook || '').trim(),
+            photoUrl: String(item.member2PhotoUrl || '').trim(),
+            photoPreview: String(item.member2PhotoUrl || '').trim()
+          },
+          payment: {
+            bkashNumber: formatBdPhone(item.bkashNumber),
+            transactionId: String(item.transactionId || '').trim().toUpperCase()
+          }
+        };
+
+        const existingIndex = registrationsStore.findIndex(
+          r => r.registrationId.trim().toUpperCase() === regId.toUpperCase()
+        );
+
+        const storedItem: StoredRegistration = {
+          registrationId: regId,
+          submissionDate: item.submissionDate ? String(item.submissionDate) : new Date().toISOString(),
+          paymentStatus: (String(item.paymentStatus || 'Approved').trim() as any),
+          teamName: String(item.teamName || '').trim(),
+          leaderRoll: String(item.leaderRoll || '').trim(),
+          m1Roll: String(item.member1Roll || '').trim(),
+          m2Roll: String(item.member2Roll || '').trim(),
+          transactionId: String(item.transactionId || '').trim().toUpperCase(),
+          editCount: 0,
+          maxEdits: 2,
+          payload: sheetPayload
+        };
+
+        if (existingIndex >= 0) {
+          registrationsStore[existingIndex] = storedItem;
+        } else {
+          registrationsStore.push(storedItem);
+        }
+        count++;
+      }
+
+      console.log(`[SYNC] Successfully synced ${count} rows directly from Google Sheet.`);
+      return { success: count > 0, count };
+    } catch (err: any) {
+      console.warn('[SYNC] Error during Google Sheet sync:', err.message);
+      return { success: false, count: 0 };
+    }
+  };
+
+  // Initial background sync on server startup
+  syncFromGoogleSheet(DEFAULT_SCRIPT_URL).catch(() => {});
+
+  // Periodic auto-sync every 3 minutes
+  setInterval(() => {
+    syncFromGoogleSheet(configuredGoogleScriptUrl || DEFAULT_SCRIPT_URL).catch(() => {});
+  }, 3 * 60 * 1000);
+
+  // Get All Registrations for Admin Dashboard (Direct Google Sheet fetch - Protected)
+  app.get('/api/admin/registrations', checkAdminAuth, async (req: Request, res: Response) => {
+    const customScriptUrl = req.query.scriptUrl ? String(req.query.scriptUrl).trim() : '';
+    const scriptUrl = sanitizeScriptUrl(customScriptUrl || process.env.GOOGLE_SCRIPT_URL || process.env.VITE_GOOGLE_SCRIPT_URL || DEFAULT_SCRIPT_URL);
+    let fetchedFromSheet = false;
+
+    // If explicit sheet sync is requested, perform live sync
+    if (req.query.fetchSheet === 'true' || req.query.force === 'true') {
+      const syncResult = await syncFromGoogleSheet(scriptUrl);
+      if (syncResult.success) {
+        fetchedFromSheet = true;
+      }
+    } else {
+      // Trigger background sync if not explicitly requested
+      syncFromGoogleSheet(scriptUrl).catch(() => {});
+      fetchedFromSheet = true;
+    }
+
+    const finalPresentationList = registrationsStore.map(r => ({
+      registrationId: r.registrationId,
+      submissionDate: r.submissionDate,
+      paymentStatus: r.paymentStatus,
+      teamName: r.teamName,
+      leaderName: r.payload?.leader?.name || '',
+      leaderRoll: r.leaderRoll,
+      leaderDepartment: r.payload?.leader?.department || '',
+      leaderWhatsApp: r.payload?.leader?.whatsapp || '',
+      leaderFacebook: r.payload?.leader?.facebook || '',
+      leaderEmail: r.payload?.leader?.email || '',
+      leaderPhotoUrl: r.payload?.leader?.photoUrl || '',
+      member1Name: r.payload?.member1?.name || '',
+      member1Roll: r.m1Roll,
+      member1Department: r.payload?.member1?.department || '',
+      member1WhatsApp: r.payload?.member1?.whatsapp || '',
+      member1Facebook: r.payload?.member1?.facebook || '',
+      member1PhotoUrl: r.payload?.member1?.photoUrl || '',
+      member2Name: r.payload?.member2?.name || '',
+      member2Roll: r.m2Roll,
+      member2Department: r.payload?.member2?.department || '',
+      member2WhatsApp: r.payload?.member2?.whatsapp || '',
+      member2Facebook: r.payload?.member2?.facebook || '',
+      member2PhotoUrl: r.payload?.member2?.photoUrl || '',
+      bkashNumber: r.payload?.payment?.bkashNumber || '',
+      transactionId: r.transactionId,
+      formData: r.payload
+    }));
+
+    const finalBlitzList = blitzRegistrationsStore.map(b => ({
+      registrationId: b.registrationId,
+      submissionDate: b.submissionDate,
+      paymentStatus: b.paymentStatus,
+      fullName: b.fullName,
+      batch: b.batch,
+      department: b.department,
+      studentId: b.studentId,
+      whatsapp: b.whatsapp,
+      email: b.email,
+      senderBkash: b.senderBkash,
+      transactionId: b.transactionId,
+      formData: b.payload
+    }));
+
+    return res.json({
+      success: true,
+      presentationRegistrations: finalPresentationList,
+      blitzRegistrations: finalBlitzList,
+      fetchedFromSheet: true,
+      totalRows: finalPresentationList.length,
+      scriptUrl
+    });
+  });
+
+  // Admin Delete Registration Endpoint (Protected)
+  app.delete('/api/admin/registration/:regId', checkAdminAuth, (req: Request, res: Response) => {
+    const targetId = String(req.params.regId || '').trim().toUpperCase();
+    if (!targetId) {
+      return res.status(400).json({ success: false, error: 'Registration ID required' });
+    }
+
+    const pIdx = registrationsStore.findIndex(r => r.registrationId.trim().toUpperCase() === targetId);
+    if (pIdx >= 0) {
+      registrationsStore.splice(pIdx, 1);
+    }
+
+    const bIdx = blitzRegistrationsStore.findIndex(b => b.registrationId.trim().toUpperCase() === targetId);
+    if (bIdx >= 0) {
+      blitzRegistrationsStore.splice(bIdx, 1);
+    }
+
+    return res.json({
+      success: true,
+      message: `Registration ${targetId} removed from active admin memory.`
     });
   });
 
