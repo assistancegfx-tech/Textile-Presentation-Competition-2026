@@ -33,7 +33,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // 1. Health check to get total rows
     const healthUrl = `${scriptUrl}${scriptUrl.includes('?') ? '&' : '?'}action=health&_t=${Date.now()}`;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000);
+    const timeoutId = setTimeout(() => controller.abort(), 20000);
     const healthRes = await fetch(healthUrl, { signal: controller.signal, redirect: 'follow' });
     clearTimeout(timeoutId);
 

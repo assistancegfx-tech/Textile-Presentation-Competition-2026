@@ -38,7 +38,7 @@ interface StoredBlitzRegistration {
   payload: any;
 }
 
-const REGISTRATION_DEADLINE_TIMESTAMP = new Date('2026-10-05T23:59:59+06:00').getTime();
+const REGISTRATION_DEADLINE_TIMESTAMP = new Date('2026-10-07T23:59:59+06:00').getTime();
 
 // In-memory persistent registry for duplicate detection and fallback storage
 const registrationsStore: StoredRegistration[] = [
@@ -760,6 +760,113 @@ async function startServer() {
     }
   });
 
+  // Registered Teams List (Just Team Name, privacy-safe)
+  app.get('/api/registrations/teams', (_req: Request, res: Response) => {
+    const DEFAULT_OFFICIAL_TEAMS = [
+      'Nemesis',
+      'Think Tankers',
+      'Grean Weavers',
+      'TRIWEAR',
+      'Sugar Gliders',
+      'Eco Warriors',
+      'TITAN'
+    ];
+
+    const teamNames: string[] = [];
+
+    // Extract names from registrationsStore
+    for (const r of registrationsStore) {
+      const name = r.teamName || r.payload?.teamName;
+      if (name && typeof name === 'string' && !teamNames.includes(name.trim())) {
+        teamNames.push(name.trim());
+      }
+    }
+
+    // Ensure all 7 official teams are included
+    for (const off of DEFAULT_OFFICIAL_TEAMS) {
+      if (!teamNames.includes(off)) {
+        teamNames.push(off);
+      }
+    }
+
+    const formattedTeams = teamNames.map((name, idx) => ({
+      index: idx + 1,
+      id: String(idx + 1).padStart(2, '0'),
+      teamName: name,
+      category: 'Presentation',
+      status: 'Confirmed'
+    }));
+
+    res.json({
+      success: true,
+      total: formattedTeams.length,
+      teams: formattedTeams
+    });
+  });
+
+  // Department & Institution analytics for registered teams chart
+  app.get('/api/registrations/department-stats', (_req: Request, res: Response) => {
+    const deptTeamCount: Record<string, { count: number; teams: string[]; code: string; color: string }> = {
+      'Apparel Engineering': { count: 0, teams: [], code: 'AE', color: '#10B981' },
+      'Wet Process Engineering': { count: 0, teams: [], code: 'WPE', color: '#06B6D4' },
+      'Yarn Engineering': { count: 0, teams: [], code: 'YE', color: '#F59E0B' },
+      'Fabric Engineering': { count: 0, teams: [], code: 'FE', color: '#8B5CF6' }
+    };
+
+    const institutionCount: Record<string, { count: number; teams: string[] }> = {
+      'Barishal Textile Engineering College (BTEC)': { count: 0, teams: [] }
+    };
+
+    for (const r of registrationsStore) {
+      const teamName = r.teamName || r.payload?.teamName || 'Unknown Team';
+      const leaderDept = r.payload?.leader?.department || 'Apparel Engineering';
+
+      // Match department
+      let matchedDept = 'Apparel Engineering';
+      if (/wet/i.test(leaderDept)) matchedDept = 'Wet Process Engineering';
+      else if (/yarn/i.test(leaderDept)) matchedDept = 'Yarn Engineering';
+      else if (/fabric/i.test(leaderDept)) matchedDept = 'Fabric Engineering';
+      else if (/apparel/i.test(leaderDept)) matchedDept = 'Apparel Engineering';
+
+      if (!deptTeamCount[matchedDept]) {
+        deptTeamCount[matchedDept] = { count: 0, teams: [], code: matchedDept.substring(0, 3).toUpperCase(), color: '#10B981' };
+      }
+      deptTeamCount[matchedDept].count += 1;
+      deptTeamCount[matchedDept].teams.push(teamName);
+
+      // Institution
+      const instName = 'Barishal Textile Engineering College (BTEC)';
+      if (!institutionCount[instName]) {
+        institutionCount[instName] = { count: 0, teams: [] };
+      }
+      institutionCount[instName].count += 1;
+      institutionCount[instName].teams.push(teamName);
+    }
+
+    const departmentData = Object.entries(deptTeamCount).map(([dept, data]) => ({
+      name: dept,
+      shortName: data.code,
+      teamsCount: data.count,
+      teams: data.teams,
+      color: data.color
+    }));
+
+    const institutionData = Object.entries(institutionCount).map(([inst, data]) => ({
+      name: inst,
+      shortName: 'BTEC',
+      teamsCount: data.count,
+      teams: data.teams,
+      color: '#059669'
+    }));
+
+    res.json({
+      success: true,
+      totalTeams: registrationsStore.length,
+      byDepartment: departmentData,
+      byInstitution: institutionData
+    });
+  });
+
   // Google Apps Script URL configuration endpoints
   app.get('/api/config/script-url', (_req: Request, res: Response) => {
     res.json({ success: true, scriptUrl: configuredGoogleScriptUrl });
@@ -928,11 +1035,11 @@ async function startServer() {
     res.setHeader('Content-Type', 'application/json');
     try {
       if (Date.now() >= REGISTRATION_DEADLINE_TIMESTAMP) {
-        console.warn('[BLITZ] Submission rejected: Registration deadline has passed (5 Oct 2026, 11:59 PM BST)');
+        console.warn('[BLITZ] Submission rejected: Registration deadline has passed (7 Oct 2026, 11:59 PM BST)');
         return res.status(403).json({
-          success: false,
-          error: 'Registration is officially closed. The deadline was 5 October 2026, 11:59 PM BST.',
-          details: 'Online registration is closed.'
+           success: false,
+           error: 'Registration is officially closed. The deadline was 7 October 2026, 11:59 PM BST.',
+           details: 'Online registration is closed.'
         });
       }
 
@@ -1433,10 +1540,10 @@ async function startServer() {
     res.setHeader('Content-Type', 'application/json');
     try {
       if (Date.now() >= REGISTRATION_DEADLINE_TIMESTAMP) {
-        console.warn('[REGISTRATION] Submission rejected: Registration deadline has passed (5 Oct 2026, 11:59 PM BST)');
+        console.warn('[REGISTRATION] Submission rejected: Registration deadline has passed (7 Oct 2026, 11:59 PM BST)');
         return res.status(403).json({
           success: false,
-          error: 'Registration is officially closed. The deadline was 5 October 2026, 11:59 PM BST.',
+          error: 'Registration is officially closed. The deadline was 7 October 2026, 11:59 PM BST.',
           details: 'Online team registration is closed.'
         });
       }
@@ -2093,7 +2200,7 @@ async function startServer() {
       // 1. Check health to find total rows in Google Sheet
       const healthUrl = `${scriptUrl}${scriptUrl.includes('?') ? '&' : '?'}action=health&_t=${Date.now()}`;
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 6000);
+      const timeoutId = setTimeout(() => controller.abort(), 20000);
       const healthRes = await fetch(healthUrl, { signal: controller.signal, redirect: 'follow' });
       clearTimeout(timeoutId);
 

@@ -94,6 +94,13 @@ export const RegistrationTicker: React.FC<RegistrationTickerProps> = ({ onNaviga
       action: () => onNavigate?.('registration')
     },
     {
+      icon: Sparkles,
+      iconColor: 'text-[#22C55E]',
+      badge: '🏆 Registered Teams',
+      badgeStyle: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 font-bold',
+      text: 'Nemesis • Think Tankers • Grean Weavers • TRIWEAR • Sugar Gliders • Eco Warriors • TITAN'
+    },
+    {
       icon: Users,
       iconColor: 'text-[#22C55E]',
       badge: 'Solo, Duo & Trio Categories',
@@ -116,7 +123,7 @@ export const RegistrationTicker: React.FC<RegistrationTickerProps> = ({ onNaviga
       iconColor: 'text-cyan-400',
       badge: 'Grand Finale: 10 October 2026',
       badgeStyle: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30 font-bold',
-      text: 'Venue: BTEC Auditorium • Deadline: 5 October 2026',
+      text: 'Venue: BTEC Auditorium • Deadline: 7 October 2026',
       actionText: 'Event Info',
       action: () => onNavigate?.('event')
     },

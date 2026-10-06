@@ -253,6 +253,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onNavigateHome, onOpenGo
   const [pwdChangeMsg, setPwdChangeMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isChangingPwd, setIsChangingPwd] = useState(false);
 
+  // Delete Confirmation Modal State (Requires typing CONFIRM)
+  const [deleteModalRecord, setDeleteModalRecord] = useState<{
+    id: string;
+    name: string;
+    details?: string;
+    category: 'Presentation' | 'Blitz';
+  } | null>(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [isDeletingRecord, setIsDeletingRecord] = useState(false);
+  const [deleteErrorMessage, setDeleteErrorMessage] = useState('');
+
   // Inactivity Auto-Logout (30 minutes)
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -283,11 +294,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onNavigateHome, onOpenGo
   // Active Tab: 'overview' | 'presentation' | 'blitz' | 'settings'
   const [activeTab, setActiveTab] = useState<'overview' | 'presentation' | 'blitz' | 'settings'>('overview');
 
-  // Registration Data - Initialized with active registrations
-  const [presentationData, setPresentationData] = useState<any[]>(DEFAULT_PRESENTATION_RECORDS);
+  // Registration Data - Initialized with cached Google Sheet records
+  const [presentationData, setPresentationData] = useState<any[]>(() => {
+    try {
+      const cached = localStorage.getItem('tpc2026_cached_sheet_p');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (_) {}
+    return DEFAULT_PRESENTATION_RECORDS;
+  });
   const [blitzData, setBlitzData] = useState<any[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [syncStatusMessage, setSyncStatusMessage] = useState('');
+  const [lastSyncTime, setLastSyncTime] = useState<string>('');
 
   // Filters & Search
   const [pSearch, setPSearch] = useState('');
@@ -304,18 +325,103 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onNavigateHome, onOpenGo
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [copiedScriptCode, setCopiedScriptCode] = useState(false);
 
+  // Direct Live Google Sheet Fetcher
+  const fetchDirectFromGoogleSheet = async (url: string) => {
+    const formatBdPhone = (phone: any): string => {
+      if (!phone) return '';
+      let str = String(phone).trim().replace(/[\s\-()]/g, '');
+      if (str.startsWith('+880')) str = str.slice(4);
+      else if (str.startsWith('880')) str = str.slice(3);
+      else if (str.startsWith('+88')) str = str.slice(3);
+      else if (str.startsWith('88')) str = str.slice(2);
+      if (/^1[3-9]\d{8}$/.test(str)) return '0' + str;
+      return str;
+    };
+
+    const healthUrl = `${url}${url.includes('?') ? '&' : '?'}action=health&_t=${Date.now()}`;
+    const healthRes = await fetch(healthUrl, { redirect: 'follow' });
+    if (!healthRes.ok) return null;
+    const health = await healthRes.json();
+    const totalRows = Number(health?.totalRows || 0);
+
+    if (totalRows <= 0) return { presentation: [], blitz: [] };
+
+    // Fetch all rows concurrently
+    const fetchCount = Math.min(totalRows, 60);
+    const promises = Array.from({ length: fetchCount }, (_, i) => {
+      const pad = String(i + 1).padStart(2, '0');
+      const rowUrl = `${url}${url.includes('?') ? '&' : '?'}action=get&regId=${pad}&_t=${Date.now()}`;
+      return fetch(rowUrl, { redirect: 'follow' })
+        .then(r => r.json())
+        .catch(() => null);
+    });
+
+    const results = await Promise.all(promises);
+    const pRows: any[] = [];
+
+    for (const item of results) {
+      if (!item || (!item.found && !item.registrationId)) continue;
+      const regId = String(item.registrationId || '').trim();
+      if (!regId) continue;
+
+      pRows.push({
+        registrationId: regId,
+        submissionDate: item.submissionDate || new Date().toISOString(),
+        paymentStatus: String(item.paymentStatus || 'Approved').trim(),
+        teamName: String(item.teamName || '').trim(),
+        leaderName: String(item.leaderName || '').trim(),
+        leaderRoll: String(item.leaderRoll || '').trim(),
+        leaderDepartment: String(item.leaderDepartment || 'Textile Engineering').trim(),
+        leaderWhatsApp: formatBdPhone(item.leaderWhatsApp),
+        leaderFacebook: String(item.leaderFacebook || '').trim(),
+        leaderEmail: String(item.leaderEmail || item.email || '').trim(),
+        leaderPhotoUrl: String(item.leaderPhotoUrl || '').trim(),
+        member1Name: String(item.member1Name || '').trim(),
+        member1Roll: String(item.member1Roll || '').trim(),
+        member1Department: String(item.member1Department || 'Textile Engineering').trim(),
+        member1WhatsApp: formatBdPhone(item.member1WhatsApp),
+        member1Facebook: String(item.member1Facebook || '').trim(),
+        member1PhotoUrl: String(item.member1PhotoUrl || '').trim(),
+        member2Name: String(item.member2Name || '').trim(),
+        member2Roll: String(item.member2Roll || '').trim(),
+        member2Department: String(item.member2Department || 'Textile Engineering').trim(),
+        member2WhatsApp: formatBdPhone(item.member2WhatsApp),
+        member2Facebook: String(item.member2Facebook || '').trim(),
+        member2PhotoUrl: String(item.member2PhotoUrl || '').trim(),
+        bkashNumber: formatBdPhone(item.bkashNumber),
+        transactionId: String(item.transactionId || '').trim().toUpperCase()
+      });
+    }
+
+    return { presentation: pRows, blitz: [] };
+  };
+
   // Fetch Registrations Data (Directly from Google Sheet & Server)
-  const fetchData = async (forceSheet = true) => {
-    setIsLoadingData(true);
-    setSyncStatusMessage('');
+  const fetchData = async (isBackground = false) => {
+    if (!isBackground) setIsLoadingData(true);
 
     const savedScriptUrl = localStorage.getItem('tpc2026_google_script_url') || '';
+    const scriptUrlToUse = savedScriptUrl || (import.meta as any).env?.VITE_GOOGLE_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbxFVWAVQApNuw2g_zvbSEK_QhXIcso8MoDhne75A4L0ryUUeh2G4GEclUkMn8GY21VT2Q/exec';
+    
     let pList: any[] = [];
     let bList: any[] = [];
     let loadedFromSheet = false;
 
+    // 1. Direct fetch from Google Apps Script Web App (Authoritative Live Data)
+    if (scriptUrlToUse && scriptUrlToUse.startsWith('http')) {
+      try {
+        const directData = await fetchDirectFromGoogleSheet(scriptUrlToUse);
+        if (directData && directData.presentation && directData.presentation.length > 0) {
+          pList = directData.presentation;
+          loadedFromSheet = true;
+        }
+      } catch (directErr: any) {
+        console.warn('Direct live sheet sync notice:', directErr.message);
+      }
+    }
+
+    // 2. Server Proxy API call with Bearer Token Authorization (for server memory & blitz)
     try {
-      // 1. First attempt: Server Proxy API call with Bearer Token Authorization
       const queryParams = new URLSearchParams();
       queryParams.set('fetchSheet', 'true');
       if (savedScriptUrl) queryParams.set('scriptUrl', savedScriptUrl);
@@ -327,86 +433,29 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onNavigateHome, onOpenGo
         }
       });
 
-      if (res.status === 401) {
-        sessionStorage.removeItem('tpc2026_admin_authenticated');
-        sessionStorage.removeItem('tpc2026_admin_token');
-        setIsAuthenticated(false);
-        setLoginError('Your admin session has expired. Please log in again.');
-        setIsLoadingData(false);
-        return;
-      }
-
-      const json = await res.json();
-
-      if (json && json.success) {
-        pList = json.presentationRegistrations || [];
-        bList = json.blitzRegistrations || [];
-        if (json.fetchedFromSheet) loadedFromSheet = true;
+      if (res.ok) {
+        const json = await res.json();
+        if (json && json.success) {
+          if (pList.length === 0 && json.presentationRegistrations?.length > 0) {
+            pList = json.presentationRegistrations;
+            loadedFromSheet = true;
+          }
+          if (json.blitzRegistrations?.length > 0) {
+            bList = json.blitzRegistrations;
+          }
+        }
       }
     } catch (err: any) {
       console.warn('Backend proxy fetch notice:', err.message);
     }
 
-    // 2. Direct client Google Apps Script Web App fetch fallback if script URL exists
-    const scriptUrlToUse = savedScriptUrl || 'https://script.google.com/macros/s/AKfycbxFVWAVQApNuw2g_zvbSEK_QhXIcso8MoDhne75A4L0ryUUeh2G4GEclUkMn8GY21VT2Q/exec';
-    if (scriptUrlToUse && scriptUrlToUse.startsWith('http')) {
-      try {
-        const directUrl = `${scriptUrlToUse}${scriptUrlToUse.includes('?') ? '&' : '?'}action=get_all_registrations&_t=${Date.now()}`;
-        const directRes = await fetch(directUrl, { redirect: 'follow' });
-        if (directRes.ok) {
-          const directJson = await directRes.json();
-          if (directJson && directJson.success) {
-            loadedFromSheet = true;
-            
-            // Merge direct sheet rows
-            if (directJson.presentationRegistrations && directJson.presentationRegistrations.length > 0) {
-              const pMap = new Map();
-              pList.forEach(item => { if (item.registrationId) pMap.set(item.registrationId.toUpperCase(), item); });
-              directJson.presentationRegistrations.forEach((item: any) => {
-                if (item.registrationId) pMap.set(item.registrationId.toUpperCase(), item);
-              });
-              pList = Array.from(pMap.values());
-            }
-
-            if (directJson.blitzRegistrations && directJson.blitzRegistrations.length > 0) {
-              const bMap = new Map();
-              bList.forEach(item => { if (item.registrationId) bMap.set(item.registrationId.toUpperCase(), item); });
-              directJson.blitzRegistrations.forEach((item: any) => {
-                if (item.registrationId) bMap.set(item.registrationId.toUpperCase(), item);
-              });
-              bList = Array.from(bMap.values());
-            }
-          }
-        }
-      } catch (directErr: any) {
-        console.warn('Direct Google Sheet fetch notice:', directErr.message);
-      }
-    }
-
-    // Merge submissions from localStorage if present
+    // 3. Fallback to locally cached submissions if still empty
     if (pList.length === 0) {
       try {
-        const savedP = localStorage.getItem('tpc2026_saved_registrations');
-        if (savedP) {
-          const parsed = JSON.parse(savedP);
-          pList = parsed.map((item: any) => ({
-            registrationId: item.registrationId,
-            submissionDate: item.submissionDate,
-            paymentStatus: item.paymentStatus || 'Pending',
-            teamName: item.formData?.teamName || '',
-            leaderName: item.formData?.leader?.name || '',
-            leaderRoll: item.formData?.leader?.roll || '',
-            leaderDepartment: item.formData?.leader?.department || '',
-            leaderWhatsApp: item.formData?.leader?.whatsapp || '',
-            leaderEmail: item.formData?.leader?.email || '',
-            member1Name: item.formData?.member1?.name || '',
-            member1Roll: item.formData?.member1?.roll || '',
-            member2Name: item.formData?.member2?.name || '',
-            member2Roll: item.formData?.member2?.roll || '',
-            bkashNumber: item.formData?.payment?.bkashNumber || '',
-            transactionId: item.formData?.payment?.transactionId || '',
-            formData: item.formData
-          }));
+        const cachedP = localStorage.getItem('tpc2026_cached_sheet_p') || localStorage.getItem('tpc2026_saved_registrations');
+        if (cachedP) {
+          const parsed = JSON.parse(cachedP);
+          if (Array.isArray(parsed) && parsed.length > 0) pList = parsed;
         }
       } catch (_) {}
     }
@@ -416,38 +465,54 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onNavigateHome, onOpenGo
         const savedB = localStorage.getItem('tbw2026_submissions');
         if (savedB) {
           const parsed = JSON.parse(savedB);
-          bList = parsed.map((item: any) => ({
-            registrationId: item.registrationId,
-            submissionDate: item.submissionDate,
-            paymentStatus: item.paymentStatus || 'Pending',
-            fullName: item.formData?.fullName || item.fullName || '',
-            batch: item.formData?.batch || item.batch || '',
-            department: item.formData?.department || item.department || '',
-            studentId: item.formData?.studentId || item.studentId || '',
-            whatsapp: item.formData?.whatsapp || item.whatsapp || '',
-            email: item.formData?.email || item.email || '',
-            senderBkash: item.formData?.senderBkash || item.senderBkash || '',
-            transactionId: item.formData?.transactionId || item.transactionId || '',
-            formData: item.formData
-          }));
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            bList = parsed.map((item: any) => ({
+              registrationId: item.registrationId,
+              submissionDate: item.submissionDate,
+              paymentStatus: item.paymentStatus || 'Pending',
+              fullName: item.formData?.fullName || item.fullName || '',
+              batch: item.formData?.batch || item.batch || '',
+              department: item.formData?.department || item.department || '',
+              studentId: item.formData?.studentId || item.studentId || '',
+              whatsapp: item.formData?.whatsapp || item.whatsapp || '',
+              email: item.formData?.email || item.email || '',
+              senderBkash: item.formData?.senderBkash || item.senderBkash || '',
+              transactionId: item.formData?.transactionId || item.transactionId || '',
+              formData: item.formData
+            }));
+          }
         }
       } catch (_) {}
     }
 
-    setPresentationData(pList.length > 0 ? pList : DEFAULT_PRESENTATION_RECORDS);
+    const finalP = pList.length > 0 ? pList : DEFAULT_PRESENTATION_RECORDS;
+    setPresentationData(finalP);
+    if (pList.length > 0) {
+      localStorage.setItem('tpc2026_cached_sheet_p', JSON.stringify(finalP));
+    }
     setBlitzData(bList);
-    setSyncStatusMessage(
-      loadedFromSheet
-        ? 'Live data successfully loaded directly from Google Sheet.'
-        : `Loaded ${(pList.length > 0 ? pList.length : DEFAULT_PRESENTATION_RECORDS.length) + bList.length} registration records.`
-    );
+
+    const nowStr = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    setLastSyncTime(nowStr);
+
+    if (loadedFromSheet) {
+      setSyncStatusMessage(`Live Google Sheet synchronized (${finalP.length} Teams active at ${nowStr}).`);
+    } else if (!isBackground) {
+      setSyncStatusMessage(`Displaying ${finalP.length} registration records (Last synced: ${nowStr}).`);
+    }
     setIsLoadingData(false);
   };
 
+  // Live Auto-Refresh from Google Sheet every 20 seconds
   useEffect(() => {
-    if (isAuthenticated) {
+    if (!isAuthenticated) return;
+    fetchData(false);
+
+    const interval = setInterval(() => {
       fetchData(true);
-    }
+    }, 20000);
+
+    return () => clearInterval(interval);
   }, [isAuthenticated]);
 
   // Login Handler with Vercel & Cloud Run Multi-Environment Support
@@ -611,22 +676,52 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onNavigateHome, onOpenGo
     }
   };
 
-  // Delete Record Handler
-  const handleDeleteRecord = async (registrationId: string) => {
-    if (!window.confirm(`Are you sure you want to delete registration record "${registrationId}"?`)) return;
+  // Open Delete Confirmation Modal
+  const initiateDelete = (record: {
+    id: string;
+    name: string;
+    details?: string;
+    category: 'Presentation' | 'Blitz';
+  }) => {
+    setDeleteModalRecord(record);
+    setDeleteConfirmText('');
+    setDeleteErrorMessage('');
+  };
+
+  // Confirm Delete Action (User must type CONFIRM)
+  const handleConfirmDelete = async () => {
+    if (!deleteModalRecord) return;
+    if (deleteConfirmText.trim() !== 'CONFIRM') {
+      setDeleteErrorMessage('Please type CONFIRM exactly as shown to proceed.');
+      return;
+    }
+
+    setIsDeletingRecord(true);
+    setDeleteErrorMessage('');
+    const targetId = deleteModalRecord.id;
 
     try {
       const token = sessionStorage.getItem('tpc2026_admin_token') || '';
-      await fetch(`/api/admin/registration/${registrationId}`, {
+      await fetch(`/api/admin/registration/${encodeURIComponent(targetId)}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
-      setPresentationData(prev => prev.filter(p => p.registrationId.toUpperCase() !== registrationId.toUpperCase()));
-      setBlitzData(prev => prev.filter(b => b.registrationId.toUpperCase() !== registrationId.toUpperCase()));
-    } catch (err) {
+      setPresentationData(prev => prev.filter(p => p.registrationId.toUpperCase() !== targetId.toUpperCase()));
+      setBlitzData(prev => prev.filter(b => b.registrationId.toUpperCase() !== targetId.toUpperCase()));
+      setSyncStatusMessage(`Registration ${targetId} successfully removed.`);
+      setDeleteModalRecord(null);
+      setDeleteConfirmText('');
+    } catch (err: any) {
       console.error('Failed to delete record:', err);
+      setPresentationData(prev => prev.filter(p => p.registrationId.toUpperCase() !== targetId.toUpperCase()));
+      setBlitzData(prev => prev.filter(b => b.registrationId.toUpperCase() !== targetId.toUpperCase()));
+      setSyncStatusMessage(`Registration ${targetId} removed from dashboard view.`);
+      setDeleteModalRecord(null);
+      setDeleteConfirmText('');
+    } finally {
+      setIsDeletingRecord(false);
     }
   };
 
@@ -875,15 +970,29 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onNavigateHome, onOpenGo
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
+            {/* Live Google Sheet Status Pill */}
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-emerald-400 text-xs font-bold">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span>Live Sheet Active ({presentationData.length} Teams)</span>
+              {lastSyncTime && (
+                <span className="text-[10px] text-emerald-500/70 border-l border-emerald-500/20 pl-2">
+                  {lastSyncTime}
+                </span>
+              )}
+            </div>
+
             <button
-              onClick={() => fetchData(true)}
+              onClick={() => fetchData(false)}
               disabled={isLoadingData}
-              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 rounded-lg border border-slate-700 transition flex items-center gap-1.5 cursor-pointer"
-              title="Force fetch latest Google Sheet data"
+              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white rounded-lg shadow-sm transition flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
+              title="Force sync latest registrations directly from Google Sheet"
             >
-              <RefreshCw className={`w-3.5 h-3.5 text-[#22C55E] ${isLoadingData ? 'animate-spin' : ''}`} />
-              <span>Sync Sheet</span>
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoadingData ? 'animate-spin' : ''}`} />
+              <span>{isLoadingData ? 'Syncing...' : 'Sync Live Sheet'}</span>
             </button>
 
             <button
@@ -1296,7 +1405,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onNavigateHome, onOpenGo
                               <Eye className="w-3.5 h-3.5" />
                             </button>
                             <button
-                              onClick={() => handleDeleteRecord(p.registrationId)}
+                              onClick={() => initiateDelete({
+                                id: p.registrationId,
+                                name: p.teamName || p.leaderName || p.registrationId,
+                                details: `Leader: ${p.leaderName || 'N/A'} (Roll: ${p.leaderRoll || 'N/A'})`,
+                                category: 'Presentation'
+                              })}
                               className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold rounded-lg transition cursor-pointer"
                               title="Delete Record"
                             >
@@ -1420,7 +1534,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onNavigateHome, onOpenGo
                               <Eye className="w-3.5 h-3.5" />
                             </button>
                             <button
-                              onClick={() => handleDeleteRecord(b.registrationId)}
+                              onClick={() => initiateDelete({
+                                id: b.registrationId,
+                                name: b.fullName || b.studentId || b.registrationId,
+                                details: `Roll: ${b.studentId || 'N/A'} • Batch ${b.batch} (${b.department})`,
+                                category: 'Blitz'
+                              })}
                               className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold rounded-lg transition cursor-pointer"
                               title="Delete Record"
                             >
@@ -1783,6 +1902,138 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onNavigateHome, onOpenGo
                 className="px-5 py-2 bg-[#0A192F] text-white text-xs font-bold rounded-xl cursor-pointer"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: DELETE CONFIRMATION REQUIRING TYPING 'CONFIRM' */}
+      {deleteModalRecord && (
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 border border-rose-200 shadow-2xl space-y-5 animate-in zoom-in-95">
+            {/* Header */}
+            <div className="flex items-start justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                  <Trash2 className="w-5 h-5 text-rose-600" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900 font-display">
+                    Delete Registration Entry
+                  </h3>
+                  <span className="text-[11px] font-bold text-rose-600 uppercase tracking-wider">
+                    {deleteModalRecord.category} Competition
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  if (!isDeletingRecord) {
+                    setDeleteModalRecord(null);
+                    setDeleteConfirmText('');
+                    setDeleteErrorMessage('');
+                  }
+                }}
+                disabled={isDeletingRecord}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-800 transition cursor-pointer disabled:opacity-50"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Target Entry Details */}
+            <div className="p-4 bg-rose-50/80 border border-rose-200 rounded-2xl space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-slate-600">Registration ID:</span>
+                <span className="font-mono font-black text-rose-700 bg-white px-2 py-0.5 rounded border border-rose-200">
+                  {deleteModalRecord.id}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-slate-600">Entry / Name:</span>
+                <span className="font-bold text-slate-900 truncate max-w-[200px]">
+                  {deleteModalRecord.name}
+                </span>
+              </div>
+              {deleteModalRecord.details && (
+                <div className="text-[11px] text-slate-500 pt-1 border-t border-rose-200">
+                  {deleteModalRecord.details}
+                </div>
+              )}
+            </div>
+
+            {/* Danger Warning Notice */}
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <b className="font-bold text-amber-950">Irreversible Action:</b> This registration record will be permanently deleted and cannot be recovered.
+              </div>
+            </div>
+
+            {/* Type CONFIRM Input Requirement */}
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-slate-700">
+                To confirm deletion, type{' '}
+                <span className="px-1.5 py-0.5 bg-rose-100 text-rose-700 font-mono font-black rounded border border-rose-300">
+                  CONFIRM
+                </span>{' '}
+                below:
+              </label>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={(e) => {
+                  setDeleteConfirmText(e.target.value);
+                  if (deleteErrorMessage) setDeleteErrorMessage('');
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && deleteConfirmText.trim() === 'CONFIRM' && !isDeletingRecord) {
+                    e.preventDefault();
+                    handleConfirmDelete();
+                  }
+                }}
+                placeholder="Type CONFIRM to enable delete"
+                autoFocus
+                disabled={isDeletingRecord}
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-bold tracking-wider text-slate-900 placeholder:font-normal placeholder:tracking-normal focus:bg-white focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent transition"
+              />
+              {deleteErrorMessage && (
+                <p className="text-xs text-rose-600 font-semibold">{deleteErrorMessage}</p>
+              )}
+            </div>
+
+            {/* Modal Actions */}
+            <div className="pt-2 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteModalRecord(null);
+                  setDeleteConfirmText('');
+                  setDeleteErrorMessage('');
+                }}
+                disabled={isDeletingRecord}
+                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={deleteConfirmText.trim() !== 'CONFIRM' || isDeletingRecord}
+                className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white text-xs font-extrabold rounded-xl transition shadow-sm flex items-center gap-2 cursor-pointer"
+              >
+                {isDeletingRecord ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Deleting Entry...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Permanently Delete</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

@@ -17,6 +17,7 @@ import { GoogleSheetSettingsModal } from './components/GoogleSheetSettingsModal'
 import { SuccessView } from './components/SuccessView';
 import { TextileGridBackground } from './components/TextileMotifs';
 import { RegistrationTicker } from './components/RegistrationTicker';
+import { TeamsDistributionChart } from './components/TeamsDistributionChart';
 import { RegistrationSegmentSelector } from './components/RegistrationSegmentSelector';
 import { BlitzWritingForm } from './components/BlitzWritingForm';
 import { BlitzSuccessView } from './components/BlitzSuccessView';
@@ -273,10 +274,13 @@ export default function App() {
             className="w-full"
           >
             {currentPage === 'home' && (
-              <HeroSection
-                onNavigate={navigateToPage}
-                onOpenViewEditModal={handleOpenViewEdit}
-              />
+              <>
+                <HeroSection
+                  onNavigate={navigateToPage}
+                  onOpenViewEditModal={handleOpenViewEdit}
+                />
+                <TeamsDistributionChart />
+              </>
             )}
 
             {currentPage === 'event' && (
