@@ -2,7 +2,6 @@ import express, { Request, Response } from 'express';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
-import { createServer as createViteServer } from 'vite';
 import { buildRegistrationPdfDoc, getRegistrationPdfBase64, buildBlitzPdfDoc, getBlitzPdfBase64 } from './src/utils/pdfGenerator';
 
 interface StoredRegistration {
@@ -385,15 +384,32 @@ function loadEnvFile() {
 }
 loadEnvFile();
 
-async function startServer() {
-  const app = express();
-  const PORT = 3000;
+export const app = express();
 
-  // Middleware to support base64 participant images (up to 50mb payload for high-quality photos)
-  app.use(express.json({ limit: '50mb' }));
-  app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+// Standard CORS & OPTIONS handler
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-google-script-url');
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  next();
+});
 
-  // API Routes
+// Middleware to support base64 participant images (up to 50mb payload for high-quality photos)
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Normalize incoming paths so both /api/xxx and /xxx resolve
+app.use((req, _res, next) => {
+  if (req.url && !req.url.startsWith('/api') && !req.url.startsWith('/assets') && !req.url.startsWith('/vite') && !req.url.startsWith('/@') && !req.url.includes('.')) {
+    req.url = `/api${req.url.startsWith('/') ? '' : '/'}${req.url}`;
+  }
+  next();
+});
+
+// API Routes
   app.get('/api/health', (req: Request, res: Response) => {
     res.json({
       status: 'ok',
@@ -2636,14 +2652,19 @@ async function startServer() {
     }
   });
 
+  // Standalone server lifecycle
+async function startServer() {
+  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+
   // Vite integration
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
     });
     app.use(vite.middlewares);
-  } else {
+  } else if (!process.env.VERCEL) {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     app.get('*', (req: Request, res: Response) => {
@@ -2651,9 +2672,16 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Textile Presentation Competition 2026 server running at http://0.0.0.0:${PORT}`);
-  });
+  if (!process.env.VERCEL && !process.env.NOW_REGION) {
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Textile Presentation Competition 2026 server running at http://0.0.0.0:${PORT}`);
+    });
+  }
 }
 
-startServer();
+// Only launch standalone web server if not running inside a Vercel serverless invocation
+if (!process.env.VERCEL && !process.env.NOW_REGION) {
+  startServer();
+}
+
+export default app;
