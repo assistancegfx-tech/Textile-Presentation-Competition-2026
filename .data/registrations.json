@@ -1,0 +1,349 @@
+[
+  {
+    "registrationId": "TPC-161628-01",
+    "submissionDate": "2026-09-22 17:32:20",
+    "paymentStatus": "Verified",
+    "teamName": "Nemesis",
+    "leaderRoll": "22040401016",
+    "m1Roll": "23040201016",
+    "m2Roll": "24040401028",
+    "transactionId": "DIM2RCLGIS",
+    "editCount": 0,
+    "maxEdits": 2,
+    "payload": {
+      "teamName": "Nemesis",
+      "leader": {
+        "name": "Isma Azam Akash",
+        "roll": "22040401016",
+        "department": "Apparel Engineering",
+        "whatsapp": "1309221238",
+        "facebook": "https://www.facebook.com/share/1BysxbBvbA/",
+        "email": "ismaazamakash@gmail.com",
+        "photoUrl": "https://drive.google.com/file/d/1ACHb08dUkvDFXhkJZRHz-S9yzejtVDVB/view?usp=drivesdk"
+      },
+      "member1": {
+        "name": "Mahathir Mohammad",
+        "roll": "23040201016",
+        "department": "Fabric Engineering",
+        "whatsapp": "1789999051",
+        "facebook": "https://www.facebook.com/mahathirmohammad3110",
+        "photoUrl": "https://drive.google.com/file/d/1KaMX0xH7kFDFBXm1UmvxRGu1dI_4-w3Z/view?usp=drivesdk"
+      },
+      "member2": {
+        "name": "Md. Aman Ullah",
+        "roll": "24040401028",
+        "department": "Apparel Engineering",
+        "whatsapp": "1742747961",
+        "facebook": "https://www.facebook.com/ariyankhan.aman.37",
+        "photoUrl": "https://drive.google.com/file/d/1-xshSv4is9E2qmduM-0dk3b0GctUSuSW/view?usp=drivesdk"
+      },
+      "payment": {
+        "bkashNumber": "1309221238",
+        "transactionId": "DIM2RCLGIS"
+      }
+    }
+  },
+  {
+    "registrationId": "TPC-282621-02",
+    "submissionDate": "2026-09-24 15:13:01",
+    "paymentStatus": "Verified",
+    "teamName": "Think Tankers",
+    "leaderRoll": "23040401028",
+    "m1Roll": "23040401026",
+    "m2Roll": "23040401021",
+    "transactionId": "DIO0TRZCHK",
+    "editCount": 0,
+    "maxEdits": 2,
+    "payload": {
+      "teamName": "Think Tankers",
+      "leader": {
+        "name": "Abu Raihan Siam",
+        "roll": "23040401028",
+        "department": "Apparel Engineering",
+        "whatsapp": "1781955107",
+        "facebook": "https://www.facebook.com/share/1BvEvuqKDc/",
+        "email": "aburaihansiam420@gmail.com",
+        "photoUrl": "https://drive.google.com/file/d/1H4_CLNtMpV2ZPKkRLWfW1zC-KB5BUNkp/view?usp=drivesdk"
+      },
+      "member1": {
+        "name": "Taifur Hossain Chowdhury",
+        "roll": "23040401026",
+        "department": "Apparel Engineering",
+        "whatsapp": "1521741698",
+        "facebook": "Blank",
+        "photoUrl": "https://drive.google.com/file/d/1pxqlAGyyjVPFx6-g6FZF2ZiQGKpbcQiK/view?usp=drivesdk"
+      },
+      "member2": {
+        "name": "Hasin Raihan Sajid",
+        "roll": "23040401021",
+        "department": "Apparel Engineering",
+        "whatsapp": "8801554261280",
+        "facebook": "Blank",
+        "photoUrl": "https://drive.google.com/file/d/13D8vZ9jMXrwZdkYNMPOvgu5KYtzLg6GC/view?usp=drivesdk"
+      },
+      "payment": {
+        "bkashNumber": "1781955107",
+        "transactionId": "DIO0TRZCHK"
+      }
+    }
+  },
+  {
+    "registrationId": "TPC-032131-03",
+    "submissionDate": "2026-09-27 23:49:08",
+    "paymentStatus": "Verified",
+    "teamName": "Grean Weavers",
+    "leaderRoll": "25040201003",
+    "m1Roll": "25040301021",
+    "m2Roll": "25040401031",
+    "transactionId": "DIR517134T",
+    "editCount": 0,
+    "maxEdits": 2,
+    "payload": {
+      "teamName": "Grean Weavers",
+      "leader": {
+        "name": "Farhan Alvi",
+        "roll": "25040201003",
+        "department": "Fabric Engineering",
+        "whatsapp": "1761814764",
+        "facebook": "https://www.facebook.com/farhan.alvi.37669",
+        "email": "farhanalvi435@gmail.com",
+        "photoUrl": "https://lh3.googleusercontent.com/d/1EM8y9cjYmKhTwyodvJ_VYlnWs1pvbf7i"
+      },
+      "member1": {
+        "name": "Abdullah Al Mohian",
+        "roll": "25040301021",
+        "department": "Wet Process Engineering",
+        "whatsapp": "N/A",
+        "facebook": "https://www.facebook.com/mohian2mohi",
+        "photoUrl": "https://lh3.googleusercontent.com/d/1QSqSqKANuyHC6suEWvCv8Fe4PWB_IsNd"
+      },
+      "member2": {
+        "name": "MD.TAWHID HOSAN",
+        "roll": "25040401031",
+        "department": "Apparel Engineering",
+        "whatsapp": "N/A",
+        "facebook": "https://www.facebook.com/orni.rahman.1232",
+        "photoUrl": "https://lh3.googleusercontent.com/d/1g45J3ynDCFEFiK2SPE6vTueM8mEu8blg"
+      },
+      "payment": {
+        "bkashNumber": "1761814764",
+        "transactionId": "DIR517134T"
+      }
+    }
+  },
+  {
+    "registrationId": "TPC-231204-04",
+    "submissionDate": "2026-09-28 22:19:09",
+    "paymentStatus": "Verified",
+    "teamName": "TRIWEAR",
+    "leaderRoll": "WPE-23",
+    "m1Roll": "AE-12",
+    "m2Roll": "WPE-4",
+    "transactionId": "DIS534R50B",
+    "editCount": 0,
+    "maxEdits": 2,
+    "payload": {
+      "teamName": "TRIWEAR",
+      "leader": {
+        "name": "MD. Atifuzzaman",
+        "roll": "WPE-23",
+        "department": "Wet Process Engineering",
+        "whatsapp": "01307628853",
+        "facebook": "https://www.facebook.com/share/1EKrACmz25/",
+        "email": "atifzaman2124@gmail.com",
+        "photoUrl": "https://lh3.googleusercontent.com/d/1OxZz8YFeqWqhz-oqfywk6hYI5b3S2dJF"
+      },
+      "member1": {
+        "name": "Md Nazmul Sikder",
+        "roll": "AE-12",
+        "department": "Apparel Engineering",
+        "whatsapp": "01758690908",
+        "facebook": "https://www.facebook.com/share/1NBpcNXhXJ/",
+        "photoUrl": "https://lh3.googleusercontent.com/d/1ogdsjigwqWD_c9sTTg2sZ2kWXz-UYw5s"
+      },
+      "member2": {
+        "name": "Marziea Islam Mim",
+        "roll": "WPE-4",
+        "department": "Wet Process Engineering",
+        "whatsapp": "01756312788",
+        "facebook": "https://www.facebook.com/share/1HpZQzoP5F/",
+        "photoUrl": "https://lh3.googleusercontent.com/d/1eans1PS9U9v8T3LjUuiS1P_f4QynthVc"
+      },
+      "payment": {
+        "bkashNumber": "1708050666",
+        "transactionId": "DIS534R50B"
+      }
+    }
+  },
+  {
+    "registrationId": "TPC-2905-05",
+    "submissionDate": "2026-09-28 23:24:36",
+    "paymentStatus": "Approved",
+    "teamName": "Sugar Gliders",
+    "leaderRoll": "YE-29",
+    "m1Roll": "WPE-05",
+    "m2Roll": "N/A",
+    "transactionId": "DIS938IXHF",
+    "editCount": 0,
+    "maxEdits": 2,
+    "payload": {
+      "teamName": "Sugar Gliders",
+      "leader": {
+        "name": "FAYZUL HAQUE REMON",
+        "roll": "YE-29",
+        "department": "Yarn Engineering",
+        "whatsapp": "01943145277",
+        "facebook": "https://www.facebook.com/fayzol.hoque.remon",
+        "email": "fhremon31@gmail.com",
+        "photoUrl": "https://lh3.googleusercontent.com/d/1_QnE5gtQtkoTupZxrbbWwF3d4gowHk1y"
+      },
+      "member1": {
+        "name": "ABU BAKAR JAHIN",
+        "roll": "WPE-05",
+        "department": "Wet Process Engineering",
+        "whatsapp": "01894851468",
+        "facebook": "https://www.facebook.com/abubakar.jahin",
+        "photoUrl": "https://lh3.googleusercontent.com/d/1C3cMcNVCawmOZov3xdM2qCPTktbNuT2v"
+      },
+      "payment": {
+        "bkashNumber": "01832566601",
+        "transactionId": "DIS938IXHF"
+      }
+    }
+  },
+  {
+    "registrationId": "TPC-180731-06",
+    "submissionDate": "2026-10-01 21:16:40",
+    "paymentStatus": "Approved",
+    "teamName": "Eco Warriors",
+    "leaderRoll": "YE-18",
+    "m1Roll": "WPE-7",
+    "m2Roll": "WPE-31",
+    "transactionId": "DJ1697HXL4",
+    "editCount": 0,
+    "maxEdits": 2,
+    "payload": {
+      "teamName": "Eco Warriors",
+      "leader": {
+        "name": "Sumaiya Zahan Suma",
+        "roll": "YE-18",
+        "department": "Yarn Engineering",
+        "whatsapp": "01619455398",
+        "facebook": "https://www.facebook.com/share/18FmL5yfcu/",
+        "email": "sumaiyafahmidasuma@gmail.com",
+        "photoUrl": "https://lh3.googleusercontent.com/d/1-D2i-NMtED8VkpVl_dNYlqDakf9HS6SQ"
+      },
+      "member1": {
+        "name": "Ankita Saha",
+        "roll": "WPE-7",
+        "department": "Wet Process Engineering",
+        "whatsapp": "01976211706",
+        "facebook": "https://www.facebook.com/ankita.saha.215943?mibextid=ZbWKwL",
+        "photoUrl": "https://lh3.googleusercontent.com/d/1ryt7DzzypfWG49C89D2jGxg0iENHdOLz"
+      },
+      "member2": {
+        "name": "Mohammed Robiul Hasan",
+        "roll": "WPE-31",
+        "department": "Wet Process Engineering",
+        "whatsapp": "01875403961",
+        "facebook": "https://www.facebook.com/share/19hmW8z45f/",
+        "photoUrl": "https://lh3.googleusercontent.com/d/1Fwv18-j_pWe4qqAak6z2A1_W5ctWggYT"
+      },
+      "payment": {
+        "bkashNumber": "01619455398",
+        "transactionId": "DJ1697HXL4"
+      }
+    }
+  },
+  {
+    "registrationId": "TPC-060815-07",
+    "submissionDate": "2026-10-01 23:05:04",
+    "paymentStatus": "Approved",
+    "teamName": "TITAN",
+    "leaderRoll": "25040301006",
+    "m1Roll": "25040301008",
+    "m2Roll": "25040301015",
+    "transactionId": "DJ198XB3Y5",
+    "editCount": 0,
+    "maxEdits": 2,
+    "payload": {
+      "teamName": "TITAN",
+      "leader": {
+        "name": "Ahosan Habib",
+        "roll": "25040301006",
+        "department": "Wet Process Engineering",
+        "whatsapp": "01783769016",
+        "facebook": "https://www.facebook.com/share/1SiE2PCtn5/",
+        "email": "ahosanhabib12080@gmail.com",
+        "photoUrl": "https://lh3.googleusercontent.com/d/1ZZcxS3Ay1p_35Sj2fUbBw1M7QUdi8QTr"
+      },
+      "member1": {
+        "name": "Md.Al-Amin",
+        "roll": "25040301008",
+        "department": "Wet Process Engineering",
+        "whatsapp": "01572903383",
+        "facebook": "https://www.facebook.com/md.alamin.hawladar.fahim",
+        "photoUrl": "https://lh3.googleusercontent.com/d/1ABzJY-M-brV2DaRAfnwNZoTdymMIqhNr"
+      },
+      "member2": {
+        "name": "Munemu Farhan Nibir",
+        "roll": "25040301015",
+        "department": "Wet Process Engineering",
+        "whatsapp": "01521789815",
+        "facebook": "https://www.facebook.com/share/1Q9oZmH1XQ/",
+        "photoUrl": "https://lh3.googleusercontent.com/d/1jdM_ltg8LlKf5lGpAXCW2BQcThZ8ZsW-"
+      },
+      "payment": {
+        "bkashNumber": "01783769016",
+        "transactionId": "DJ198XB3Y5"
+      }
+    }
+  },
+  {
+    "registrationId": "TPC-88-08",
+    "submissionDate": "06/10/2026, 23:16:00",
+    "paymentStatus": "Pending",
+    "teamName": "Phoenix Innovators",
+    "leaderRoll": "24040101088",
+    "m1Roll": "",
+    "m2Roll": "",
+    "transactionId": "TRXPHOENIX88",
+    "editCount": 0,
+    "maxEdits": 3,
+    "payload": {
+      "teamName": "Phoenix Innovators",
+      "teamSize": 1,
+      "leader": {
+        "name": "Tanvir Ahmed",
+        "roll": "24040101088",
+        "department": "Apparel Engineering",
+        "whatsapp": "01788889999",
+        "facebook": "https://facebook.com/tanvir",
+        "email": "tanvir@example.com"
+      },
+      "payment": {
+        "bkashNumber": "01788889999",
+        "transactionId": "TRXPHOENIX88"
+      },
+      "member1": {
+        "name": "N/A",
+        "roll": "N/A",
+        "department": "N/A",
+        "whatsapp": "N/A",
+        "facebook": "N/A",
+        "email": "N/A",
+        "photoUrl": "N/A"
+      },
+      "member2": {
+        "name": "N/A",
+        "roll": "N/A",
+        "department": "N/A",
+        "whatsapp": "N/A",
+        "facebook": "N/A",
+        "email": "N/A",
+        "photoUrl": "N/A"
+      },
+      "websiteUrl": "https://ais-pre-6zeawg7kx2bdfewoufqpj5-305877422476.asia-southeast1.run.app"
+    }
+  }
+]

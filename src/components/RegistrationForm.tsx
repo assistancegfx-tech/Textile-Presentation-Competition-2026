@@ -398,8 +398,8 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
         console.warn('Backend API submission warning, attempting direct Google Apps Script sync:', fetchErr);
       }
 
-      // If backend was unreachable or returned static fallback and storedScriptUrl is set, try direct POST to Google Apps Script
-      if ((!data || data.source !== 'google_sheets') && storedScriptUrl && storedScriptUrl.startsWith('http')) {
+      // If backend was unreachable and storedScriptUrl is set, try direct POST to Google Apps Script
+      if ((!data || !data.success) && storedScriptUrl && storedScriptUrl.startsWith('http')) {
         try {
           const directScriptRes = await fetch(storedScriptUrl, {
             method: 'POST',
@@ -493,6 +493,9 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
         localStorage.setItem('tpc2026_saved_registrations', JSON.stringify(list));
         localStorage.setItem('tpc2026_last_reg_id', regId);
         localStorage.setItem('tpc2026_latest_submission', JSON.stringify({ result: data, formData: normalizedFormData }));
+        try {
+          window.dispatchEvent(new CustomEvent('tpc2026_registration_updated', { detail: record }));
+        } catch (_) {}
 
         // Attempt background sync with server if available
         fetch('/api/registration/sync', {

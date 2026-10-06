@@ -384,6 +384,82 @@ function loadEnvFile() {
 }
 loadEnvFile();
 
+// Persistent Disk Storage (.data directory) so registrations are never lost across restarts
+const DATA_DIR = path.join(process.cwd(), '.data');
+const REGISTRATIONS_FILE = path.join(DATA_DIR, 'registrations.json');
+const BLITZ_FILE = path.join(DATA_DIR, 'blitz-registrations.json');
+
+function ensureDataDir() {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+  } catch (_) {}
+}
+
+function saveRegistrationsToDisk() {
+  try {
+    ensureDataDir();
+    fs.writeFileSync(REGISTRATIONS_FILE, JSON.stringify(registrationsStore, null, 2), 'utf8');
+    console.log(`[STORAGE] Persisted ${registrationsStore.length} registrations to disk.`);
+  } catch (err: any) {
+    console.warn('[STORAGE] Could not write registrations to disk:', err.message);
+  }
+}
+
+function saveBlitzRegistrationsToDisk() {
+  try {
+    ensureDataDir();
+    fs.writeFileSync(BLITZ_FILE, JSON.stringify(blitzRegistrationsStore, null, 2), 'utf8');
+    console.log(`[STORAGE] Persisted ${blitzRegistrationsStore.length} blitz registrations to disk.`);
+  } catch (err: any) {
+    console.warn('[STORAGE] Could not write blitz registrations to disk:', err.message);
+  }
+}
+
+function loadRegistrationsFromDisk() {
+  try {
+    ensureDataDir();
+    if (fs.existsSync(REGISTRATIONS_FILE)) {
+      const content = fs.readFileSync(REGISTRATIONS_FILE, 'utf8');
+      const data = JSON.parse(content);
+      if (Array.isArray(data)) {
+        for (const item of data) {
+          if (!item || !item.registrationId) continue;
+          const idx = registrationsStore.findIndex(r => r.registrationId.toUpperCase() === item.registrationId.toUpperCase());
+          if (idx === -1) {
+            registrationsStore.push(item);
+          } else {
+            if (item.payload) registrationsStore[idx].payload = item.payload;
+            if (item.paymentStatus) registrationsStore[idx].paymentStatus = item.paymentStatus;
+            if (typeof item.editCount === 'number') registrationsStore[idx].editCount = item.editCount;
+          }
+        }
+        console.log(`[STORAGE] Loaded registrations from disk (Total: ${registrationsStore.length}).`);
+      }
+    }
+    if (fs.existsSync(BLITZ_FILE)) {
+      const content = fs.readFileSync(BLITZ_FILE, 'utf8');
+      const data = JSON.parse(content);
+      if (Array.isArray(data)) {
+        for (const item of data) {
+          if (!item || !item.registrationId) continue;
+          const idx = blitzRegistrationsStore.findIndex(b => b.registrationId.toUpperCase() === item.registrationId.toUpperCase());
+          if (idx === -1) {
+            blitzRegistrationsStore.push(item);
+          }
+        }
+        console.log(`[STORAGE] Loaded blitz registrations from disk (Total: ${blitzRegistrationsStore.length}).`);
+      }
+    }
+  } catch (err: any) {
+    console.warn('[STORAGE] Could not load registrations from disk:', err.message);
+  }
+}
+
+// Immediately load any stored submissions from disk
+loadRegistrationsFromDisk();
+
 export const app = express();
 
 // Standard CORS & OPTIONS handler
@@ -1174,6 +1250,7 @@ app.use((req, _res, next) => {
         maxEdits: 3,
         payload: data
       });
+      saveBlitzRegistrationsToDisk();
 
       return res.status(200).json({
         success: true,
@@ -1711,7 +1788,8 @@ app.use((req, _res, next) => {
               'Accept': 'application/json, text/plain, */*'
             },
             body: JSON.stringify(data),
-            redirect: 'follow'
+            redirect: 'follow',
+            signal: AbortSignal.timeout(6500)
           });
 
           const rawText = await scriptResponse.text();
@@ -1735,7 +1813,7 @@ app.use((req, _res, next) => {
             }
 
             console.warn('[REGISTRATION] Google Sheets sync notice:', errMsg);
-            // Fall back to server memory registry so user registration is not lost
+            // Fall back to server memory & disk registry so user registration is not lost
           } else {
             const regId = scriptData.registrationId || defaultRegId;
             const nowStr = scriptData.submissionDate || new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' });
@@ -1755,6 +1833,7 @@ app.use((req, _res, next) => {
               maxEdits: 3,
               payload: data
             });
+            saveRegistrationsToDisk();
 
             const emailSent = scriptData.emailSent !== undefined ? Boolean(scriptData.emailSent) : Boolean(leader.email);
             const emailRecipient = scriptData.emailRecipient || leader.email || '';
@@ -1778,7 +1857,7 @@ app.use((req, _res, next) => {
           }
         } catch (fetchErr: any) {
           console.error('[REGISTRATION] Google Apps Script connection network error:', fetchErr.message);
-          // Fall back to server memory registry
+          // Fall back to server memory & disk registry
         }
       }
 
@@ -1803,6 +1882,7 @@ app.use((req, _res, next) => {
         maxEdits: 3,
         payload: data
       });
+      saveRegistrationsToDisk();
 
       const leaderEmail = leader.email || '';
 
@@ -2068,6 +2148,8 @@ app.use((req, _res, next) => {
     if (blitzReg) {
       blitzReg.paymentStatus = newStatus as any;
     }
+    saveRegistrationsToDisk();
+    saveBlitzRegistrationsToDisk();
 
     // Also forward update to Google Apps Script if configured
     const targetScriptUrl = process.env.GOOGLE_SCRIPT_URL || process.env.VITE_GOOGLE_SCRIPT_URL || DEFAULT_SCRIPT_URL;
@@ -2420,6 +2502,8 @@ app.use((req, _res, next) => {
     if (bIdx >= 0) {
       blitzRegistrationsStore.splice(bIdx, 1);
     }
+    saveRegistrationsToDisk();
+    saveBlitzRegistrationsToDisk();
 
     return res.json({
       success: true,
@@ -2460,6 +2544,7 @@ app.use((req, _res, next) => {
     } else {
       registrationsStore.push(storedItem);
     }
+    saveRegistrationsToDisk();
 
     return res.json({ success: true });
   });
@@ -2626,6 +2711,7 @@ app.use((req, _res, next) => {
       }
 
       const remaining = Math.max(0, 3 - reg.editCount);
+      saveRegistrationsToDisk();
 
       return res.json({
         success: true,

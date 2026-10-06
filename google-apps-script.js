@@ -448,12 +448,12 @@ function setupBlitzSheet(ss) {
  * Handles incoming Textile Blitz Writing registration and appends to the Blitz tab
  */
 function handleBlitzRegistration(blitzSheet, data) {
-  // Check registration deadline: 5 October 2026, 11:59:59 PM BST (UTC+6)
-  const DEADLINE_TIMESTAMP = new Date("2026-10-05T23:59:59+06:00").getTime();
+  // Check registration deadline: 7 October 2026, 11:59:59 PM BST (UTC+6)
+  const DEADLINE_TIMESTAMP = new Date("2026-10-07T23:59:59+06:00").getTime();
   if (new Date().getTime() > DEADLINE_TIMESTAMP) {
     return createResponse({
       success: false,
-      error: "Registration is officially closed. The deadline was 5 October 2026, 11:59 PM BST."
+      error: "Registration is officially closed. The deadline was 7 October 2026, 11:59 PM BST."
     });
   }
 
@@ -2061,13 +2061,13 @@ function doPost(e) {
     // =========================================================================
     // ACTION 2: NEW REGISTRATION SUBMISSION (25 COLUMNS WITH TEAM NAME)
     // =========================================================================
-    // Check registration deadline: 5 October 2026, 11:59:59 PM BST (UTC+6)
-    const DEADLINE_TIMESTAMP = new Date("2026-10-05T23:59:59+06:00").getTime();
+    // Check registration deadline: 7 October 2026, 11:59:59 PM BST (UTC+6)
+    const DEADLINE_TIMESTAMP = new Date("2026-10-07T23:59:59+06:00").getTime();
     if (new Date().getTime() > DEADLINE_TIMESTAMP) {
       return createResponse({
         success: false,
         status: "error",
-        error: "Registration is officially closed. The deadline was 5 October 2026, 11:59 PM BST."
+        error: "Registration is officially closed. The deadline was 7 October 2026, 11:59 PM BST."
       });
     }
 
